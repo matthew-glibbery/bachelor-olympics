@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent } from "react";
 import Image from "next/image";
-import { ImageUp, Pencil, Play, X } from "lucide-react";
+import { ImageUp, Pencil, Play, RotateCcw, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import { RankedResultsEditor } from "@/components/ranked-results-editor";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   cancelEvent,
+  resetEvent,
   setEventStatus,
   updateEventPhoto,
   upsertEventResults,
@@ -48,6 +49,7 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
 
   const [editing, setEditing] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,6 +155,20 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
     }
   }
 
+  async function doReset() {
+    setBusy(true);
+    setError(null);
+    try {
+      await resetEvent(client, event.id);
+      setConfirmingReset(false);
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function toggleTie(playerId: string) {
     setTied((prev) => {
       const next = new Set(prev);
@@ -228,6 +244,27 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
                 {event.status === "resolved" ? "Edit results" : "Enter results"}
               </Button>
             ) : null}
+            {confirmingReset ? (
+              <>
+                <span className="text-sm">Clear results and reset to not started?</span>
+                <Button size="sm" variant="destructive" onClick={doReset} disabled={busy}>
+                  Yes, reset
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setConfirmingReset(false)}>
+                  No
+                </Button>
+              </>
+            ) : event.status !== "planned" ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground"
+                onClick={() => setConfirmingReset(true)}
+              >
+                <RotateCcw className="size-4" />
+                Reset event
+              </Button>
+            ) : null}
             {confirmingCancel ? (
               <>
                 <span className="text-sm">Cancel this event?</span>
@@ -296,7 +333,7 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
             </div>
           </div>
         ) : event.status !== "planned" ? (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 border-t pt-3 text-sm">
+          <div className="flex flex-col gap-1 border-t pt-3 text-sm">
             {players.map((p) => {
               const r = results.find((x) => x.player_id === p.id);
               const value = isPlacement ? r?.position : r?.raw;
@@ -304,7 +341,7 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
                 <span
                   key={p.id}
                   className={cn(
-                    "flex items-center gap-1",
+                    "flex items-center justify-between gap-2",
                     value == null && "text-muted-foreground",
                   )}
                 >

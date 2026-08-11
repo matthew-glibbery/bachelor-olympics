@@ -87,6 +87,65 @@ export async function cancelEvent(
   if (error) throw new Error(`cancelEvent: ${error.message}`);
 }
 
+/**
+ * Reset a single event: delete its results and set it back to "planned".
+ * Distinct from cancelEvent — the event itself, its photo, and any
+ * multiplier allocations for it stay put; going back to "planned" simply
+ * re-unlocks multipliers for it (locking is derived from status !==
+ * "planned", not a stored flag) so players can redo the event as if it
+ * hadn't started scoring yet.
+ */
+export async function resetEvent(client: SupabaseClient, eventId: string): Promise<void> {
+  const { error: resultsError } = await client
+    .from("event_results")
+    .delete()
+    .eq("event_id", eventId);
+  if (resultsError) throw new Error(`resetEvent (results): ${resultsError.message}`);
+
+  const { error: statusError } = await client
+    .from("events")
+    .update({ status: "planned" })
+    .eq("id", eventId);
+  if (statusError) throw new Error(`resetEvent (status): ${statusError.message}`);
+}
+
+/**
+ * Full weekend reset — wipes every table of weekend *activity* (results,
+ * multiplier allocations, all bet/vote/bonus-event/power-move state, and the
+ * groom's ranking) and puts every event back to "planned". Players and the
+ * app theme are left alone; this is for restarting the competition itself,
+ * not the roster or presentation. A destructive, rarely-used groom action —
+ * gated the same way as every other groom tool, with a confirm step in the
+ * UI since there's no undo.
+ */
+export async function resetWeekend(client: SupabaseClient): Promise<void> {
+  const wipes: [table: string, notNullColumn: string][] = [
+    ["event_results", "event_id"],
+    ["multipliers", "player_id"],
+    ["overall_bets", "player_id"],
+    ["per_event_bets", "player_id"],
+    ["bonus_events", "id"],
+    ["peer_award_votes", "id"],
+    ["groom_ranking", "player_id"],
+  ];
+  for (const [table, column] of wipes) {
+    const { error } = await client.from(table).delete().not(column, "is", null);
+    if (error) throw new Error(`resetWeekend (${table}): ${error.message}`);
+  }
+
+  const { error: eventsError } = await client
+    .from("events")
+    .update({ status: "planned" })
+    .neq("status", "planned");
+  if (eventsError) throw new Error(`resetWeekend (events): ${eventsError.message}`);
+
+  const { error: powerMoveError } = await client
+    .from("power_move")
+    .update({ used: false, note: null, used_at: null })
+    .eq("id", 1);
+  if (powerMoveError) throw new Error(`resetWeekend (power_move): ${powerMoveError.message}`);
+}
+
 export async function updateEventPhoto(
   client: SupabaseClient,
   eventId: string,

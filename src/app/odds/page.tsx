@@ -165,12 +165,12 @@ export default function OddsPage() {
                   ) : (
                     <ShieldCheck className="text-primary size-4" />
                   )}
-                  Set the ranking
+                  Groom tools
                 </CardTitle>
                 <CardDescription>
                   {locked
-                    ? "Locked — the weekend has already started, this is set once upfront."
-                    : "Drag to order everyone strongest (top) to weakest (bottom). Private — only used to generate the odds above."}
+                    ? "Ranking locked — the weekend has already started, this is set once upfront."
+                    : "Set the ranking: drag to order everyone strongest (top) to weakest (bottom). Private — only used to generate the odds above."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
