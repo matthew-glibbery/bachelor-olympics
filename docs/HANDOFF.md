@@ -2,6 +2,72 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-11 — Live Supabase project wired up, data layer + store built
+
+User created a real Supabase project and ran migrations 0001 + 0002. Branch
+`matthew/phase-1-data-store`, on the stack tip. 84 tests; all gates green;
+**verified against the live project**, not just typechecked:
+
+- `src/app/api/groom/unlock/route.ts` — checks the PIN server-side against
+  `process.env.GROOM_PIN` (no `NEXT_PUBLIC_` prefix), so it never ships in the
+  client bundle. Verified live: wrong PIN → `{ok:false}`, correct PIN → `{ok:true}`.
+- `src/lib/data/queries.ts` + `mutations.ts` — thin Supabase wrappers
+  (fetch/add/remove players, fetch events/results/multipliers, idempotent
+  `seedEvents`). Verified live: add → fetch → remove round-tripped correctly
+  and left the DB exactly as before (no orphaned test rows).
+- `src/lib/scoring/fromRows.ts` (+test) — pure bridge from DB rows to
+  `EventScoreLine[]` (only `resolved` events score; `cancelled` excluded per
+  spec). DB-agnostic and unit-tested.
+- `src/store/gameStore.ts` — zustand store: fetches players/events/results/
+  multipliers once, then a single Realtime channel refetches everything on any
+  change to those tables (simple + cheap at 8-player scale).
+- `src/store/sessionStore.ts` — zustand wrapper over `src/lib/session/identity.ts`,
+  wired to `/api/groom/unlock`.
+- `src/app/setup/page.tsx` — real screen: pick which player you are; groom-PIN
+  gated "add player" form (name, nickname, US state, is-groom checkbox).
+- `src/app/page.tsx` — Medal Table now reads live store data instead of demo
+  seed data (`src/lib/demo.ts` deleted).
+- `scripts/seed-events.ts` (`npm run seed:events`) — ran live: all 9 events
+  from `src/lib/events/config.ts` seeded into the real `events` table, verified
+  by direct query.
+- Hand-wrote `ui/input.tsx` + `ui/label.tsx` (shadcn registry unreachable
+  in-sandbox, same reason as `ui/table.tsx` earlier).
+
+**Found and fixed via live testing:** Realtime subscriptions returned
+`SUBSCRIBED` but produced zero `postgres_changes` events on a real insert — new
+Supabase projects don't auto-add tables to the `supabase_realtime` publication.
+Added `supabase/migrations/0003_realtime.sql` (`alter publication
+supabase_realtime add table ...` for every game table). **User needs to run
+this one too** (SQL Editor, same as 0001/0002) before Realtime actually works;
+re-verify with the probe script below once it's run.
+
+Local dev note: this machine sits behind corporate TLS interception (Zscaler).
+`curl`/browsers trust it via the macOS keychain; Node's `fetch` doesn't by
+default. Fix: export the "Zscaler Root CA" cert from Keychain Access and set
+`NODE_EXTRA_CA_CERTS` to its path before running `npm run dev` / any script
+that calls Supabase from Node. Not needed for the browser itself. Cert file
+intentionally not committed (kept in a scratch dir).
+
+Realtime re-verify probe (self-terminating, cleans up its own test row):
+```
+NODE_EXTRA_CA_CERTS=<path> npx tsx -e "
+import { createClient } from '@supabase/supabase-js';
+process.loadEnvFile?.('.env.local');
+const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+const ch = client.channel('probe').on('postgres_changes', {event:'*',schema:'public',table:'players'}, (p) => console.log('EVENT', p.eventType));
+ch.subscribe(async (status) => {
+  if (status === 'SUBSCRIBED') {
+    const { data } = await client.from('players').insert({ name: '__probe__', state: 'CA' }).select().single();
+    setTimeout(async () => { await client.from('players').delete().eq('id', data.id); process.exit(0); }, 3000);
+  }
+});
+"
+```
+
+**Remaining for full Phase 2:** event board, groom score entry, multiplier
+sliders with the zero-sum gate — all straightforward once Realtime is
+confirmed, following the same store pattern as the medal table.
+
 ## 2026-08-11 — Auth decided + session/identity + RLS
 
 **Decision:** shared-link **name picker** (no accounts). Branch

@@ -6,6 +6,7 @@ import {
   isGroomUnlocked,
   KeyValueStorage,
   lockGroom,
+  markGroomUnlocked,
   selectPlayer,
   unlockGroom,
 } from "./identity";
@@ -73,5 +74,10 @@ describe("groom PIN gate", () => {
     unlockGroom(storage, "1234", "1234");
     lockGroom(storage);
     expect(isGroomUnlocked(storage)).toBe(false);
+  });
+
+  it("markGroomUnlocked persists the flag without re-checking a PIN", () => {
+    markGroomUnlocked(storage);
+    expect(isGroomUnlocked(storage)).toBe(true);
   });
 });

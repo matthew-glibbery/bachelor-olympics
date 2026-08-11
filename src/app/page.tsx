@@ -1,4 +1,9 @@
-import { Medal } from "lucide-react";
+"use client";
+
+import { useEffect } from "react";
+import { Medal, Settings2 } from "lucide-react";
+import Link from "next/link";
+
 import {
   Card,
   CardHeader,
@@ -6,17 +11,43 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { MedalTable } from "@/components/medal-table";
-import { DEMO_PLAYERS, DEMO_SCORE_LINES } from "@/lib/demo";
+import type { MedalTablePlayer } from "@/components/medal-table";
+import { useGameStore } from "@/store/gameStore";
+import { deriveScoreLines } from "@/lib/scoring/fromRows";
 
 export default function Home() {
+  const { players, events, eventResults, multipliers, connect, loading, error, ready } =
+    useGameStore();
+
+  useEffect(() => {
+    connect();
+  }, [connect]);
+
+  const medalPlayers: MedalTablePlayer[] = players.map((p) => ({
+    id: p.id,
+    name: p.name,
+    nickname: p.nickname,
+    state: p.state ?? "??",
+  }));
+  const scoreLines = deriveScoreLines(events, eventResults, multipliers);
+
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 py-12">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Bachelor Olympics</h1>
-        <p className="text-muted-foreground text-sm">
-          Eight events. Eight competitors. One medal table.
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-semibold tracking-tight">Bachelor Olympics</h1>
+          <p className="text-muted-foreground text-sm">
+            Eight events. Eight competitors. One medal table.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/setup">
+            <Settings2 className="size-4" />
+            Setup
+          </Link>
+        </Button>
       </header>
 
       <Card>
@@ -27,12 +58,24 @@ export default function Home() {
           </CardTitle>
           <CardDescription>
             Live standings — raw event points and multiplier-adjusted totals.
-            {" "}
-            <span className="italic">Demo data, pending the live data layer.</span>
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <MedalTable players={DEMO_PLAYERS} scoreLines={DEMO_SCORE_LINES} />
+          {error ? (
+            <p className="text-destructive text-sm">{error}</p>
+          ) : !ready && loading ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : medalPlayers.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No competitors yet —{" "}
+              <Link href="/setup" className="underline">
+                add players in Setup
+              </Link>{" "}
+              to get started.
+            </p>
+          ) : (
+            <MedalTable players={medalPlayers} scoreLines={scoreLines} />
+          )}
         </CardContent>
       </Card>
     </main>

@@ -50,8 +50,18 @@ export function unlockGroom(
   expected: string,
 ): boolean {
   if (!isGroomPinValid(entered, expected)) return false;
-  storage.setItem(GROOM_UNLOCKED_KEY, "1");
+  markGroomUnlocked(storage);
   return true;
+}
+
+/**
+ * Persist the groom-unlocked flag directly, without re-checking a PIN. Used
+ * after the PIN has already been verified server-side (see
+ * /api/groom/unlock) — the real PIN never needs to reach this module in that
+ * flow, only the confirmation that it matched.
+ */
+export function markGroomUnlocked(storage: KeyValueStorage): void {
+  storage.setItem(GROOM_UNLOCKED_KEY, "1");
 }
 
 /** Whether the groom tools are unlocked on this device. */

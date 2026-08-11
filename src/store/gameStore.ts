@@ -1,0 +1,108 @@
+/**
+ * Live game state — the ONLY thing components should read game data from.
+ * Hydrates from Supabase on load, then keeps itself in sync via Realtime.
+ * Components never import Supabase directly; this keeps the UI testable and
+ * backend-agnostic (see CLAUDE.md / docs/PRODUCT_SPEC.md for why).
+ */
+import { create } from "zustand";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  fetchEventResults,
+  fetchEvents,
+  fetchMultipliers,
+  fetchPlayers,
+} from "@/lib/data/queries";
+import type {
+  EventResultRow,
+  EventRow,
+  MultiplierRow,
+  PlayerRow,
+} from "@/lib/data/database.types";
+
+const REALTIME_TABLES = [
+  "players",
+  "events",
+  "event_results",
+  "multipliers",
+] as const;
+
+interface GameState {
+  players: PlayerRow[];
+  events: EventRow[];
+  eventResults: EventResultRow[];
+  multipliers: MultiplierRow[];
+  loading: boolean;
+  error: string | null;
+  /** True once the initial fetch + realtime subscription have completed. */
+  ready: boolean;
+  /** Fetch everything once and subscribe to live changes. Safe to call once. */
+  connect: () => Promise<void>;
+  /** Tear down the realtime subscription (e.g. on unmount in tests/storybook). */
+  disconnect: () => void;
+}
+
+let channel: RealtimeChannel | undefined;
+
+export const useGameStore = create<GameState>((set, get) => ({
+  players: [],
+  events: [],
+  eventResults: [],
+  multipliers: [],
+  loading: false,
+  error: null,
+  ready: false,
+
+  connect: async () => {
+    if (get().ready || get().loading) return;
+    set({ loading: true, error: null });
+
+    const client = getSupabaseBrowserClient();
+    try {
+      const [players, events, eventResults, multipliers] = await Promise.all([
+        fetchPlayers(client),
+        fetchEvents(client),
+        fetchEventResults(client),
+        fetchMultipliers(client),
+      ]);
+      set({ players, events, eventResults, multipliers, loading: false, ready: true });
+    } catch (err) {
+      set({ loading: false, error: err instanceof Error ? err.message : String(err) });
+      return;
+    }
+
+    // Any change on any game table triggers a full refetch. Simpler and safer
+    // than patching individual rows in place, and cheap enough at this scale
+    // (8 players, 8-9 events) to just re-pull everything on every change.
+    channel = client
+      .channel("game-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "players" }, () =>
+        refetch(client, set),
+      );
+    for (const table of REALTIME_TABLES.slice(1)) {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, () =>
+        refetch(client, set),
+      );
+    }
+    channel.subscribe();
+  },
+
+  disconnect: () => {
+    channel?.unsubscribe();
+    channel = undefined;
+    set({ ready: false });
+  },
+}));
+
+async function refetch(
+  client: ReturnType<typeof getSupabaseBrowserClient>,
+  set: (partial: Partial<GameState>) => void,
+) {
+  const [players, events, eventResults, multipliers] = await Promise.all([
+    fetchPlayers(client),
+    fetchEvents(client),
+    fetchEventResults(client),
+    fetchMultipliers(client),
+  ]);
+  set({ players, events, eventResults, multipliers });
+}
