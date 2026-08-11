@@ -13,6 +13,7 @@ import {
   fetchEvents,
   fetchGroomRanking,
   fetchMultipliers,
+  fetchOverallBets,
   fetchPlayers,
 } from "@/lib/data/queries";
 import type {
@@ -21,6 +22,7 @@ import type {
   EventRow,
   GroomRankingRow,
   MultiplierRow,
+  OverallBetRow,
   PlayerRow,
 } from "@/lib/data/database.types";
 
@@ -31,6 +33,7 @@ const REALTIME_TABLES = [
   "multipliers",
   "app_settings",
   "groom_ranking",
+  "overall_bets",
 ] as const;
 
 interface GameState {
@@ -39,6 +42,7 @@ interface GameState {
   eventResults: EventResultRow[];
   multipliers: MultiplierRow[];
   groomRanking: GroomRankingRow[];
+  overallBets: OverallBetRow[];
   appSettings: AppSettingsRow | null;
   loading: boolean;
   error: string | null;
@@ -58,6 +62,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   eventResults: [],
   multipliers: [],
   groomRanking: [],
+  overallBets: [],
   appSettings: null,
   loading: false,
   error: null,
@@ -69,13 +74,15 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const client = getSupabaseBrowserClient();
     try {
-      const [players, events, eventResults, multipliers, groomRanking] = await Promise.all([
-        fetchPlayers(client),
-        fetchEvents(client),
-        fetchEventResults(client),
-        fetchMultipliers(client),
-        fetchGroomRanking(client),
-      ]);
+      const [players, events, eventResults, multipliers, groomRanking, overallBets] =
+        await Promise.all([
+          fetchPlayers(client),
+          fetchEvents(client),
+          fetchEventResults(client),
+          fetchMultipliers(client),
+          fetchGroomRanking(client),
+          fetchOverallBets(client),
+        ]);
       // Fetched separately and allowed to fail without taking down the rest
       // of the app: app_settings is a newer table, so until its migration has
       // been run against a given project this would otherwise throw and
@@ -88,6 +95,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         eventResults,
         multipliers,
         groomRanking,
+        overallBets,
         appSettings,
         loading: false,
         ready: true,
@@ -124,13 +132,15 @@ async function refetch(
   client: ReturnType<typeof getSupabaseBrowserClient>,
   set: (partial: Partial<GameState>) => void,
 ) {
-  const [players, events, eventResults, multipliers, groomRanking] = await Promise.all([
-    fetchPlayers(client),
-    fetchEvents(client),
-    fetchEventResults(client),
-    fetchMultipliers(client),
-    fetchGroomRanking(client),
-  ]);
+  const [players, events, eventResults, multipliers, groomRanking, overallBets] =
+    await Promise.all([
+      fetchPlayers(client),
+      fetchEvents(client),
+      fetchEventResults(client),
+      fetchMultipliers(client),
+      fetchGroomRanking(client),
+      fetchOverallBets(client),
+    ]);
   const appSettings = await fetchAppSettings(client).catch(() => null);
-  set({ players, events, eventResults, multipliers, groomRanking, appSettings });
+  set({ players, events, eventResults, multipliers, groomRanking, overallBets, appSettings });
 }

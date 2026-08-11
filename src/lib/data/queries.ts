@@ -11,6 +11,7 @@ import type {
   EventRow,
   GroomRankingRow,
   MultiplierRow,
+  OverallBetRow,
   PlayerRow,
 } from "./database.types";
 import { eventSeedRows } from "./events";
@@ -55,6 +56,12 @@ export async function fetchGroomRanking(
 ): Promise<GroomRankingRow[]> {
   const rows = await selectAll<GroomRankingRow>(client, "groom_ranking");
   return [...rows].sort((a, b) => a.rank - b.rank);
+}
+
+/** Every overall ("who wins it all") bet placed so far (PRODUCT_SPEC.md →
+ * Overall betting). */
+export function fetchOverallBets(client: SupabaseClient): Promise<OverallBetRow[]> {
+  return selectAll<OverallBetRow>(client, "overall_bets");
 }
 
 /** The single shared app_settings row (currently just the active theme). */
