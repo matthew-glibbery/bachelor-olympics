@@ -2,6 +2,32 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-11 — Auth decided + session/identity + RLS
+
+**Decision:** shared-link **name picker** (no accounts). Branch
+`matthew/phase-1-auth-session`, on the stack tip. 79 tests; all gates green.
+
+- `supabase/migrations/0002_rls.sql` — RLS for the trusted-friends model:
+  enable RLS on all game tables, permissive anon read/write. The trust boundary
+  is the link; the groom gate is app-level (PIN), not DB. Documented how to swap
+  to `auth.uid()` policies if we ever move to magic-link auth.
+- `src/lib/session/identity.ts` (+test) — pure player-picker + groom-PIN gate
+  behind a `KeyValueStorage` interface. Blank PIN never unlocks.
+- `src/lib/session/browserStorage.ts` — SSR-safe localStorage adapter.
+
+**Still deferred (needs a live Supabase project — can't provision in-sandbox):**
+the data-access query/Realtime layer (`src/lib/data/*`) and the zustand store
+(`src/store`). Design is settled now, though: store hydrates from Supabase +
+subscribes to Realtime; identity comes from the session module; groom writes
+gated by `isGroomUnlocked`. The `GROOM_PIN` needs an env var (add to
+`.env.example` when the store lands).
+
+**Next once a project exists:** create Supabase project → paste creds into
+`.env.local` → run both migrations → build `src/lib/data/*` + `src/store` →
+swap the medal table off `src/lib/demo.ts` onto the store → then the remaining
+Phase 2 screens (player setup/state picker, event board, score entry,
+multiplier sliders with the zero-sum gate).
+
 ## 2026-08-10 — Phase 2 flags + medal table (decision-independent slice)
 
 Branch `matthew/phase-2-flags-medal-table`, stacked on Phase 1. Built the
