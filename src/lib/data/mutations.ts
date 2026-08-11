@@ -3,7 +3,7 @@
  * src/lib/data/queries.ts — no business logic here.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { EventRow, EventStatus, PlayerRow } from "./database.types";
+import type { EventRow, EventStatus, OverallBetRow, PlayerRow } from "./database.types";
 
 export interface NewPlayer {
   name: string;
@@ -227,6 +227,62 @@ export async function setGroomRanking(
   if (ranking.length === 0) return;
   const { error: insertError } = await client.from("groom_ranking").insert(ranking);
   if (insertError) throw new Error(`setGroomRanking (insert): ${insertError.message}`);
+}
+
+export interface NewOverallBet {
+  player_id: string;
+  bet_type: "win" | "top3" | "last";
+  pick_player_id: string;
+}
+
+/**
+ * Place a new overall bet — PRODUCT_SPEC.md → Overall betting. One row per
+ * (player, bet_type); the UI is responsible for offering "switch" instead
+ * of a second placement once one exists for that type, since a duplicate
+ * insert isn't rejected at the DB level (no unique constraint on
+ * player_id+bet_type in 0001_init.sql).
+ */
+export async function placeOverallBet(
+  client: SupabaseClient,
+  bet: NewOverallBet,
+): Promise<OverallBetRow> {
+  const { data, error } = await client
+    .from("overall_bets")
+    .insert(bet)
+    .select()
+    .single();
+  if (error) throw new Error(`placeOverallBet: ${error.message}`);
+  return data as OverallBetRow;
+}
+
+/**
+ * Switch an existing bet to a new pick — only offered once the current pick
+ * is mathematically eliminated (PRODUCT_SPEC.md → Switching picks). Each
+ * switch halves the eventual payout (src/lib/betting/overall.ts →
+ * overallPayoutValue), so `switches` is incremented here, not left for the
+ * caller to compute and pass in — avoids a stale-read race between reading
+ * the current count and writing the new one.
+ */
+export async function switchOverallBetPick(
+  client: SupabaseClient,
+  betId: string,
+  newPickPlayerId: string,
+): Promise<OverallBetRow> {
+  const { data: current, error: fetchError } = await client
+    .from("overall_bets")
+    .select("switches")
+    .eq("id", betId)
+    .single();
+  if (fetchError) throw new Error(`switchOverallBetPick (read): ${fetchError.message}`);
+
+  const { data, error } = await client
+    .from("overall_bets")
+    .update({ pick_player_id: newPickPlayerId, switches: (current.switches as number) + 1 })
+    .eq("id", betId)
+    .select()
+    .single();
+  if (error) throw new Error(`switchOverallBetPick (write): ${error.message}`);
+  return data as OverallBetRow;
 }
 
 /** Set the shared app theme — applies live to every device via Realtime. */

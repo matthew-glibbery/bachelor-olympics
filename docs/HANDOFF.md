@@ -17,41 +17,44 @@ work — see the caveat in the log entry below:
   "Switch from npm to pnpm" log entry). Don't reintroduce npm/package-lock.json.
 - **8 real players** already set up in the live DB, one groom, real states,
   some photos uploaded. **Beach Volleyball** is the one resolved event so far.
-- **Five core screens** (shared bottom-floating-on-mobile nav,
+- **Six core screens** (shared bottom-floating-on-mobile nav,
   `src/components/app-nav.tsx`):
   - `/` — live cumulative progress chart (player photos as markers,
     flag-inspired colors, dataviz-skill-validated) + Medal Table.
   - `/events` — groom-gated event board: start scoring → drag-to-reorder
     placement results (or numeric for absolute events, e.g. golf) → finalize
-    → resolved. Ties via a "tied with row above" toggle. Cancel = hard delete
-    (per spec).
+    → resolved. Ties via a "tied with row above" toggle. Results list is
+    vertical (one player per row). Cancel = hard delete (per spec); Reset
+    clears results and reopens the event without deleting it.
   - `/multipliers` — per-player sliders, zero-sum budget gate, locks once an
     event leaves "planned."
   - `/odds` — groom's private strength ranking (drag-to-reorder, no ties,
-    now under a "Groom tools" card there) → win/top3/last payout odds for
+    under a "Groom tools" card there) → win/top3/last payout odds for
     everyone, visible to all.
+  - `/bets` — **new this session**: overall ("who wins it all") betting —
+    win/top3/last picks, flat 100-pt payout halved per switch, switching
+    gated on live mathematical elimination. See log entry below.
   - `/setup` ("Player Settings" in the nav, shows your name once picked) —
     player picker, groom PIN gate (`GROOM_PIN` env var, checked server-side
     via `/api/groom/unlock`), add/edit/remove players + photos, shared
-    tweakcn theme picker, and (**new this session**) a "Danger zone" card:
-    full weekend reset.
-- **All 6 Supabase migrations run** (0006 is new this session — see below):
-  schema, RLS (trusted-friends/shared-link model — no real accounts, the
-  link is the trust boundary), Realtime publication, photos (Storage
-  bucket), theme (`app_settings`), groom_ranking added to Realtime.
+    tweakcn theme picker, and a "Danger zone" card: full weekend reset.
+- **All 6 Supabase migrations run**: schema, RLS (trusted-friends/shared-link
+  model — no real accounts, the link is the trust boundary), Realtime
+  publication, photos (Storage bucket), theme (`app_settings`),
+  groom_ranking added to Realtime. No new migration this session —
+  `overall_bets` already had RLS + Realtime from 0002/0003.
 - Domain/scoring logic (`src/lib/scoring/*`, `src/lib/multipliers/*`,
-  `src/lib/betting/*`, `src/lib/odds/*`) is pure, unit-tested (111 tests),
+  `src/lib/betting/*`, `src/lib/odds/*`) is pure, unit-tested (114 tests),
   and matches `docs/PRODUCT_SPEC.md` — placement scoring rounds to whole
   numbers (100/72/52/37/27/19/14/10), per an explicit product decision from
   an earlier session.
 
 **Not built yet** (rest of Phase 3–4, `docs/PRODUCT_SPEC.md` has the rules):
-overall betting (win/top3/last picks, switch-pick halving, mathematical
-elimination), per-event multiplier betting, groom's one-time power move,
-peer award vote, on-the-fly bonus events. The pure math for overall/per-event
-betting already exists (`src/lib/betting/`) and now has real odds to consume
-(`src/lib/odds/` + the `/odds` screen, this session) — no UI or data-layer
-wiring yet for any of these five.
+per-event multiplier betting, groom's one-time power move, peer award vote,
+on-the-fly bonus events. Also **not built for overall betting specifically**:
+crediting the 100-pt payout onto a winning bettor's total once the weekend
+actually concludes — this session covers placing/switching bets and live
+elimination status, not final payout resolution (see the log entry below).
 
 **Environment quirk worth knowing**: this dev machine sits behind corporate
 TLS interception (Zscaler) and a corporate npm registry mirror. Both are
@@ -73,6 +76,77 @@ relevant log entries below if this bites again.
   and each `EventCard`) haven't been clicked against the live project yet —
   see the caveat in the log entry below. Worth an explicit try-it-out before
   trusting them at the actual event.
+- **Overall betting has no payout-resolution step yet.** `/bets` covers
+  placing a bet, live elimination status, and switching — but nothing adds
+  the 100 (or halved) points onto a winner's medal-table total once the
+  weekend ends. That needs a "the weekend is over, settle all bets" action
+  somewhere (probably another Setup → Danger-zone-adjacent groom action) that
+  reads final standings, checks each bet's pick against the actual result,
+  and feeds a payout into `playerTotals`/`standings` as a bonus line — same
+  shape of problem as the peer-award and bonus-event payouts, which are also
+  still unbuilt. Worth designing all three payout paths together rather than
+  three different ad hoc mechanisms.
+- The elimination bounds in `src/lib/betting/fromRows.ts` use the placement
+  curve's last-place value as the floor for *every* remaining event, even
+  ones that turn out absolute-scored (where a real blowout could score
+  closer to 0). Documented as a deliberate, conservative-direction judgment
+  call in that file's header — flag if it ever causes a pick to read "alive"
+  longer than feels right in practice.
+
+## 2026-08-11 — Overall betting: place, switch, live elimination
+
+114 tests (3 new — `src/lib/betting/fromRows.test.ts`), lint/typecheck/
+test/build all green, dev-server smoke test of `/bets` and `/` (clean
+compile, 200s).
+
+Picked as the next Phase 3–4 slice, continuing on from the odds screen
+(explicit go-ahead: "continue with the next plan item"). No new migration —
+`overall_bets` already had RLS (`0002_rls.sql`) and Realtime
+(`0003_realtime.sql`) from Phase 1, unlike `groom_ranking` last session.
+
+- **`src/lib/betting/fromRows.ts`** (new, +test): bridges DB rows to the
+  `EliminationInput[]` that `isPickAlive` (already existed, Phase 0) needs.
+  Computes each player's current multiplier-adjusted total via the existing
+  `deriveScoreLines` + `playerTotals`, and shared max/min remaining-points
+  bounds via the existing `remainingBounds`, using the placement curve's
+  last-place value (rounded, matching how placement scores are stored) as
+  the pessimistic per-event floor — see the open-question note above for why
+  that's a documented approximation, not an exact derivation.
+- **Data layer**: `fetchOverallBets` (queries.ts) + `placeOverallBet` /
+  `switchOverallBetPick` (mutations.ts). One row per (player, bet_type) by
+  convention — there's no DB unique constraint enforcing that (schema
+  predates this session), so the UI is what prevents a duplicate placement
+  by switching to "switch" mode once a bet exists for that type.
+  `switchOverallBetPick` reads the current `switches` count and increments
+  server-side in the same call, rather than trusting a client-supplied
+  count, to avoid a stale-read race.
+- **Store**: `gameStore.ts` now fetches + realtime-subscribes to
+  `overall_bets` alongside everything else.
+- **UI**: `src/app/bets/page.tsx` — one card per bet type (win/top3/last).
+  Shows the current player's pick, live Alive/Eliminated badge, and the
+  payout value at their current switch count if they have one; a plain
+  picker + "Place bet" if they don't. Switching is **only offered once the
+  pick reads eliminated** (per spec: "if a player's pick becomes
+  mathematically eliminated... they get the option to switch"), and the
+  switch-to picker is filtered to still-alive players only. Below that, an
+  "Everyone's bets" card lists every bet with its live alive/eliminated
+  status — consistent with this app's "no suspense, visible to everyone"
+  design used everywhere else (medal table, odds).
+  - Deliberately did **not** gate bet placement on the groom having set a
+    ranking — the payout is flat regardless of pick (spec: "the odds already
+    reflect difficulty... the reward doesn't need to scale on top of that"),
+    so nothing about betting mechanically depends on odds existing, even
+    though the odds screen is what makes an *informed* pick possible.
+  - Also didn't restrict betting on yourself — the spec doesn't forbid it
+    and it's a harmless edge case (the "last place" joke bet on yourself is
+    arguably in the spirit of the thing).
+  - Added `/bets` to `app-nav.tsx` (Coins icon) — six links now in the
+    mobile floating nav; still fits, each item just gets a little tighter.
+- **Not independently screenshot-verified** — same standing limitation
+  (no browser driver, no live Supabase creds in this worktree). Dev-server
+  smoke test only. **Recommend an actual click-through** once deployed:
+  place a bet, resolve enough events to eliminate a pick, confirm the badge
+  flips and the switch picker appears with the right candidates.
 
 ## 2026-08-11 — Event results list, odds screen relabel, weekend/event reset
 
