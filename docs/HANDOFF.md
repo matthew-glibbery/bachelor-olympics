@@ -2,6 +2,32 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-10 — Phase 2 flags + medal table (decision-independent slice)
+
+Branch `matthew/phase-2-flags-medal-table`, stacked on Phase 1. Built the
+flags-next-to-names feature and the live medal table — the parts of Phase 2 that
+need neither auth nor Supabase, so they're fully verifiable now. 71 tests; all
+gates green; **verified rendering in the real dev server** (server-rendered
+standings, correct sort, flag `aria-label`s, podium medals).
+
+- `src/lib/states.ts` (+test) — USPS code ↔ name, picker options.
+- `src/components/flag.tsx` — the `Flag` chip. **Single swap seam** (`FlagGlyph`):
+  today an abbreviation chip; replace only that function with `<svg>`/`<img>` to
+  move to real state-flag assets. Every `<Flag state="TX" />` call site is stable.
+- `src/components/player-name.tsx` — flag + name + optional nickname, the
+  standard way to show a competitor anywhere.
+- `src/components/medal-table.tsx` — pure presentation over the Phase-0
+  `standings()`; feed it live data from the store later, no change needed.
+- `src/components/ui/table.tsx` — hand-written shadcn `table` (registry was
+  unreachable in-sandbox; matches the new-york shape of the other ui/ files).
+- `src/lib/demo.ts` — **placeholder** seed data (real scoring math, made-up
+  players). Delete once the store feeds live data.
+- `src/app/page.tsx` — now renders the Medal Table instead of the scaffold.
+
+Still open for full Phase 2: player setup / state picker, event board, groom
+score entry, multiplier sliders with the zero-sum gate. These want the Phase-1
+store, so they come after the auth decision.
+
 ## 2026-08-10 — Phase 0 complete, Phase 1 started
 
 ### Done & verified
