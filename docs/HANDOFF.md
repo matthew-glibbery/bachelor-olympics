@@ -2,6 +2,58 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## Current state (as of 2026-08-11, end of session)
+
+Start here if you're picking this up cold — the detailed log below has the
+blow-by-blow if you need it, but this is the map.
+
+**Live and working**, verified against the real Supabase project + a real
+GitHub repo + Vercel deploy (not just typechecked):
+- **Repo**: `github.com/matthew-glibbery/bachelor-olympics` (private), `main`
+  branch, CI green on every push (`.github/workflows/ci.yml`: pnpm, Node 22).
+  Deployed on Vercel, auto-deploys from `main`.
+- **Package manager is pnpm, not npm** — a real, hard-won fix (see the
+  "Switch from npm to pnpm" log entry). Don't reintroduce npm/package-lock.json.
+- **8 real players** already set up in the live DB, one groom, real states,
+  some photos uploaded. **Beach Volleyball** is the one resolved event so far.
+- **All four core screens** (shared bottom-floating-on-mobile nav,
+  `src/components/app-nav.tsx`):
+  - `/` — live cumulative progress chart (player photos as markers,
+    flag-inspired colors, dataviz-skill-validated) + Medal Table.
+  - `/events` — groom-gated event board: start scoring → drag-to-reorder
+    placement results (or numeric for absolute events, e.g. golf) → finalize
+    → resolved. Ties via a "tied with row above" toggle. Cancel = hard delete
+    (per spec).
+  - `/multipliers` — per-player sliders, zero-sum budget gate, locks once an
+    event leaves "planned."
+  - `/setup` ("Player Settings" in the nav, shows your name once picked) —
+    player picker, groom PIN gate (`GROOM_PIN` env var, checked server-side
+    via `/api/groom/unlock`), add/edit/remove players + photos, **shared
+    tweakcn theme picker** (just confirmed live and working).
+- **All 5 Supabase migrations run**: schema, RLS (trusted-friends/shared-link
+  model — no real accounts, the link is the trust boundary), Realtime
+  publication, photos (Storage bucket), theme (`app_settings`).
+- Domain/scoring logic (`src/lib/scoring/*`, `src/lib/multipliers/*`,
+  `src/lib/betting/*`) is pure, unit-tested (111 tests), and matches
+  `docs/PRODUCT_SPEC.md` — placement scoring rounds to whole numbers now
+  (100/72/52/37/27/19/14/10), per an explicit product decision this session.
+
+**Not built yet** (Phase 3–4 of the original plan, `docs/PRODUCT_SPEC.md` has
+the rules): overall betting (win/top3/last, switch-pick halving, mathematical
+elimination), per-event multiplier betting, groom's odds-ranking screen,
+groom's one-time power move, peer award vote, on-the-fly bonus events. None
+of this has UI or a data layer yet — only the pure scoring math for it
+exists (`src/lib/betting/`, `src/lib/odds/`) from the very first session.
+
+**Environment quirk worth knowing**: this dev machine sits behind corporate
+TLS interception (Zscaler) and a corporate npm registry mirror. Both are
+worked around already (`.npmrc` pins the public registry;
+`NODE_EXTRA_CA_CERTS` needed for any Node-side script that calls Supabase
+directly, not needed for `next dev`/`next build` themselves). See the
+relevant log entries below if this bites again.
+
+**No open questions right now** — theme picker confirmed live end of session.
+
 ## 2026-08-11 — Shared tweakcn theme picker under groom tools
 
 111 tests, all gates green. Shared (not per-device) — matches every other
