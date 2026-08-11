@@ -38,3 +38,10 @@ This reads `components.json` and drops new primitives into `src/components/ui`.
 ## Working together
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the branch workflow.
+
+## Product decisions
+
+`CLAUDE.md` and `docs/PRODUCT_SPEC.md` capture every scoring, multiplier,
+and betting decision made for this app — read `docs/PRODUCT_SPEC.md` before
+touching any of that logic, whether you're a human or an agent. It's the
+source of truth, not the code.

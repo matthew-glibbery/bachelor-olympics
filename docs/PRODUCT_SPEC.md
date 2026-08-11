@@ -1,0 +1,201 @@
+# Bachelor Olympics — Product Spec
+
+This is the source of truth for how the competition actually works. If you're
+an agent picking up this codebase cold, read this whole file before writing
+any scoring, betting, or multiplier logic — the rules here are specific and
+were arrived at deliberately; don't infer or simplify them.
+
+The groom is a competitor's friend, not a player. He sets odds and officiates,
+but doesn't score points himself.
+
+## Events
+
+Eight pre-planned events, decided in advance:
+
+1. Beach volleyball (4v4, multiple games, teams reshuffled between games)
+2. Spikeball
+3. Mölkky (a.k.a. "Skittle Scatter")
+4. Super Smash Bros. (N64)
+5. Settlers of Catan (8-player, using two combined board sets — see note below)
+6. Nine holes of golf
+7. 3v3 soccer
+8. Beer pong
+9. Stump (hammering nails into a stump) — flag for a sobriety check before this one, it's the one event with real injury risk
+
+(Yes, that's 9 listed — the roster may still get trimmed to a clean 8; don't
+hardcode the count, read it from event config.)
+
+### Event-specific structure
+
+- **Beach volleyball / 3v3 soccer** (team, reshuffled): no true individual
+  score exists. Track each player's individual win/loss record across all
+  games played, not a single game result. Their placement for the event is
+  derived from that win record.
+- **Settlers of Catan**: one single 8-player game using two combined sets
+  (the "peanut" board layout), not two separate 4-player games. Placement
+  scoring applies normally once the game resolves.
+- **Super Smash Bros.**: two groups of four, round-robin free-for-all within
+  each group, top two from each group advance to a four-player final. Final
+  standings come from combining group performance + final result — this is
+  the one event where the "placement" isn't a single race, so worked out
+  case-by-case, not derived from a formula.
+- **Stump**: standard placement/absolute scoring, no special handling beyond
+  the safety flag above.
+- **On-the-fly bonus events** (added spontaneously during the weekend, not
+  pre-planned): these are **out of the main scoring and betting system
+  entirely**. Flat winner-take-all bonus (default 50 points), no odds, no
+  multiplier interaction, no effect on elimination math. Keep this as its own
+  isolated code path — don't let it touch the core event/scoring model.
+
+## Scoring
+
+Two scoring modes, chosen per event:
+
+- **Placement-based** (used for judged or head-to-head events): points follow
+  an exponential decay curve so first place is worth meaningfully more than a
+  close second, but last place still isn't zero:
+
+  | Place | 1   | 2  | 3    | 4    | 5    | 6    | 7    | 8  |
+  |-------|-----|----|------|------|------|------|------|----|
+  | Points| 100 | 72 | 51.8 | 37.3 | 26.9 | 19.3 | 13.9 | 10 |
+
+  Formula: `points = 100 * 0.72^(place - 1)`. Keep this as a formula, not a
+  hardcoded table, in case the event count changes.
+
+- **Absolute-score-based** (used where there's a real measurable result, e.g.
+  golf strokes, a timed event): scale the best performance in the group to
+  100 points, then scale everyone else proportionally to how close their raw
+  result was to the best one — not just by rank. A blowout should look like a
+  blowout in the points.
+
+- **Ties**: if two or more players tie a placement, sum the point values for
+  all the places they're tying across (e.g. 2nd + 3rd) and split evenly
+  between them. Don't round in a way that breaks the total points-awarded
+  invariant for the event.
+
+## Multipliers
+
+Every player has one multiplier per event, adjustable before the weekend
+starts.
+
+- **Range**: 0.5 to 1.5 per event, in steps of 0.1.
+- **Zero-sum constraint**: the sum of all eight (or however many) multipliers
+  for a given player must stay constant. Raising one event's multiplier has
+  to lower others by the same total amount. This is the core strategic
+  tension of the whole game — enforce it as a hard constraint in the UI (e.g.
+  a "budget remaining" indicator that has to hit exactly zero to submit), not
+  just a soft warning.
+- **Final event score = placement/absolute points × multiplier.**
+- **Locking**: a player's multiplier for an event is locked once that event
+  starts being scored. Before that, they can freely re-adjust it, subject to
+  the zero-sum constraint across whatever events are still unlocked.
+
+## Per-event multiplier betting
+
+Separate from the multiplier sliders themselves, players can wager a portion
+of their *already-allocated* multiplier on a specific event's outcome (win or
+place), live, during the weekend.
+
+- Wagering, say, 0.3 of an event's multiplier **removes that 0.3 from the
+  pool immediately** — it's escrowed, not spendable elsewhere while the bet
+  is open.
+- When the event resolves: if the bet won, the wagered amount pays out
+  **scaled by how much of an underdog the bet was** (same odds logic as the
+  overall bet below — favorites pay out close to 1:1, longshots pay out
+  much more) and returns to the player's pool, reallocatable to any
+  still-unlocked event.
+- If the bet lost, the wagered multiplier is simply gone.
+- This needs its own small state machine per bet: `open → won/lost →
+  resolved`, since a bet can be placed then the event can be delayed or
+  cancelled (see Cancelled Events below).
+
+## Overall betting (the "who wins it all" bet)
+
+This is separate from per-event betting and uses **points**, not multiplier,
+as its currency.
+
+- **Odds source**: before the weekend, the groom privately ranks all 8
+  players across all 8 events. This ranking is the only input to the odds —
+  players do not set odds themselves, and they aren't expected to know
+  enough about each other to do so credibly. The groom's ranking generates
+  both the per-event odds (used above) and the overall win/place/last odds.
+- **Bet types** (deliberately kept to exactly three, do not add more without
+  revisiting this decision — the whole design intent here was "simple, not a
+  spreadsheet"):
+  1. Pick a player to win outright
+  2. Pick a player to place top 3
+  3. Pick a player to finish last (the joke bet)
+- **Payout**: a flat **100 points** if correct, regardless of who was picked
+  (the odds already reflect difficulty — a longshot pick is simply harder to
+  land, so the reward doesn't need to scale on top of that). This number was
+  derived from simulation, not picked arbitrarily — see `simulation-notes.md`
+  in this folder. The typical gap between adjacent final placements across 8
+  events runs roughly 70–130 points, so 100 points is enough to plausibly
+  flip 2nd/3rd but not enough to single-handedly overturn a dominant win.
+  Don't change this number without re-running that simulation.
+- **Switching picks**: if a player's pick becomes mathematically eliminated
+  from the category they bet on, they get the option to switch to a
+  still-alive player — but each switch halves the payout value: 100 → 50 →
+  25 → 12.5, and so on. No limit on number of switches, the halving is the
+  only deterrent.
+- **Mathematical elimination**: computed live, after each event resolves,
+  based on whether a player could still reach the bet's target position even
+  with a maximum-points run in all remaining events. This needs to be
+  recalculated any time an event is cancelled (see below), since that changes
+  how many points are left on the table. This is genuinely load-bearing app
+  logic, not just a display — it's what triggers the switch-pick option.
+
+## Live standings
+
+- Visible to everyone throughout the weekend (no suspense-until-the-end
+  design). There are no spectators, only the 8 competitors, so this is a
+  players-only view.
+- Standings should show, per player: raw event points earned so far,
+  multiplier-adjusted total, and (for anyone who placed the overall bet)
+  whether their pick is still mathematically alive.
+
+## Cancelled events
+
+If a pre-planned event gets cancelled (weather, logistics, whatever):
+
+- The event is deleted from the competition entirely — not marked
+  "postponed" or given a placeholder score.
+- Any multiplier a player had allocated to that event is freed back into
+  their pool, ready to reallocate to remaining events. If a per-event bet was
+  open on that event, it's void — no win, no loss, multiplier is just
+  returned.
+- The elimination math for the overall bet needs to recompute the total
+  remaining points available, since one fewer event means less room for a
+  trailing player to catch up.
+
+## Extras (not core scoring, but part of the weekend)
+
+- **Groom's power move**: the groom gets exactly one intervention to use at
+  any point in the weekend — something like doubling a specific bet's stakes,
+  or forcing a rematch. This is a manual, one-off admin action in the app
+  (a button the groom can hit once), not something that needs elaborate
+  rules — the fun is in the surprise and timing, not the mechanic.
+- **Peer award**: at the end of the weekend (or optionally once per day),
+  every player secretly submits one name for something like "funniest
+  moment" or "most chaotic energy." Whoever gets the most votes gets a flat
+  **50-point bonus**, same currency as everything else, added straight to
+  their total. Simple plurality vote, no ranked choice needed.
+- **Theming**: opening ceremony with player intros/nicknames, a real medal
+  podium for top 3 at the end, and "medal table" as the label for the
+  standings screen instead of "leaderboard." These are presentation-layer
+  choices, not scoring logic — keep them out of the scoring code, they
+  belong in copy/UI only.
+
+## Explicitly out of scope
+
+Decided against, don't reintroduce without asking:
+
+- Betting on other players' predicted rankings (too hard for anyone but the
+  groom to do credibly, since no one else knows all 8 people well).
+- Combo/parlay bets, or more than 3 overall bet categories.
+- Detailed individual stat tracking for team sports (volleyball, soccer) —
+  win/loss record per player is enough, no kills/assists/etc.
+- MVP voting for team events — considered and explicitly rejected in favor of
+  keeping team scoring to win/loss record only.
+- Live, ongoing bookmaker-style odds updates throughout the weekend — the
+  groom sets odds once, upfront, from his single ranking session.
