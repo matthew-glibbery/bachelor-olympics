@@ -12,18 +12,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # npm's own "Exit handler never called!" bug (documented, triggered by
+      # this repo's large number of optional platform-specific binaries —
+      # @next/swc-*, @tailwindcss/oxide-*, lightningcss-*) hit both this CI
+      # and Vercel reliably. pnpm handles optional deps differently and
+      # doesn't hit it.
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: "npm"
+          cache: "pnpm"
 
-      # Pin a known-good npm version. Node 22's bundled npm has been hitting
-      # npm's own "Exit handler never called!" bug on this repo's install
-      # (many optional platform-specific binaries — @next/swc-*,
-      # @tailwindcss/oxide-*, lightningcss-* — is a documented trigger).
-      - run: npm install -g npm@10.9.8
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run test
-      - run: npm run build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm run test
+      - run: pnpm run build

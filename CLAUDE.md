@@ -31,8 +31,9 @@ read it before changing that number.
   because of a sandboxed/offline environment, match the shape of the
   existing components in `src/components/ui/` exactly.
 - Icons: `lucide-react` only, for consistency.
-- Run `npm run lint && npm run typecheck && npm run build` before considering
-  a task done — CI runs the same checks on every PR.
+- This repo uses **pnpm**, not npm (see `CONTRIBUTING.md` for why). Run
+  `pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build`
+  before considering a task done — CI runs the same checks on every PR.
 
 ## Context handoff
 

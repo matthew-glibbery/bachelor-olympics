@@ -1,7 +1,7 @@
 /**
  * One-off / idempotent seed: pushes the event roster from
  * src/lib/events/config.ts into the live `events` table (upsert by id, never
- * touches `status`). Run with: npm run seed:events
+ * touches `status`). Run with: pnpm run seed:events
  */
 import { createClient } from "@supabase/supabase-js";
 import { seedEvents } from "../src/lib/data/queries";

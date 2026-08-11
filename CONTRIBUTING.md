@@ -41,9 +41,24 @@ Copy `.env.example` to `.env.local` and fill in real values. `.env.local` is git
 ## Before pushing
 
 ```bash
-npm run lint
-npm run typecheck
-npm run build
+pnpm run lint
+pnpm run typecheck
+pnpm run test
+pnpm run build
 ```
 
 CI runs these same checks on every PR (see `.github/workflows/ci.yml`), but running them locally first saves a round trip.
+
+## Package manager
+
+This repo uses **pnpm** (not npm) — a Vercel/CI build with npm hit npm's own
+["Exit handler never called!"](https://github.com/npm/cli/issues) bug
+reliably, triggered by the large number of optional platform-specific
+binaries in this dependency tree (`@next/swc-*`, `@tailwindcss/oxide-*`,
+`lightningcss-*`). If you don't have pnpm, enable it via Corepack (bundled
+with Node 22+):
+
+```bash
+corepack enable
+corepack prepare pnpm@11.21.0 --activate
+```
