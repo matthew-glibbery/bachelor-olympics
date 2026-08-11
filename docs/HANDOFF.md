@@ -8,7 +8,8 @@ Start here if you're picking this up cold — the detailed log below has the
 blow-by-blow if you need it, but this is the map.
 
 **Live and working**, verified against the real Supabase project + a real
-GitHub repo + Vercel deploy (not just typechecked):
+GitHub repo + Vercel deploy (not just typechecked), except this session's
+work — see the caveat in the log entry below:
 - **Repo**: `github.com/matthew-glibbery/bachelor-olympics` (private), `main`
   branch, CI green on every push (`.github/workflows/ci.yml`: pnpm, Node 22).
   Deployed on Vercel, auto-deploys from `main`.
@@ -16,7 +17,7 @@ GitHub repo + Vercel deploy (not just typechecked):
   "Switch from npm to pnpm" log entry). Don't reintroduce npm/package-lock.json.
 - **8 real players** already set up in the live DB, one groom, real states,
   some photos uploaded. **Beach Volleyball** is the one resolved event so far.
-- **All four core screens** (shared bottom-floating-on-mobile nav,
+- **Five core screens** (shared bottom-floating-on-mobile nav,
   `src/components/app-nav.tsx`):
   - `/` — live cumulative progress chart (player photos as markers,
     flag-inspired colors, dataviz-skill-validated) + Medal Table.
@@ -26,24 +27,30 @@ GitHub repo + Vercel deploy (not just typechecked):
     (per spec).
   - `/multipliers` — per-player sliders, zero-sum budget gate, locks once an
     event leaves "planned."
+  - `/odds` — **new this session**: groom's private strength ranking
+    (drag-to-reorder, no ties) → win/top3/last payout odds for everyone,
+    visible to all. See log entry below.
   - `/setup` ("Player Settings" in the nav, shows your name once picked) —
     player picker, groom PIN gate (`GROOM_PIN` env var, checked server-side
     via `/api/groom/unlock`), add/edit/remove players + photos, **shared
-    tweakcn theme picker** (just confirmed live and working).
-- **All 5 Supabase migrations run**: schema, RLS (trusted-friends/shared-link
-  model — no real accounts, the link is the trust boundary), Realtime
-  publication, photos (Storage bucket), theme (`app_settings`).
+    tweakcn theme picker**.
+- **All 6 Supabase migrations run** (0006 is new this session — see below):
+  schema, RLS (trusted-friends/shared-link model — no real accounts, the
+  link is the trust boundary), Realtime publication, photos (Storage
+  bucket), theme (`app_settings`), groom_ranking added to Realtime.
 - Domain/scoring logic (`src/lib/scoring/*`, `src/lib/multipliers/*`,
-  `src/lib/betting/*`) is pure, unit-tested (111 tests), and matches
-  `docs/PRODUCT_SPEC.md` — placement scoring rounds to whole numbers now
-  (100/72/52/37/27/19/14/10), per an explicit product decision this session.
+  `src/lib/betting/*`, `src/lib/odds/*`) is pure, unit-tested (111 tests),
+  and matches `docs/PRODUCT_SPEC.md` — placement scoring rounds to whole
+  numbers (100/72/52/37/27/19/14/10), per an explicit product decision from
+  an earlier session.
 
-**Not built yet** (Phase 3–4 of the original plan, `docs/PRODUCT_SPEC.md` has
-the rules): overall betting (win/top3/last, switch-pick halving, mathematical
-elimination), per-event multiplier betting, groom's odds-ranking screen,
-groom's one-time power move, peer award vote, on-the-fly bonus events. None
-of this has UI or a data layer yet — only the pure scoring math for it
-exists (`src/lib/betting/`, `src/lib/odds/`) from the very first session.
+**Not built yet** (rest of Phase 3–4, `docs/PRODUCT_SPEC.md` has the rules):
+overall betting (win/top3/last picks, switch-pick halving, mathematical
+elimination), per-event multiplier betting, groom's one-time power move,
+peer award vote, on-the-fly bonus events. The pure math for overall/per-event
+betting already exists (`src/lib/betting/`) and now has real odds to consume
+(`src/lib/odds/` + the `/odds` screen, this session) — no UI or data-layer
+wiring yet for any of these five.
 
 **Environment quirk worth knowing**: this dev machine sits behind corporate
 TLS interception (Zscaler) and a corporate npm registry mirror. Both are
@@ -52,7 +59,75 @@ worked around already (`.npmrc` pins the public registry;
 directly, not needed for `next dev`/`next build` themselves). See the
 relevant log entries below if this bites again.
 
-**No open questions right now** — theme picker confirmed live end of session.
+**Open question for next session**: the `/odds` ranking editor is only
+UI-locked once an event leaves "planned" (same convention as multipliers) —
+there's no DB-level enforcement stopping the groom from re-saving a ranking
+mid-weekend by, e.g., hitting the API directly. Spec says odds are set once,
+upfront, and this app's whole security model is app-level trust anyway (see
+`0002_rls.sql`), so this was judged good enough rather than adding a DB
+trigger — flag if that judgment call feels wrong once betting actually
+depends on odds staying fixed.
+
+## 2026-08-11 — Groom's odds-ranking screen
+
+111 tests, unchanged — no new tests added, since this session's new code is
+UI/data-layer wiring around `src/lib/odds/ranking.ts`, which was already
+fully tested from Phase 0. lint/typecheck/test/build all green, dev-server
+smoke test of `/odds` and `/` (clean compile, 200s).
+
+Read `PRODUCT_SPEC.md` → Overall betting → Odds source before starting, per
+CLAUDE.md. Picked this as the first Phase 3–4 slice (user's explicit choice
+among four options) because it's the prerequisite for every other betting
+feature — nothing else in that phase can go live without odds existing first.
+
+- **New migration** `supabase/migrations/0006_groom_ranking_realtime.sql` —
+  found a real gap: `groom_ranking` has existed since `0001_init.sql` and
+  already has RLS from `0002_rls.sql`, but `0003_realtime.sql` never added it
+  to the `supabase_realtime` publication. Without this fix the odds screen
+  would need a manual refresh to see a new ranking instead of updating live
+  like everything else. **Needs to be run in the SQL Editor**, same pattern
+  as 0002-0005. (Unlike `app_settings` in the theme work, this table already
+  existed on the live project, so nothing else was blocked by it being
+  unrun — only Realtime sync on this one table is affected until it runs.)
+- **Data layer**: `fetchGroomRanking` (queries.ts, sorted by rank) +
+  `setGroomRanking` (mutations.ts) — the ranking is always saved as a full
+  1..N replace (delete-all then insert), not a partial edit, since the odds
+  screen always submits a complete ordering. Two round-trips, not atomic,
+  but judged fine for a single-groom, low-concurrency admin action — same
+  risk profile as other groom-only writes in this app.
+- **Store**: `gameStore.ts` now fetches + realtime-subscribes to
+  `groom_ranking` alongside the other tables. Included directly in the main
+  `Promise.all` (not fetched separately with a `.catch`) because — unlike
+  `app_settings` — this table isn't new, so there's no pre-migration project
+  state where fetching it would throw and block everything else.
+- **UI**: `src/components/groom-ranking-editor.tsx` — drag-to-reorder list,
+  reusing the same `@dnd-kit` PointerSensor pattern as
+  `ranked-results-editor.tsx`, but deliberately **no tie toggle** — the
+  groom's ranking must be a strict 1..N ordering (`assertValidRanking` in
+  `src/lib/odds/ranking.ts` enforces unique ranks), unlike event results
+  which allow ties.
+  `src/app/odds/page.tsx`: everyone sees the win/top3/last payout
+  multipliers (computed via `impliedProbabilities` + `payoutMultipliers`,
+  both already existed and were already tested); only the groom (PIN-gated,
+  same pattern as every other groom tool) sees the ranking editor, and only
+  while every event is still `planned` — locks the same way multiplier
+  sliders do, matching the spec's "set once, upfront, no live updates"
+  design intent even though it isn't DB-enforced (see the open question
+  above). Added `/odds` to `app-nav.tsx` (Percent icon).
+  - Handles player-list drift: if a player is added after a ranking was
+    already saved, the editor appends them at the bottom of the existing
+    order rather than discarding the ranking and starting over.
+  - Odds only render once the saved ranking covers every current player —
+    otherwise shows "the groom hasn't set a ranking yet" rather than a
+    partial/misleading table.
+- **Not independently screenshot-verified** — same standing limitation as
+  every prior session (no browser driver in this environment). Ran a
+  dev-server smoke test instead (clean compile, `/odds` and `/` both 200)
+  from a git worktree with no `.env.local`, so this only proves the page
+  renders and doesn't crash without live data — not a check against the real
+  Supabase project's actual player/ranking rows. **Recommend a manual look
+  at the deployed app** (or `localhost:3000` with real creds) as the next
+  concrete check, same as the progress-chart caveat from the prior session.
 
 ## 2026-08-11 — Shared tweakcn theme picker under groom tools
 

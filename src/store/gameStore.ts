@@ -11,6 +11,7 @@ import {
   fetchAppSettings,
   fetchEventResults,
   fetchEvents,
+  fetchGroomRanking,
   fetchMultipliers,
   fetchPlayers,
 } from "@/lib/data/queries";
@@ -18,6 +19,7 @@ import type {
   AppSettingsRow,
   EventResultRow,
   EventRow,
+  GroomRankingRow,
   MultiplierRow,
   PlayerRow,
 } from "@/lib/data/database.types";
@@ -28,6 +30,7 @@ const REALTIME_TABLES = [
   "event_results",
   "multipliers",
   "app_settings",
+  "groom_ranking",
 ] as const;
 
 interface GameState {
@@ -35,6 +38,7 @@ interface GameState {
   events: EventRow[];
   eventResults: EventResultRow[];
   multipliers: MultiplierRow[];
+  groomRanking: GroomRankingRow[];
   appSettings: AppSettingsRow | null;
   loading: boolean;
   error: string | null;
@@ -53,6 +57,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   events: [],
   eventResults: [],
   multipliers: [],
+  groomRanking: [],
   appSettings: null,
   loading: false,
   error: null,
@@ -64,11 +69,12 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const client = getSupabaseBrowserClient();
     try {
-      const [players, events, eventResults, multipliers] = await Promise.all([
+      const [players, events, eventResults, multipliers, groomRanking] = await Promise.all([
         fetchPlayers(client),
         fetchEvents(client),
         fetchEventResults(client),
         fetchMultipliers(client),
+        fetchGroomRanking(client),
       ]);
       // Fetched separately and allowed to fail without taking down the rest
       // of the app: app_settings is a newer table, so until its migration has
@@ -81,6 +87,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         events,
         eventResults,
         multipliers,
+        groomRanking,
         appSettings,
         loading: false,
         ready: true,
@@ -117,12 +124,13 @@ async function refetch(
   client: ReturnType<typeof getSupabaseBrowserClient>,
   set: (partial: Partial<GameState>) => void,
 ) {
-  const [players, events, eventResults, multipliers] = await Promise.all([
+  const [players, events, eventResults, multipliers, groomRanking] = await Promise.all([
     fetchPlayers(client),
     fetchEvents(client),
     fetchEventResults(client),
     fetchMultipliers(client),
+    fetchGroomRanking(client),
   ]);
   const appSettings = await fetchAppSettings(client).catch(() => null);
-  set({ players, events, eventResults, multipliers, appSettings });
+  set({ players, events, eventResults, multipliers, groomRanking, appSettings });
 }

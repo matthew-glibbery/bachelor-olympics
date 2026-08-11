@@ -9,6 +9,7 @@ import type {
   AppSettingsRow,
   EventResultRow,
   EventRow,
+  GroomRankingRow,
   MultiplierRow,
   PlayerRow,
 } from "./database.types";
@@ -42,6 +43,18 @@ export function fetchMultipliers(
   client: SupabaseClient,
 ): Promise<MultiplierRow[]> {
   return selectAll<MultiplierRow>(client, "multipliers");
+}
+
+/**
+ * The groom's private pre-weekend ranking (PRODUCT_SPEC.md → Overall
+ * betting → Odds source), sorted 1=strongest first. Empty until the groom
+ * saves one from the odds screen.
+ */
+export async function fetchGroomRanking(
+  client: SupabaseClient,
+): Promise<GroomRankingRow[]> {
+  const rows = await selectAll<GroomRankingRow>(client, "groom_ranking");
+  return [...rows].sort((a, b) => a.rank - b.rank);
 }
 
 /** The single shared app_settings row (currently just the active theme). */

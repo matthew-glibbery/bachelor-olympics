@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Medal, Sliders, UserRound } from "lucide-react";
+import { CalendarDays, Medal, Percent, Sliders, UserRound } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/gameStore";
@@ -12,6 +12,7 @@ const STATIC_LINKS = [
   { href: "/", label: "Medal Table", icon: Medal },
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/multipliers", label: "Multipliers", icon: Sliders },
+  { href: "/odds", label: "Odds", icon: Percent },
 ] as const;
 
 /**
