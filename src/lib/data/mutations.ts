@@ -148,6 +148,28 @@ export async function upsertMultipliers(
   if (error) throw new Error(`upsertMultipliers: ${error.message}`);
 }
 
+/**
+ * Replace the groom's entire ranking in one go — the odds screen always
+ * saves a full 1..N ordering (PRODUCT_SPEC.md → Overall betting), never a
+ * partial edit, so wipe-then-insert is simpler and safer here than trying to
+ * diff against whatever was there before. Not atomic (two round-trips), but
+ * this is a single-groom, low-concurrency admin action.
+ */
+export async function setGroomRanking(
+  client: SupabaseClient,
+  ranking: { player_id: string; rank: number }[],
+): Promise<void> {
+  const { error: deleteError } = await client
+    .from("groom_ranking")
+    .delete()
+    .not("player_id", "is", null);
+  if (deleteError) throw new Error(`setGroomRanking (clear): ${deleteError.message}`);
+
+  if (ranking.length === 0) return;
+  const { error: insertError } = await client.from("groom_ranking").insert(ranking);
+  if (insertError) throw new Error(`setGroomRanking (insert): ${insertError.message}`);
+}
+
 /** Set the shared app theme — applies live to every device via Realtime. */
 export async function setTheme(client: SupabaseClient, themeId: string): Promise<void> {
   const { error } = await client
