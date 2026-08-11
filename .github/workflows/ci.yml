@@ -17,6 +17,11 @@ jobs:
           node-version: 22
           cache: "npm"
 
+      # Pin a known-good npm version. Node 22's bundled npm has been hitting
+      # npm's own "Exit handler never called!" bug on this repo's install
+      # (many optional platform-specific binaries — @next/swc-*,
+      # @tailwindcss/oxide-*, lightningcss-* — is a documented trigger).
+      - run: npm install -g npm@10.9.8
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
