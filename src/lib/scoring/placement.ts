@@ -41,10 +41,13 @@ export interface PlacementEntry {
  * point values for all the places they span, evenly. E.g. two players tied for
  * 2nd occupy places 2 and 3, so each gets (pts(2) + pts(3)) / 2.
  *
- * This preserves the total-points invariant: the sum of all points awarded
- * equals `sum(placementPoints(1..N))`, because every place 1..N is allocated
- * exactly once (directly or inside a split). No rounding is applied here —
- * round only at display time so the invariant is never broken.
+ * The final awarded share is rounded to the nearest whole number — scores
+ * should read as clean, full numbers rather than decimals like 51.8. This is
+ * done on the tie-split share, not the underlying curve, so ties still split
+ * fairly in continuous space before the one rounding step at the end. It can
+ * shift the total-points-awarded invariant by a point or so versus the raw
+ * curve sum — accepted as negligible against the 70-130 point gaps
+ * docs/simulation-notes.md found between finishers across a full event.
  */
 export function scorePlacement(entries: PlacementEntry[]): Map<string, number> {
   const points = new Map<string, number>();
@@ -67,7 +70,7 @@ export function scorePlacement(entries: PlacementEntry[]): Map<string, number> {
     for (let i = 0; i < members.length; i++) {
       pooled += placementPoints(nextPlace + i);
     }
-    const share = pooled / members.length;
+    const share = Math.round(pooled / members.length);
     for (const playerId of members) {
       points.set(playerId, share);
     }

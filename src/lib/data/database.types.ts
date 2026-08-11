@@ -14,6 +14,7 @@ export interface PlayerRow {
   nickname: string | null;
   state: string | null; // 2-letter US state code
   is_groom: boolean;
+  photo_url: string | null;
   created_at: string;
 }
 
@@ -28,6 +29,7 @@ export interface EventRow {
   notes: string | null;
   sort_order: number;
   status: EventStatus;
+  photo_url: string | null;
 }
 
 export interface EventResultRow {

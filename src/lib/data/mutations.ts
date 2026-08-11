@@ -3,7 +3,7 @@
  * src/lib/data/queries.ts — no business logic here.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { EventStatus, PlayerRow } from "./database.types";
+import type { EventRow, EventStatus, PlayerRow } from "./database.types";
 
 export interface NewPlayer {
   name: string;
@@ -38,6 +38,30 @@ export async function removePlayer(
   if (error) throw new Error(`removePlayer: ${error.message}`);
 }
 
+export interface PlayerPatch {
+  name?: string;
+  nickname?: string | null;
+  state?: string;
+  is_groom?: boolean;
+  photo_url?: string | null;
+}
+
+export async function updatePlayer(
+  client: SupabaseClient,
+  playerId: string,
+  patch: PlayerPatch,
+): Promise<PlayerRow> {
+  const { state, ...rest } = patch;
+  const { data, error } = await client
+    .from("players")
+    .update({ ...rest, ...(state ? { state: state.toUpperCase() } : {}) })
+    .eq("id", playerId)
+    .select()
+    .single();
+  if (error) throw new Error(`updatePlayer: ${error.message}`);
+  return data as PlayerRow;
+}
+
 /** Move an event through planned -> scoring -> resolved. Multipliers lock
  * for an event as soon as it leaves "planned" (PRODUCT_SPEC.md → Multipliers). */
 export async function setEventStatus(
@@ -61,6 +85,21 @@ export async function cancelEvent(
 ): Promise<void> {
   const { error } = await client.from("events").delete().eq("id", eventId);
   if (error) throw new Error(`cancelEvent: ${error.message}`);
+}
+
+export async function updateEventPhoto(
+  client: SupabaseClient,
+  eventId: string,
+  photoUrl: string | null,
+): Promise<EventRow> {
+  const { data, error } = await client
+    .from("events")
+    .update({ photo_url: photoUrl })
+    .eq("id", eventId)
+    .select()
+    .single();
+  if (error) throw new Error(`updateEventPhoto: ${error.message}`);
+  return data as EventRow;
 }
 
 export interface EventResultInput {

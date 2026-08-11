@@ -23,7 +23,7 @@ Eight pre-planned events, decided in advance:
 6. Nine holes of golf
 7. 3v3 soccer
 8. Beer pong
-9. Stump (hammering nails into a stump) — flag for a sobriety check before this one, it's the one event with real injury risk
+9. Stump (hammering nails into a stump)
 
 (Yes, that's 9 listed — the roster may still get trimmed to a clean 8; don't
 hardcode the count, read it from event config.)
@@ -42,8 +42,7 @@ hardcode the count, read it from event config.)
   standings come from combining group performance + final result — this is
   the one event where the "placement" isn't a single race, so worked out
   case-by-case, not derived from a formula.
-- **Stump**: standard placement/absolute scoring, no special handling beyond
-  the safety flag above.
+- **Stump**: standard placement scoring, no special handling.
 - **On-the-fly bonus events** (added spontaneously during the weekend, not
   pre-planned): these are **out of the main scoring and betting system
   entirely**. Flat winner-take-all bonus (default 50 points), no odds, no
@@ -58,23 +57,28 @@ Two scoring modes, chosen per event:
   an exponential decay curve so first place is worth meaningfully more than a
   close second, but last place still isn't zero:
 
-  | Place | 1   | 2  | 3    | 4    | 5    | 6    | 7    | 8  |
-  |-------|-----|----|------|------|------|------|------|----|
-  | Points| 100 | 72 | 51.8 | 37.3 | 26.9 | 19.3 | 13.9 | 10 |
+  | Place | 1   | 2  | 3  | 4  | 5  | 6  | 7  | 8  |
+  |-------|-----|----|----|----|----|----|----|----|
+  | Points| 100 | 72 | 52 | 37 | 27 | 19 | 14 | 10 |
 
   Formula: `points = 100 * 0.72^(place - 1)`. Keep this as a formula, not a
-  hardcoded table, in case the event count changes.
+  hardcoded table, in case the event count changes. The final awarded value is
+  rounded to the nearest whole number — scores should read as clean numbers,
+  not decimals like 51.8. This can drift the total-points-awarded invariant by
+  a point or so, which is accepted as negligible next to the 70-130 point gaps
+  `simulation-notes.md` found between finishers.
 
 - **Absolute-score-based** (used where there's a real measurable result, e.g.
   golf strokes, a timed event): scale the best performance in the group to
   100 points, then scale everyone else proportionally to how close their raw
   result was to the best one — not just by rank. A blowout should look like a
-  blowout in the points.
+  blowout in the points. Not rounded to whole numbers (unlike placement
+  scoring above) — the proportional scaling is the point, and rounding it away
+  would blur close absolute results.
 
 - **Ties**: if two or more players tie a placement, sum the point values for
   all the places they're tying across (e.g. 2nd + 3rd) and split evenly
-  between them. Don't round in a way that breaks the total points-awarded
-  invariant for the event.
+  between them, then round.
 
 ## Multipliers
 

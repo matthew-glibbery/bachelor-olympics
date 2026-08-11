@@ -17,8 +17,8 @@ describe("events/config", () => {
     expect(golf?.lowerIsBetter).toBe(true);
   });
 
-  it("flags Stump for a safety check", () => {
-    expect(getEvent("stump")?.safetyCheck).toBe(true);
+  it("does not flag Stump for a safety check", () => {
+    expect(getEvent("stump")?.safetyCheck).toBeUndefined();
   });
 
   it("returns undefined for an unknown event", () => {

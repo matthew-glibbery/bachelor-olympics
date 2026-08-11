@@ -30,6 +30,7 @@ export default function Home() {
     name: p.name,
     nickname: p.nickname,
     state: p.state ?? "??",
+    photoUrl: p.photo_url,
   }));
   const scoreLines = deriveScoreLines(events, eventResults, multipliers);
 

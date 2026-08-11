@@ -44,15 +44,19 @@ export function fetchMultipliers(
 }
 
 /**
- * Idempotently seed the `events` table from src/lib/events/config.ts. Safe to
- * call more than once — upserts by id, so re-running after an edit to the
- * config just updates the rows (never touches `status`, which is live game
- * state owned by the app, not the config).
+ * Sync the `events` table from src/lib/events/config.ts. Safe to call more
+ * than once — upserts by id, so a fresh project gets all events inserted, and
+ * re-running after an edit to the config (name, notes, safety flag, etc.)
+ * propagates that edit to existing rows. `status` and `photo_url` are live
+ * state owned by the app, not the config, so they're deliberately left out of
+ * the payload — an upsert only touches columns present in it, so omitting
+ * them here means Postgres leaves whatever's already stored untouched.
  */
 export async function seedEvents(client: SupabaseClient): Promise<void> {
-  const rows = eventSeedRows();
-  const { error } = await client
-    .from("events")
-    .upsert(rows, { onConflict: "id", ignoreDuplicates: true });
+  const rows = eventSeedRows().map((row) => {
+    const { id, name, scoring_mode, lower_is_better, team_reshuffle, custom_placement, safety_check, notes, sort_order } = row;
+    return { id, name, scoring_mode, lower_is_better, team_reshuffle, custom_placement, safety_check, notes, sort_order };
+  });
+  const { error } = await client.from("events").upsert(rows, { onConflict: "id" });
   if (error) throw new Error(`seedEvents: ${error.message}`);
 }

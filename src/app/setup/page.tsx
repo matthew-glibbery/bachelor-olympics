@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PlayerName } from "@/components/player-name";
+import { ManagePlayerRow } from "@/components/manage-player-row";
 import { AppNav } from "@/components/app-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -106,6 +107,7 @@ export default function SetupPage() {
                   name={selectedPlayer.name}
                   state={selectedPlayer.state ?? "??"}
                   nickname={selectedPlayer.nickname}
+                  photoUrl={selectedPlayer.photo_url}
                 />
               </span>
               <Button variant="outline" size="sm" onClick={clearSelectedPlayer}>
@@ -122,7 +124,12 @@ export default function SetupPage() {
                   className="h-auto py-1.5"
                   onClick={() => selectPlayer(p.id)}
                 >
-                  <PlayerName name={p.name} state={p.state ?? "??"} size="sm" />
+                  <PlayerName
+                    name={p.name}
+                    state={p.state ?? "??"}
+                    size="sm"
+                    photoUrl={p.photo_url}
+                  />
                 </Button>
               ))}
               {ready && players.length === 0 ? (
@@ -231,6 +238,20 @@ export default function SetupPage() {
           )}
         </CardContent>
       </Card>
+
+      {groomUnlocked && players.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Manage players</CardTitle>
+            <CardDescription>Edit or remove a competitor.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col">
+            {players.map((p) => (
+              <ManagePlayerRow key={p.id} player={p} />
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
     </main>
   );
 }

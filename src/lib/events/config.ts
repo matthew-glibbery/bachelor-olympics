@@ -89,8 +89,7 @@ export const EVENTS: readonly EventDefinition[] = [
     id: "stump",
     name: "Stump",
     scoringMode: "placement",
-    safetyCheck: true,
-    notes: "Hammering nails into a stump — sobriety check required first, real injury risk.",
+    notes: "Hammering nails into a stump.",
   },
 ] as const;
 

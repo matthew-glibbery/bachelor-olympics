@@ -14,6 +14,7 @@ const baseEvent: Omit<EventRow, "id" | "scoring_mode" | "status"> = {
   safety_check: false,
   notes: null,
   sort_order: 0,
+  photo_url: null,
 };
 
 describe("deriveScoreLines", () => {

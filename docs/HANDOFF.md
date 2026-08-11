@@ -2,6 +2,51 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-11 — Groom-requested polish batch
+
+Six asks in one batch, all shipped. 93 tests, all gates green.
+
+- **Stump**: dropped the sobriety-check flag/language from
+  `src/lib/events/config.ts` + `PRODUCT_SPEC.md`. Also fixed a real bug found
+  along the way: `seedEvents()` used `ignoreDuplicates: true`, so it could
+  never actually propagate a config edit to an existing live row. Now it
+  upserts every config-owned column except `status` and `photo_url` (both
+  live app state), verified against the real `stump` row — content updated,
+  status (`scoring`, from the user's own live testing) correctly preserved.
+- **Placement scoring rounded to whole numbers** (`src/lib/scoring/placement.ts`):
+  rounds the final tie-split share, not the underlying 0.72 decay curve, so
+  ties still split fairly in continuous space first. Table now reads
+  100/72/52/37/27/19/14/10. Total-points-awarded invariant can drift by ~1-2
+  points from rounding — judged negligible against `simulation-notes.md`'s
+  70-130 point finisher gaps; did not rerun the simulation.
+  `src/lib/scoring/absolute.ts` is untouched (proportional scaling is the
+  point there, rounding would blur close results) — scoped to placement only,
+  as asked.
+- **Groom: edit/remove players**: `updatePlayer` mutation +
+  `src/components/manage-player-row.tsx`, wired into a new "Manage players"
+  card on `/setup`. Verified live (add → update → confirm → clean up).
+- **Drag-and-reorder placement results**: added `@dnd-kit` (PointerSensor, so
+  it works on touch — this runs on phones at the actual event, native HTML5
+  drag-and-drop doesn't). Split the tricky bit into pure, unit-tested helpers
+  (`src/lib/scoring/rankedOrder.ts`: order+tie-set ↔ position numbers) from the
+  UI (`src/components/ranked-results-editor.tsx`). Ties are a "tied with row
+  above" toggle rather than a drag gesture — precise tie ordering via drag
+  alone is fiddly, a toggle isn't. Absolute-mode events (golf, etc.) keep the
+  plain numeric input — dragging doesn't make sense for strokes/time.
+- **Player + event photos**: `photo_url` columns, a `photos` Storage bucket
+  (public read, trusted-friends anon write policy — same model as
+  `0002_rls.sql`), `src/lib/supabase/storage.ts` upload helper, groom-gated
+  upload controls on `/setup` and each event card, displayed as a circular
+  avatar next to `PlayerName` everywhere and a thumbnail on `EventCard`. Used
+  `next/image` (not a plain `<img>`) — `next.config.ts` now derives the
+  allowed remote host straight from `NEXT_PUBLIC_SUPABASE_URL`, no per-env
+  config needed.
+
+**Needs `supabase/migrations/0004_photos.sql` run in the SQL Editor before
+uploads work** (same pattern as 0002/0003) — adds the columns + bucket +
+storage.objects policies. Everything else in this batch works against the
+live project as-is; only the photo feature is blocked pending that migration.
+
 ## 2026-08-11 — Realtime confirmed working (migration 0003 run)
 
 User ran `supabase/migrations/0003_realtime.sql`. Re-ran the probe: inserted a

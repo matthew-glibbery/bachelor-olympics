@@ -19,6 +19,7 @@ describe("eventConfigToRow", () => {
       notes: null,
       sort_order: 3,
       status: "planned",
+      photo_url: null,
     });
   });
 

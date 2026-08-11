@@ -15,18 +15,27 @@ describe("placementPoints", () => {
 });
 
 describe("scorePlacement", () => {
-  it("awards straight places with no ties", () => {
+  it("awards straight places with no ties, rounded to whole numbers", () => {
     const result = scorePlacement([
       { playerId: "a", position: 1 },
       { playerId: "b", position: 2 },
       { playerId: "c", position: 3 },
     ]);
-    expect(result.get("a")).toBeCloseTo(100, 5);
-    expect(result.get("b")).toBeCloseTo(72, 5);
-    expect(result.get("c")).toBeCloseTo(51.84, 5);
+    expect(result.get("a")).toBe(100);
+    expect(result.get("b")).toBe(72);
+    expect(result.get("c")).toBe(52); // 51.84 rounds up
   });
 
-  it("splits a tie across the places it spans", () => {
+  it("every awarded value is a whole number", () => {
+    const result = scorePlacement(
+      Array.from({ length: 8 }, (_, i) => ({ playerId: `p${i}`, position: i + 1 })),
+    );
+    for (const points of result.values()) {
+      expect(Number.isInteger(points)).toBe(true);
+    }
+  });
+
+  it("splits a tie across the places it spans, then rounds", () => {
     // b and c tie for 2nd → they span places 2 and 3.
     const result = scorePlacement([
       { playerId: "a", position: 1 },
@@ -34,15 +43,15 @@ describe("scorePlacement", () => {
       { playerId: "c", position: 2 },
       { playerId: "d", position: 4 },
     ]);
-    const expectedShare = (placementPoints(2) + placementPoints(3)) / 2;
-    expect(result.get("a")).toBeCloseTo(100, 5);
-    expect(result.get("b")).toBeCloseTo(expectedShare, 5);
-    expect(result.get("c")).toBeCloseTo(expectedShare, 5);
+    const expectedShare = Math.round((placementPoints(2) + placementPoints(3)) / 2);
+    expect(result.get("a")).toBe(100);
+    expect(result.get("b")).toBe(expectedShare);
+    expect(result.get("c")).toBe(expectedShare);
     // d occupies place 4 regardless of the numeric gap in the input.
-    expect(result.get("d")).toBeCloseTo(placementPoints(4), 5);
+    expect(result.get("d")).toBe(Math.round(placementPoints(4)));
   });
 
-  it("preserves the total-points invariant even with ties", () => {
+  it("keeps the total-points invariant close, even with rounding and ties", () => {
     const noTies = scorePlacement(
       Array.from({ length: 8 }, (_, i) => ({ playerId: `p${i}`, position: i + 1 })),
     );
@@ -57,7 +66,9 @@ describe("scorePlacement", () => {
       { playerId: "h", position: 8 },
     ]);
     const sum = (m: Map<string, number>) => [...m.values()].reduce((a, b) => a + b, 0);
-    expect(sum(withTies)).toBeCloseTo(sum(noTies), 5);
+    // Rounding each share independently can drift the total by a couple of
+    // points — negligible against the 70-130 point gaps between finishers.
+    expect(Math.abs(sum(withTies) - sum(noTies))).toBeLessThanOrEqual(3);
   });
 
   it("treats [1,2,2,4] and [1,2,2,3] identically", () => {

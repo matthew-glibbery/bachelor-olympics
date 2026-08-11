@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { AlertTriangle, Lock, Pencil, Play, X } from "lucide-react";
+import { useState, type ChangeEvent } from "react";
+import Image from "next/image";
+import { ImageUp, Pencil, Play, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -13,12 +15,16 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PlayerName } from "@/components/player-name";
+import { RankedResultsEditor } from "@/components/ranked-results-editor";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   cancelEvent,
   setEventStatus,
+  updateEventPhoto,
   upsertEventResults,
 } from "@/lib/data/mutations";
+import { uploadPhoto } from "@/lib/supabase/storage";
+import { orderFromResults, positionsFromOrder } from "@/lib/scoring/rankedOrder";
 import type { EventResultRow, EventRow, PlayerRow } from "@/lib/data/database.types";
 
 const STATUS_LABEL: Record<EventRow["status"], string> = {
@@ -36,21 +42,41 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, players, results, groomUnlocked }: EventCardProps) {
+  const isPlacement = event.scoring_mode === "placement";
+  const playerIds = players.map((p) => p.id);
+  const playerById = new Map(players.map((p) => [p.id, p]));
+
   const [editing, setEditing] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      players.map((p) => {
-        const existing = results.find((r) => r.player_id === p.id);
-        const value = event.scoring_mode === "placement" ? existing?.position : existing?.raw;
-        return [p.id, value != null ? String(value) : ""];
-      }),
-    ),
-  );
+
+  // Placement mode: drag-ordered ranking + tie toggles.
+  const [order, setOrder] = useState<string[]>([]);
+  const [tied, setTied] = useState<Set<string>>(new Set());
+
+  // Absolute mode: raw numeric value per player.
+  const [rawDraft, setRawDraft] = useState<Record<string, string>>({});
 
   const client = getSupabaseBrowserClient();
+
+  function openEditing() {
+    if (isPlacement) {
+      const { order: initialOrder, tied: initialTied } = orderFromResults(playerIds, results);
+      setOrder(initialOrder);
+      setTied(initialTied);
+    } else {
+      setRawDraft(
+        Object.fromEntries(
+          players.map((p) => {
+            const existing = results.find((r) => r.player_id === p.id);
+            return [p.id, existing?.raw != null ? String(existing.raw) : ""];
+          }),
+        ),
+      );
+    }
+    setEditing(true);
+  }
 
   async function startScoring() {
     setBusy(true);
@@ -68,17 +94,19 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
     setBusy(true);
     setError(null);
     try {
-      const entries = players
-        .map((p) => {
-          const raw = draft[p.id]?.trim();
-          if (!raw) return null;
-          const num = Number(raw);
-          if (!Number.isFinite(num)) return null;
-          return event.scoring_mode === "placement"
-            ? { player_id: p.id, position: num }
-            : { player_id: p.id, raw: num };
-        })
-        .filter((e): e is NonNullable<typeof e> => e !== null);
+      const entries = isPlacement
+        ? Object.entries(positionsFromOrder(order, tied)).map(([player_id, position]) => ({
+            player_id,
+            position,
+          }))
+        : players
+            .map((p) => {
+              const raw = rawDraft[p.id]?.trim();
+              if (!raw) return null;
+              const num = Number(raw);
+              return Number.isFinite(num) ? { player_id: p.id, raw: num } : null;
+            })
+            .filter((e): e is NonNullable<typeof e> => e !== null);
 
       if (finalize && entries.length !== players.length) {
         setError("Every competitor needs a result before finalizing.");
@@ -98,6 +126,22 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
     }
   }
 
+  async function handlePhoto(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const url = await uploadPhoto(client, "events", event.id, file);
+      await updateEventPhoto(client, event.id, url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function doCancel() {
     setBusy(true);
     setError(null);
@@ -109,39 +153,69 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
     }
   }
 
+  function toggleTie(playerId: string) {
+    setTied((prev) => {
+      const next = new Set(prev);
+      if (next.has(playerId)) next.delete(playerId);
+      else next.add(playerId);
+      return next;
+    });
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2">
-          {event.name}
-          <Badge
-            variant={
-              event.status === "resolved"
-                ? "default"
-                : event.status === "scoring"
-                  ? "outline"
-                  : "secondary"
-            }
-          >
-            {STATUS_LABEL[event.status]}
-          </Badge>
-          <Badge variant="outline">
-            {event.scoring_mode === "placement" ? "Placement" : "Absolute"}
-          </Badge>
-          {event.safety_check ? (
-            <Badge variant="destructive" className="gap-1">
-              <AlertTriangle className="size-3" />
-              Sobriety check
-            </Badge>
+        <div className="flex items-start gap-3">
+          {event.photo_url ? (
+            <Image
+              src={event.photo_url}
+              alt=""
+              width={56}
+              height={56}
+              className="shrink-0 rounded-md object-cover"
+              style={{ width: 56, height: 56 }}
+            />
           ) : null}
-        </CardTitle>
-        {event.notes ? <CardDescription>{event.notes}</CardDescription> : null}
+          <div className="flex flex-col gap-1.5">
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              {event.name}
+              <Badge
+                variant={
+                  event.status === "resolved"
+                    ? "default"
+                    : event.status === "scoring"
+                      ? "outline"
+                      : "secondary"
+                }
+              >
+                {STATUS_LABEL[event.status]}
+              </Badge>
+              <Badge variant="outline">
+                {isPlacement ? "Placement" : "Absolute"}
+              </Badge>
+            </CardTitle>
+            {event.notes ? <CardDescription>{event.notes}</CardDescription> : null}
+            {groomUnlocked ? (
+              <Label className="text-muted-foreground inline-flex w-fit cursor-pointer items-center gap-1.5 text-xs">
+                <ImageUp className="size-3.5" />
+                {event.photo_url ? "Replace photo" : "Add photo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhoto}
+                  disabled={busy}
+                />
+              </Label>
+            ) : null}
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
         {!groomUnlocked ? null : (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {event.status === "planned" ? (
               <Button size="sm" onClick={startScoring} disabled={busy}>
                 <Play className="size-4" />
@@ -149,7 +223,7 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
               </Button>
             ) : null}
             {(event.status === "scoring" || event.status === "resolved") && !editing ? (
-              <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              <Button size="sm" variant="outline" onClick={openEditing}>
                 <Pencil className="size-4" />
                 {event.status === "resolved" ? "Edit results" : "Enter results"}
               </Button>
@@ -179,22 +253,39 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
         )}
 
         {editing ? (
-          <div className="flex flex-col gap-2 border-t pt-3">
-            {players.map((p) => (
-              <div key={p.id} className="flex items-center justify-between gap-3">
-                <PlayerName name={p.name} state={p.state ?? "??"} size="sm" />
-                <Input
-                  type="number"
-                  step="any"
-                  className="w-24"
-                  placeholder={event.scoring_mode === "placement" ? "place" : "result"}
-                  value={draft[p.id] ?? ""}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, [p.id]: e.target.value }))
-                  }
-                />
+          <div className="flex flex-col gap-3 border-t pt-3">
+            {isPlacement ? (
+              <RankedResultsEditor
+                order={order}
+                tied={tied}
+                players={playerById}
+                onReorder={setOrder}
+                onToggleTie={toggleTie}
+              />
+            ) : (
+              <div className="flex flex-col gap-2">
+                {players.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between gap-3">
+                    <PlayerName
+                      name={p.name}
+                      state={p.state ?? "??"}
+                      size="sm"
+                      photoUrl={p.photo_url}
+                    />
+                    <Input
+                      type="number"
+                      step="any"
+                      className="w-24"
+                      placeholder="result"
+                      value={rawDraft[p.id] ?? ""}
+                      onChange={(e) =>
+                        setRawDraft((d) => ({ ...d, [p.id]: e.target.value }))
+                      }
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
             <div className="flex gap-2 pt-1">
               <Button size="sm" variant="outline" onClick={() => saveResults(false)} disabled={busy}>
                 Save draft
@@ -208,7 +299,7 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
           <div className="flex flex-wrap gap-x-4 gap-y-1 border-t pt-3 text-sm">
             {players.map((p) => {
               const r = results.find((x) => x.player_id === p.id);
-              const value = event.scoring_mode === "placement" ? r?.position : r?.raw;
+              const value = isPlacement ? r?.position : r?.raw;
               return (
                 <span
                   key={p.id}
@@ -223,13 +314,6 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
               );
             })}
           </div>
-        ) : null}
-
-        {!groomUnlocked && event.status === "planned" ? (
-          <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-            <Lock className="size-3" />
-            Groom tools required to manage this event.
-          </p>
         ) : null}
       </CardContent>
     </Card>

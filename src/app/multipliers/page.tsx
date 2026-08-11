@@ -119,7 +119,11 @@ export default function MultipliersPage() {
               <CardTitle className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-2">
                   <SlidersIcon className="text-primary size-5" />
-                  <PlayerName name={player.name} state={player.state ?? "??"} />
+                  <PlayerName
+                    name={player.name}
+                    state={player.state ?? "??"}
+                    photoUrl={player.photo_url}
+                  />
                 </span>
                 <Badge
                   variant={validation.budgetRemaining === 0 ? "default" : "destructive"}

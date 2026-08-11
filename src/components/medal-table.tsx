@@ -28,6 +28,7 @@ export interface MedalTablePlayer {
   name: string;
   nickname?: string | null;
   state: string;
+  photoUrl?: string | null;
 }
 
 export interface MedalTableProps {
@@ -75,6 +76,7 @@ export function MedalTable({ players, scoreLines }: MedalTableProps) {
                     name={player.name}
                     state={player.state}
                     nickname={player.nickname}
+                    photoUrl={player.photoUrl}
                   />
                 ) : (
                   total.playerId
