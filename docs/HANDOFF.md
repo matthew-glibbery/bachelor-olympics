@@ -2,6 +2,22 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-11 — Realtime confirmed working (migration 0003 run)
+
+User ran `supabase/migrations/0003_realtime.sql`. Re-ran the probe: inserted a
+row, updated it, both `INSERT` and `UPDATE` `postgres_changes` events fired
+correctly, probe row cleaned up. `src/store/gameStore.ts` subscribes with the
+identical client/channel pattern against the same now-published tables, so
+Phase 1's live-sync goal is met. **Phase 1 is functionally done** — schema,
+RLS, auth model, data layer, store, and Realtime are all built and verified
+against the real project.
+
+Not independently confirmed: a rendered browser actually reflecting a change
+live (no browser driver available in this environment — see prior session's
+`claude-in-chrome` note). The underlying mechanism is proven at the client
+level; a manual check with two browser tabs open to `localhost:3000` would be
+the natural next confirmation, cheap to do by hand.
+
 ## 2026-08-11 — Live Supabase project wired up, data layer + store built
 
 User created a real Supabase project and ran migrations 0001 + 0002. Branch
