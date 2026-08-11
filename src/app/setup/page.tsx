@@ -16,17 +16,19 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PlayerName } from "@/components/player-name";
 import { ManagePlayerRow } from "@/components/manage-player-row";
+import { ThemePicker } from "@/components/theme-picker";
 import { AppNav } from "@/components/app-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { addPlayer } from "@/lib/data/mutations";
 import { stateOptions } from "@/lib/states";
+import { DEFAULT_THEME_ID } from "@/lib/themes";
 
 const STATE_OPTIONS = stateOptions();
 
 export default function SetupPage() {
-  const { players, connect, ready } = useGameStore();
+  const { players, appSettings, connect, ready } = useGameStore();
   const {
     selectedPlayerId,
     groomUnlocked,
@@ -249,6 +251,20 @@ export default function SetupPage() {
             {players.map((p) => (
               <ManagePlayerRow key={p.id} player={p} />
             ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {groomUnlocked ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>App theme</CardTitle>
+            <CardDescription>
+              Picks the look for everyone, live — tweakcn presets.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ThemePicker activeThemeId={appSettings?.theme_id ?? DEFAULT_THEME_ID} />
           </CardContent>
         </Card>
       ) : null}

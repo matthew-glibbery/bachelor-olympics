@@ -2,6 +2,40 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-11 — Shared tweakcn theme picker under groom tools
+
+111 tests, all gates green. Shared (not per-device) — matches every other
+groom tool, which all act on shared game state; live for everyone via the
+same Realtime pattern as the rest of the app.
+
+- `src/lib/themes.ts`: "Classic" (this app's original default, transcribed
+  verbatim from `globals.css`) + 6 **real** tweakcn presets — Modern Minimal,
+  Twitter, Bubblegum, Doom 64, Tangerine, Catppuccin — fetched directly from
+  `tweakcn.com/r/themes/<slug>.json` on 2026-08-11, not invented/approximated.
+  Only the CSS vars this app's `globals.css` actually declares are kept.
+- `supabase/migrations/0005_theme.sql`: single-row `app_settings` table
+  (same pattern as `power_move`), trusted-friends RLS, added to the realtime
+  publication. **Needs to be run in the SQL Editor** before the picker
+  actually changes anything live — same pattern as 0002-0004.
+- `src/components/theme-applier.tsx` (mounted once in `layout.tsx`): writes
+  the active theme's tokens as inline styles on `<html>` — wins over the
+  static `:root` values in `globals.css`, updates instantly since
+  `gameStore` already Realtime-subscribes to `app_settings`. Only the light
+  token set is live (this app still has no dark-mode toggle wired up, so
+  `theme.dark` is captured for completeness but unused — same call as the
+  progress-chart work).
+- `src/components/theme-picker.tsx`: swatch grid on `/setup`'s groom tools,
+  gated the same way as the other admin actions.
+- **Caught a real regression before it shipped**: `app_settings` didn't
+  exist yet (migration not run), and `fetchAppSettings` was originally
+  inside the same `Promise.all` as the core game data in `gameStore` — that
+  would have thrown and blocked players/events/everything from ever loading
+  on any device until the migration ran. Fixed: `appSettings` now fetches
+  separately with a `.catch(() => null)`, and `ThemeApplier` already treats
+  `null` as "use Classic." **Verified live against the actual pre-migration
+  project**: core data (8 players, 9 events) loads fine, `appSettings`
+  degrades to `null` exactly as intended, nothing else breaks.
+
 ## 2026-08-11 — Live progress chart + tie fix + mobile nav + player settings
 
 105 tests, all gates green (lint/typecheck/test/build), plus a dev-server

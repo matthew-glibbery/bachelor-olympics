@@ -6,6 +6,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  AppSettingsRow,
   EventResultRow,
   EventRow,
   MultiplierRow,
@@ -41,6 +42,19 @@ export function fetchMultipliers(
   client: SupabaseClient,
 ): Promise<MultiplierRow[]> {
   return selectAll<MultiplierRow>(client, "multipliers");
+}
+
+/** The single shared app_settings row (currently just the active theme). */
+export async function fetchAppSettings(
+  client: SupabaseClient,
+): Promise<AppSettingsRow> {
+  const { data, error } = await client
+    .from("app_settings")
+    .select("*")
+    .eq("id", 1)
+    .single();
+  if (error) throw new Error(`app_settings: ${error.message}`);
+  return data as AppSettingsRow;
 }
 
 /**

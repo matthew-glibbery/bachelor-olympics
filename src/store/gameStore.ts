@@ -8,12 +8,14 @@ import { create } from "zustand";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
+  fetchAppSettings,
   fetchEventResults,
   fetchEvents,
   fetchMultipliers,
   fetchPlayers,
 } from "@/lib/data/queries";
 import type {
+  AppSettingsRow,
   EventResultRow,
   EventRow,
   MultiplierRow,
@@ -25,6 +27,7 @@ const REALTIME_TABLES = [
   "events",
   "event_results",
   "multipliers",
+  "app_settings",
 ] as const;
 
 interface GameState {
@@ -32,6 +35,7 @@ interface GameState {
   events: EventRow[];
   eventResults: EventResultRow[];
   multipliers: MultiplierRow[];
+  appSettings: AppSettingsRow | null;
   loading: boolean;
   error: string | null;
   /** True once the initial fetch + realtime subscription have completed. */
@@ -49,6 +53,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   events: [],
   eventResults: [],
   multipliers: [],
+  appSettings: null,
   loading: false,
   error: null,
   ready: false,
@@ -65,7 +70,21 @@ export const useGameStore = create<GameState>((set, get) => ({
         fetchEventResults(client),
         fetchMultipliers(client),
       ]);
-      set({ players, events, eventResults, multipliers, loading: false, ready: true });
+      // Fetched separately and allowed to fail without taking down the rest
+      // of the app: app_settings is a newer table, so until its migration has
+      // been run against a given project this would otherwise throw and
+      // block players/events/etc. from ever loading. ThemeApplier already
+      // treats a null appSettings as "use the default theme."
+      const appSettings = await fetchAppSettings(client).catch(() => null);
+      set({
+        players,
+        events,
+        eventResults,
+        multipliers,
+        appSettings,
+        loading: false,
+        ready: true,
+      });
     } catch (err) {
       set({ loading: false, error: err instanceof Error ? err.message : String(err) });
       return;
@@ -104,5 +123,6 @@ async function refetch(
     fetchEventResults(client),
     fetchMultipliers(client),
   ]);
-  set({ players, events, eventResults, multipliers });
+  const appSettings = await fetchAppSettings(client).catch(() => null);
+  set({ players, events, eventResults, multipliers, appSettings });
 }

@@ -147,3 +147,12 @@ export async function upsertMultipliers(
     .upsert(rows, { onConflict: "player_id,event_id" });
   if (error) throw new Error(`upsertMultipliers: ${error.message}`);
 }
+
+/** Set the shared app theme — applies live to every device via Realtime. */
+export async function setTheme(client: SupabaseClient, themeId: string): Promise<void> {
+  const { error } = await client
+    .from("app_settings")
+    .update({ theme_id: themeId })
+    .eq("id", 1);
+  if (error) throw new Error(`setTheme: ${error.message}`);
+}

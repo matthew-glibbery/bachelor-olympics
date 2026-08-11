@@ -93,3 +93,8 @@ export interface PowerMoveRow {
   note: string | null;
   used_at: string | null;
 }
+
+export interface AppSettingsRow {
+  id: 1;
+  theme_id: string;
+}

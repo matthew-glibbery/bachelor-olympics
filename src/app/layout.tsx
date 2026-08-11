@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeApplier } from "@/components/theme-applier";
 
 export const metadata: Metadata = {
   title: "Bachelor Olympics",
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <ThemeApplier />
+        {children}
+      </body>
     </html>
   );
 }
