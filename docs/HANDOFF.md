@@ -27,13 +27,14 @@ work — see the caveat in the log entry below:
     (per spec).
   - `/multipliers` — per-player sliders, zero-sum budget gate, locks once an
     event leaves "planned."
-  - `/odds` — **new this session**: groom's private strength ranking
-    (drag-to-reorder, no ties) → win/top3/last payout odds for everyone,
-    visible to all. See log entry below.
+  - `/odds` — groom's private strength ranking (drag-to-reorder, no ties,
+    now under a "Groom tools" card there) → win/top3/last payout odds for
+    everyone, visible to all.
   - `/setup` ("Player Settings" in the nav, shows your name once picked) —
     player picker, groom PIN gate (`GROOM_PIN` env var, checked server-side
-    via `/api/groom/unlock`), add/edit/remove players + photos, **shared
-    tweakcn theme picker**.
+    via `/api/groom/unlock`), add/edit/remove players + photos, shared
+    tweakcn theme picker, and (**new this session**) a "Danger zone" card:
+    full weekend reset.
 - **All 6 Supabase migrations run** (0006 is new this session — see below):
   schema, RLS (trusted-friends/shared-link model — no real accounts, the
   link is the trust boundary), Realtime publication, photos (Storage
@@ -59,14 +60,66 @@ worked around already (`.npmrc` pins the public registry;
 directly, not needed for `next dev`/`next build` themselves). See the
 relevant log entries below if this bites again.
 
-**Open question for next session**: the `/odds` ranking editor is only
-UI-locked once an event leaves "planned" (same convention as multipliers) —
-there's no DB-level enforcement stopping the groom from re-saving a ranking
-mid-weekend by, e.g., hitting the API directly. Spec says odds are set once,
-upfront, and this app's whole security model is app-level trust anyway (see
-`0002_rls.sql`), so this was judged good enough rather than adding a DB
-trigger — flag if that judgment call feels wrong once betting actually
-depends on odds staying fixed.
+**Open questions for next session**:
+- The `/odds` ranking editor is only UI-locked once an event leaves
+  "planned" (same convention as multipliers) — there's no DB-level
+  enforcement stopping the groom from re-saving a ranking mid-weekend by,
+  e.g., hitting the API directly. Spec says odds are set once, upfront, and
+  this app's whole security model is app-level trust anyway (see
+  `0002_rls.sql`), so this was judged good enough rather than adding a DB
+  trigger — flag if that judgment call feels wrong once betting actually
+  depends on odds staying fixed.
+- The new "reset weekend" / "reset event" actions (Setup → Danger zone,
+  and each `EventCard`) haven't been clicked against the live project yet —
+  see the caveat in the log entry below. Worth an explicit try-it-out before
+  trusting them at the actual event.
+
+## 2026-08-11 — Event results list, odds screen relabel, weekend/event reset
+
+Follow-up polish requested after the odds screen shipped and got a real
+look. 111 tests (unchanged — no new domain logic, all UI/data-layer),
+lint/typecheck/test/build green, dev-server smoke test of `/`, `/events`,
+`/odds`, `/setup` (clean compile, 200s).
+
+- **Event results now a vertical list** (`src/components/event-card.tsx`):
+  was a `flex-wrap` row that packed every player's name+score onto as few
+  lines as possible — hard to scan, especially on a phone with 8 players.
+  Now one player per row, name left / value right.
+- **Odds screen's ranking editor now sits under a "Groom tools" card**
+  (`src/app/odds/page.tsx`) — same title/icon convention as the Setup
+  page's groom section, instead of its own "Set the ranking" heading. The
+  payout-odds table above it is unchanged and still visible to everyone.
+- **Reset an event** (`resetEvent` in `mutations.ts`, button on
+  `EventCard`): deletes that event's results and sets it back to
+  `"planned"`. Deliberately narrower than cancel — the event, its photo, and
+  any multiplier values allocated to it are untouched; going back to
+  `"planned"` just re-unlocks its multiplier (locking is derived from
+  `status !== "planned"`, not a stored flag, so no separate unlock step was
+  needed). Same two-step confirm pattern as "Cancel event," right next to it.
+- **Reset the whole weekend** (`resetWeekend` in `mutations.ts`, "Danger
+  zone" card on `/setup`, groom-gated): wipes every table of weekend
+  *activity* — event results, multiplier allocations, all three bet/vote
+  tables, bonus events, the power move (back to unused), and the groom's
+  ranking — and puts every event back to `"planned"`. **Deliberately keeps
+  players and the theme** — this restarts the competition, not the guest
+  list or the look, per the user's explicit choice when asked (they also
+  chose to include the ranking in the wipe, unlike the narrower option
+  offered). Two-step confirm, same as the other destructive actions in this
+  app. Implemented as a loop of per-table deletes (`.delete().not(col, "is",
+  null)`, the same "wipe all rows" trick used for `setGroomRanking`'s
+  clear-then-insert) rather than a single transaction — no way to run a
+  multi-statement transaction through the anon-key REST API this app uses
+  everywhere else, and a partial reset from a mid-loop failure is an
+  acceptable risk for a rare, groom-only admin action (re-running it is
+  idempotent — deleting already-empty tables is a no-op).
+- **Not independently screenshot-verified** — same standing limitation as
+  every session so far (no browser driver, and this worktree has no
+  `.env.local` so there's no live data to exercise interactively). Ran a
+  dev-server smoke test only. **The two reset actions are the highest-risk
+  code in this session** — recommend the user actually click through both
+  confirm flows against the live project once deployed, since a wrong
+  table/column name here would silently no-op rather than error loudly
+  (Postgres doesn't complain about deleting zero rows).
 
 ## 2026-08-11 — Groom's odds-ranking screen
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock, ShieldCheck, UserPlus } from "lucide-react";
+import { Lock, RotateCcw, ShieldCheck, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,7 @@ import { AppNav } from "@/components/app-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { addPlayer } from "@/lib/data/mutations";
+import { addPlayer, resetWeekend } from "@/lib/data/mutations";
 import { stateOptions } from "@/lib/states";
 import { DEFAULT_THEME_ID } from "@/lib/themes";
 
@@ -46,6 +46,9 @@ export default function SetupPage() {
   const [newIsGroom, setNewIsGroom] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   useEffect(() => {
     hydrate();
@@ -78,6 +81,19 @@ export default function SetupPage() {
       setSubmitError(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleResetWeekend() {
+    setResetting(true);
+    setResetError(null);
+    try {
+      await resetWeekend(getSupabaseBrowserClient());
+      setConfirmingReset(false);
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -265,6 +281,53 @@ export default function SetupPage() {
           </CardHeader>
           <CardContent>
             <ThemePicker activeThemeId={appSettings?.theme_id ?? DEFAULT_THEME_ID} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {groomUnlocked ? (
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-destructive">Danger zone</CardTitle>
+            <CardDescription>
+              Resetting per event happens on the Events screen. This wipes the
+              whole weekend — every result, multiplier, bet, vote, bonus event,
+              the power move, and the ranking — back to a fresh start. Players
+              and the theme are kept. No undo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {resetError ? <p className="text-destructive text-sm">{resetError}</p> : null}
+            {confirmingReset ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm">Reset the entire weekend? This can&apos;t be undone.</span>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleResetWeekend}
+                  disabled={resetting}
+                >
+                  Yes, reset everything
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmingReset(false)}
+                  disabled={resetting}
+                >
+                  No
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="destructive"
+                className="w-fit"
+                onClick={() => setConfirmingReset(true)}
+              >
+                <RotateCcw className="size-4" />
+                Reset the weekend
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : null}
