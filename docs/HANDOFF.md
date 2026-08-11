@@ -2,6 +2,76 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-11 — Live progress chart + tie fix + mobile nav + player settings
+
+105 tests, all gates green (lint/typecheck/test/build), plus a dev-server
+smoke test of all four routes (200s, clean compile log) against the live
+Supabase project (8 real players already set up, Beach Volleyball resolved).
+
+- **Progress chart** (`src/components/progress-chart.tsx`, homepage, above
+  the Medal Table): live line chart of cumulative multiplier-adjusted points
+  per player across the weekend, via `recharts`. Loaded the **dataviz skill**
+  before writing any chart code (mandatory trigger) and followed it
+  end-to-end:
+  - **Color** (`src/lib/chartColors.ts`): "flag-inspired, auto-disambiguated"
+    per the user's explicit choice after I flagged that most US state flags
+    are blue-field-plus-seal, so literal flag colors would collide. Uses the
+    dataviz skill's validated 8-slot categorical palette (re-validated
+    against this app's *actual* surfaces — light `#ffffff`, dark `#241e1a`,
+    converted from the real oklch tokens — not just the skill's generic
+    defaults; `node scripts/validate_palette.js`, all checks pass). A small,
+    deliberately non-exhaustive table maps a handful of genuinely
+    well-known, distinctive state flags (AZ copper-orange, NM Zia
+    yellow/gold, CA bear-flag red, MD Calvert gold, OH/FL/AL red saltire,
+    TX/SC blue field) to their nearest slot; two-pass assignment lets
+    preference-holders claim first, then fills everyone else from the
+    remaining slots in fixed order — guarantees every player a distinct,
+    validated color regardless of how many flags I actually know.
+    **Found and fixed a real bug via live-data testing**: single-pass
+    assignment let a no-preference player steal a preferred slot ahead of
+    its rightful claimant depending on processing order; two-pass fixed it
+    (verified against the live project's real 8 players — AZ→orange,
+    TX→blue, CA→red, all landed correctly, all 8 still distinct).
+  - **Data** (`src/lib/scoring/cumulativeSeries.ts`, pure + tested): a
+    leading synthetic "Start" point at zero, then one equally-spaced x
+    position per event regardless of status; a player's cumulative total is
+    only set once that event resolves, otherwise null — the line stops at
+    the live frontier instead of implying false continuation. Verified
+    against live data: 10 points (start + 9 events), Beach Volleyball's
+    resolved totals correct, the other 8 events correctly null.
+  - **Marks**: player photo as the dot marker (SVG `<image>`, circular clip,
+    2px surface ring per the skill's spec so overlapping markers stay
+    legible), native `<title>` for per-marker hover, fallback for players
+    without a photo.
+  - **Interaction**: crosshair + one tooltip listing every player's value at
+    that event (avatar+flag+name, value bold), per `interaction.md`.
+  - **Legend**: always visible with line-key swatches (not boxes) — required
+    relief for the light-mode contrast WARN the validator flagged on 3 of
+    the 8 slots.
+  - X-axis ticks are the event's number, not its full name — long names
+    ("Super Smash Bros. (N64)") would collide on a phone-width chart (per
+    the skill's "measure first, don't clip" rule); full names live in the
+    tooltip.
+  - **Not independently screenshot-verified** — no browser driver available
+    in this environment (same limitation as earlier in this project). Ran
+    the actual data pipeline (`cumulativeSeries` + `assignPlayerColors`)
+    against live data instead, and a dev-server smoke test confirmed clean
+    compiles and 200s on every route. A manual look at `localhost:3000` (or
+    the deployed app) is the one remaining check.
+- **Tie fix** (`src/components/ranked-results-editor.tsx`): the visible rank
+  badge was showing raw list index instead of the actual computed position,
+  so checking "tied with row above" didn't visibly change anything — now
+  reads from `positionsFromOrder()`. Also added the tie toggle to every row
+  (including 1st, disabled/inert there — nothing above it to tie with) for
+  visual consistency, per the ask.
+- **Floating bottom mobile nav** (`src/components/app-nav.tsx`): single
+  responsive component — fixed floating pill bar on mobile widths, reverts
+  to the original inline row at `sm:` and up. Added matching bottom padding
+  to every page's `<main>` so the floating bar doesn't cover content.
+- **Setup → Player Settings**: person icon, nav label shows the selected
+  player's name once picked on this device (falls back to "Player Settings"
+  otherwise), page heading updated to match.
+
 ## 2026-08-11 — Groom-requested polish batch
 
 Six asks in one batch, all shipped. 93 tests, all gates green.

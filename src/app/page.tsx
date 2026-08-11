@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Medal } from "lucide-react";
+import { Medal, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -14,8 +14,10 @@ import {
 import { AppNav } from "@/components/app-nav";
 import { MedalTable } from "@/components/medal-table";
 import type { MedalTablePlayer } from "@/components/medal-table";
+import { ProgressChart } from "@/components/progress-chart";
 import { useGameStore } from "@/store/gameStore";
 import { deriveScoreLines } from "@/lib/scoring/fromRows";
+import { cumulativeSeries } from "@/lib/scoring/cumulativeSeries";
 
 export default function Home() {
   const { players, events, eventResults, multipliers, connect, loading, error, ready } =
@@ -33,9 +35,15 @@ export default function Home() {
     photoUrl: p.photo_url,
   }));
   const scoreLines = deriveScoreLines(events, eventResults, multipliers);
+  const series = cumulativeSeries(
+    events,
+    eventResults,
+    multipliers,
+    players.map((p) => p.id),
+  );
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
       <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold tracking-tight">Bachelor Olympics</h1>
@@ -45,6 +53,27 @@ export default function Home() {
         </div>
         <AppNav />
       </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="text-primary size-5" />
+            Progress
+          </CardTitle>
+          <CardDescription>
+            Cumulative points after each event. Hover a point for details.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error ? (
+            <p className="text-destructive text-sm">{error}</p>
+          ) : !ready && loading ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : (
+            <ProgressChart players={players} series={series} />
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

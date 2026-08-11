@@ -17,6 +17,7 @@ import { GripVertical } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { PlayerName } from "@/components/player-name";
+import { positionsFromOrder } from "@/lib/scoring/rankedOrder";
 import type { PlayerRow } from "@/lib/data/database.types";
 
 /**
@@ -51,6 +52,8 @@ export function RankedResultsEditor({
     onReorder(arrayMove(order, from, to));
   }
 
+  const positions = positionsFromOrder(order, tied);
+
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={order} strategy={verticalListSortingStrategy}>
@@ -62,8 +65,8 @@ export function RankedResultsEditor({
               <RankedRow
                 key={playerId}
                 id={playerId}
-                rank={i + 1}
-                tied={i > 0 && tied.has(playerId)}
+                rank={positions[playerId] ?? i + 1}
+                tied={tied.has(playerId)}
                 canTie={i > 0}
                 player={player}
                 onToggleTie={() => onToggleTie(playerId)}
@@ -121,12 +124,22 @@ function RankedRow({
         photoUrl={player.photo_url}
         className="flex-1"
       />
-      {canTie ? (
-        <label className="text-muted-foreground flex items-center gap-1 text-xs">
-          <input type="checkbox" checked={tied} onChange={onToggleTie} className="size-3.5" />
-          tie
-        </label>
-      ) : null}
+      <label
+        className={cn(
+          "flex items-center gap-1 text-xs",
+          canTie ? "text-muted-foreground" : "text-muted-foreground/40",
+        )}
+        title={canTie ? "Tied with the row above" : "1st place can't tie with a row above it"}
+      >
+        <input
+          type="checkbox"
+          checked={tied}
+          disabled={!canTie}
+          onChange={onToggleTie}
+          className="size-3.5"
+        />
+        tie
+      </label>
     </div>
   );
 }
