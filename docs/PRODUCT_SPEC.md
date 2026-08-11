@@ -5,8 +5,11 @@ an agent picking up this codebase cold, read this whole file before writing
 any scoring, betting, or multiplier logic — the rules here are specific and
 were arrived at deliberately; don't infer or simplify them.
 
-The groom is a competitor's friend, not a player. He sets odds and officiates,
-but doesn't score points himself.
+The groom is one of the competitors — he plays and scores points like everyone
+else — and he *also* officiates: he sets the odds, enters scores, and gets the
+one-time power move. This means he sets odds on a field that includes himself;
+that conflict of interest is a deliberate, accepted trade-off (the players trust
+him, and no one else knows all the competitors well enough to set odds credibly).
 
 ## Events
 
@@ -115,7 +118,8 @@ This is separate from per-event betting and uses **points**, not multiplier,
 as its currency.
 
 - **Odds source**: before the weekend, the groom privately ranks all 8
-  players across all 8 events. This ranking is the only input to the odds —
+  players (himself included) across all 8 events. This ranking is the only
+  input to the odds —
   players do not set odds themselves, and they aren't expected to know
   enough about each other to do so credibly. The groom's ranking generates
   both the per-event odds (used above) and the overall win/place/last odds.
