@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PlayerName } from "@/components/player-name";
+import { AppNav } from "@/components/app-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -79,11 +80,14 @@ export default function SetupPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-12">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Player Setup</h1>
-        <p className="text-muted-foreground text-sm">
-          Pick which competitor this device is acting as, or add a player.
-        </p>
+      <header className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-semibold tracking-tight">Player Setup</h1>
+          <p className="text-muted-foreground text-sm">
+            Pick which competitor this device is acting as, or add a player.
+          </p>
+        </div>
+        <AppNav />
       </header>
 
       <Card>

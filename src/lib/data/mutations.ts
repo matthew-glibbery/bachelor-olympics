@@ -3,7 +3,7 @@
  * src/lib/data/queries.ts — no business logic here.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PlayerRow } from "./database.types";
+import type { EventStatus, PlayerRow } from "./database.types";
 
 export interface NewPlayer {
   name: string;
@@ -36,4 +36,75 @@ export async function removePlayer(
 ): Promise<void> {
   const { error } = await client.from("players").delete().eq("id", playerId);
   if (error) throw new Error(`removePlayer: ${error.message}`);
+}
+
+/** Move an event through planned -> scoring -> resolved. Multipliers lock
+ * for an event as soon as it leaves "planned" (PRODUCT_SPEC.md → Multipliers). */
+export async function setEventStatus(
+  client: SupabaseClient,
+  eventId: string,
+  status: EventStatus,
+): Promise<void> {
+  const { error } = await client.from("events").update({ status }).eq("id", eventId);
+  if (error) throw new Error(`setEventStatus: ${error.message}`);
+}
+
+/**
+ * Cancel an event: deleted from the competition entirely, not marked
+ * "cancelled" (PRODUCT_SPEC.md → Cancelled events). FK cascades clean up its
+ * results and multiplier rows, which frees that budget back into every
+ * player's pool automatically (fewer events => smaller total budget divisor).
+ */
+export async function cancelEvent(
+  client: SupabaseClient,
+  eventId: string,
+): Promise<void> {
+  const { error } = await client.from("events").delete().eq("id", eventId);
+  if (error) throw new Error(`cancelEvent: ${error.message}`);
+}
+
+export interface EventResultInput {
+  player_id: string;
+  position?: number | null;
+  raw?: number | null;
+}
+
+/** Bulk-write an event's results (placement uses `position`, absolute uses `raw`). */
+export async function upsertEventResults(
+  client: SupabaseClient,
+  eventId: string,
+  results: EventResultInput[],
+): Promise<void> {
+  const rows = results.map((r) => ({
+    event_id: eventId,
+    player_id: r.player_id,
+    position: r.position ?? null,
+    raw: r.raw ?? null,
+  }));
+  const { error } = await client
+    .from("event_results")
+    .upsert(rows, { onConflict: "event_id,player_id" });
+  if (error) throw new Error(`upsertEventResults: ${error.message}`);
+}
+
+export interface MultiplierInput {
+  player_id: string;
+  event_id: string;
+  value: number;
+}
+
+/** Bulk-write a player's multipliers for whichever events are still unlocked. */
+export async function upsertMultipliers(
+  client: SupabaseClient,
+  entries: MultiplierInput[],
+): Promise<void> {
+  const rows = entries.map((e) => ({
+    player_id: e.player_id,
+    event_id: e.event_id,
+    value: e.value,
+  }));
+  const { error } = await client
+    .from("multipliers")
+    .upsert(rows, { onConflict: "player_id,event_id" });
+  if (error) throw new Error(`upsertMultipliers: ${error.message}`);
 }

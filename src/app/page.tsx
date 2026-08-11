@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Medal, Settings2 } from "lucide-react";
+import { Medal } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -11,7 +11,7 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { AppNav } from "@/components/app-nav";
 import { MedalTable } from "@/components/medal-table";
 import type { MedalTablePlayer } from "@/components/medal-table";
 import { useGameStore } from "@/store/gameStore";
@@ -35,19 +35,14 @@ export default function Home() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 py-12">
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold tracking-tight">Bachelor Olympics</h1>
           <p className="text-muted-foreground text-sm">
             Eight events. Eight competitors. One medal table.
           </p>
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/setup">
-            <Settings2 className="size-4" />
-            Setup
-          </Link>
-        </Button>
+        <AppNav />
       </header>
 
       <Card>
