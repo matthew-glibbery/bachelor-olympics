@@ -2,6 +2,25 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-12 — Olympic theme
+
+Added an "Olympic" option to the shared theme picker (`src/lib/themes.ts`).
+Unlike every other non-Classic entry, this one is hand-authored, not pulled
+from tweakcn — tweakcn has nothing Olympics-themed to fetch. Built from the
+actual Olympic ring colors (blue #0081C8, gold #FCB131, green #00A651, red
+#EE334E, a near-black navy standing in for ring-black so it stays legible as
+`chart-3` on a light card) converted to oklch by hand via the standard
+sRGB→OKLab→OKLCH path (no color library added for one theme). `primary` is
+the ring blue, `accent` the ring gold, `destructive` the ring red — so the
+app's own buttons and status colors read as "Olympics," not just the chart
+legend. Checked WCAG contrast by hand for every foreground/background pairing
+that carries text (primary-fg/primary, accent-fg/accent, destructive/card,
+foreground/background, muted-foreground/muted, light and dark) and nudged the
+initial blue and red picks slightly darker/more saturated where the straight
+ring hex landed at 4.0–4.2:1 against white (AA-large but not full AA) — final
+values all clear 4.5:1+ (light) / clear AA (dark). 140 tests (unchanged, no
+domain logic touched), lint/typecheck/build all green.
+
 ## 2026-08-12 — Tooltip column layout + the *real* drag-reorder fix
 
 Two follow-ups on the previous session's own fixes, both requested after a
