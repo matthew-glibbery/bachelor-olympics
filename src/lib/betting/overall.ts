@@ -18,8 +18,10 @@
  *
  * Switching picks: if a pick becomes mathematically eliminated from its
  * category, the bettor may switch to a still-alive player, but each switch
- * HALVES the payout relative to that bet type's own base value. No limit;
- * the halving is the only deterrent.
+ * HALVES the payout relative to that bet type's own base value, rounded to
+ * the nearest whole number each time (100 → 50 → 25 → 13 → 6 → 3…) — no
+ * scoring currency in this app awards fractional points.
+ * No limit; the halving is the only deterrent.
  *
  * Mathematical elimination is computed live after each event resolves (and must
  * be recomputed whenever an event is cancelled, since that changes how many
@@ -34,12 +36,13 @@ export const OVERALL_BASE_PAYOUT: Record<OverallBetType, number> = {
   top3: 20,
 };
 
-/** The payout value for `betType` after `switches` pick-switches (each halves it). */
+/** The payout value for `betType` after `switches` pick-switches (each
+ * halves it, rounded to the nearest whole point). */
 export function overallPayoutValue(betType: OverallBetType, switches: number): number {
   if (switches < 0 || !Number.isInteger(switches)) {
     throw new Error(`switches must be a non-negative integer, got ${switches}`);
   }
-  return OVERALL_BASE_PAYOUT[betType] / 2 ** switches;
+  return Math.round(OVERALL_BASE_PAYOUT[betType] / 2 ** switches);
 }
 
 /** A player's current multiplier-adjusted total, plus their reachable bounds. */

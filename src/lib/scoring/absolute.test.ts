@@ -48,4 +48,15 @@ describe("scoreAbsolute", () => {
   it("returns an empty map for an empty field", () => {
     expect(scoreAbsolute([]).size).toBe(0);
   });
+
+  it("rounds a fractional ratio to the nearest whole number", () => {
+    const result = scoreAbsolute([
+      { playerId: "a", raw: 3 },
+      { playerId: "b", raw: 1 },
+    ]);
+    // b's ratio is 1/3 * 100 = 33.33... -> rounds to 33, not a fraction.
+    expect(result.get("a")).toBe(100);
+    expect(result.get("b")).toBe(33);
+    expect(Number.isInteger(result.get("b"))).toBe(true);
+  });
 });

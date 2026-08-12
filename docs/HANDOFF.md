@@ -10,8 +10,8 @@ blow-by-blow if you need it, but this is the map.
 **Live and working**, verified against the real Supabase project + a real
 GitHub repo + Vercel deploy (not just typechecked), except the newest
 session's work — see the caveat in that log entry below. Migrations
-0001–0008 ARE confirmed run against the live project; **0009 (this session)
-is NOT confirmed run yet**:
+0001–0009 ARE confirmed run against the live project; **0010 (this
+session) is NOT confirmed run yet**:
 - **Repo**: `github.com/matthew-glibbery/bachelor-olympics` (private), `main`
   branch, CI green on every push (`.github/workflows/ci.yml`: pnpm, Node 22).
   Deployed on Vercel, auto-deploys from `main`.
@@ -21,9 +21,14 @@ is NOT confirmed run yet**:
   some photos uploaded. **Beach Volleyball** is the one resolved event so far.
 - **Five core screens**, all `max-w-2xl`:
   - `/` — live cumulative progress chart (player photos as markers,
-    flag-inspired colors, dataviz-skill-validated) + Medal Table. Total now
-    includes bonus-event points AND (this session) settled overall-bet
-    winnings.
+    flag-inspired colors, dataviz-skill-validated) + Medal Table. Total
+    includes bonus-event points and settled overall-bet winnings. **X-axis
+    now sequences by actual award order** (this session) — a bonus event
+    awarded between two planned events shows up between them, not lumped at
+    the end; every resolved event, in the real order it resolved
+    (`resolved_at`, new column), interleaved with bonus events by their
+    timestamp. Events still awaiting a result trail at the end in
+    configured order, same as before.
   - `/events` — groom-gated event board. Each event card is now **tabbed:
     Results / Odds / Bets** (this session). Results tab has the existing
     flow: start scoring → drag-to-reorder placement results (or numeric for
@@ -48,30 +53,38 @@ is NOT confirmed run yet**:
     unallocated multiplier reserve (not that event's own multiplier),
     payout scaled by that event's own odds. Closes once the event starts —
     the reveal moves to that event's Bets tab on `/events`.
-  - `/setup` — player picker, groom PIN gate, add/edit/remove players +
-    photos, theme picker, "Set the odds" card (groom ranks players **per
-    event**, one event at a time, ✓/○ progress indicator), a "Power move"
-    card (**new**: one-time freeform groom action, note + a single
-    irreversible button), and "Danger zone": full weekend reset.
-  - `/events` also gained a **"Bonus events" card** (**new**, below the
-    planned-event list): groom names a spontaneous event and picks a
-    winner on the spot, flat points (default 50) land straight on the
-    medal table — no odds, no multiplier, no elimination-math effect, per
-    spec's explicit isolation.
-- **10 Supabase migrations exist. 0009 (this session) needs to run** — adds
-  `status`/`payout` columns to `overall_bets` so a settled bet's outcome can
-  be recorded. 0001–0008 already confirmed run.
+  - `/setup` — player picker, groom PIN gate. **Groom tools restructured**
+    (this session): "Manage players" now has an inline "+ Add player" row
+    at the top instead of a separate standalone add form — same expand-to-
+    a-form interaction as editing an existing player. New **"Manage
+    events" card**: add, edit (name, photo, description, scoring type —
+    scoring type locks once the event starts), delete, and drag-to-reorder
+    events, mirroring the players card's interaction exactly. Events are
+    no longer only seeded from `src/lib/events/config.ts` — the groom can
+    add more, and the drag order here is what every screen follows. Also:
+    "Set the odds" card (per-event ranking, ✓/○ progress indicator), a
+    "Power move" card, and "Danger zone" (full weekend reset).
+  - `/events` has a **"Bonus events" card** below the planned-event list:
+    groom names a spontaneous event and picks a winner on the spot, flat
+    whole-number points (default 50) land straight on the medal table AND
+    (this session) the progress chart — no odds, no multiplier, no
+    elimination-math effect, per spec's explicit isolation.
+- **11 Supabase migrations exist. 0010 (this session) needs to run** — adds
+  `resolved_at` to `events` (backfilled for already-resolved rows) for the
+  progress-chart ordering above. 0001–0009 already confirmed run.
+- **No scoring currency ever shows a fraction now** (this session) —
+  absolute-scored events round to the nearest whole point (previously
+  deliberately unrounded; reversed by explicit product decision), and
+  overall-bet payouts round after each switch-halving (100→50→25→13→6…).
+  Placement scoring was already whole; per-event bet wagers/payouts stay in
+  their own 0.1-increment multiplier currency, a different unit, untouched.
 - Domain/scoring logic (`src/lib/scoring/*`, `src/lib/multipliers/*`,
   `src/lib/betting/*`, `src/lib/odds/*`, `src/lib/bonus/*`) is pure, unit-
-  tested (138 tests), and matches `docs/PRODUCT_SPEC.md` — placement
-  scoring rounds to whole numbers (100/72/52/37/27/19/14/10), per an
-  explicit product decision from an earlier session.
+  tested (140 tests), and matches `docs/PRODUCT_SPEC.md`.
 
 **Not built yet**: nothing — every mechanic in `docs/PRODUCT_SPEC.md` now has
-code behind it, including the overall-bet settlement gap flagged across the
-last three sessions (closed this session, see the log entry below). What's
-left is verification against live data and the open questions below, not
-missing features.
+code behind it. What's left is verification against live data and the open
+questions below, not missing features.
 
 **Environment quirk worth knowing**: this dev machine sits behind corporate
 TLS interception (Zscaler) and a corporate npm registry mirror. Both are
@@ -81,12 +94,24 @@ directly, not needed for `next dev`/`next build` themselves). See the
 relevant log entries below if this bites again.
 
 **Open questions for next session**:
-- **Migration 0009 has not been run against the live project yet** —
-  overall-bet settlement (this session) is dead on arrival against live
-  data until it runs (SQL Editor, same as every prior migration). Also
-  still needs a live click-through: award a bonus event and confirm it
-  lands on the medal table; use the power move and confirm it shows as used
-  everywhere (both from last session, also not yet verified live).
+- **Migration 0010 has not been run against the live project yet** — the
+  progress chart's award-order sequencing (this session) needs
+  `events.resolved_at`, which doesn't exist until it runs. Also still
+  needs a live click-through of last session's overall-bet settlement
+  (needs a full weekend of resolved events to observe for real) and this
+  session's event management (add/edit/delete/reorder an event, confirm it
+  reorders everywhere) and progress-chart interleaving (award a bonus
+  event between two resolved events, confirm it lands in between on the
+  chart, not at the end).
+- **`eventConfigToRow`/`seedEvents` (`src/lib/data/events.ts`,
+  `queries.ts`) can silently clobber a groom edit.** If the groom edits one
+  of the original 9 config-seeded events' name/notes/scoring-type via the
+  new Manage Events UI, then someone later re-runs the seed script
+  (`pnpm run seed:events`), the upsert would overwrite that edit back to
+  the static config value (the upsert only skips `status`/`photo_url`,
+  not the newly-editable fields). Low risk in practice — the seed script
+  is a manual one-time bootstrap step, not something re-run casually — but
+  worth knowing if events ever mysteriously revert.
 - **Settlement only fires from the event-finalize path** — there's no
   standalone "end the weekend" button. If every event happens to already be
   resolved and something else changes afterward (e.g. a groom edits an
@@ -122,6 +147,67 @@ relevant log entries below if this bites again.
   touch any open per-event bet that was riding on it — the event reverting
   to "planned" re-opens it for betting again rather than voiding whatever
   was already wagered. Minor, but noted.
+
+## 2026-08-12 — Event management, progress-chart ordering, whole-number points
+
+Real-use feedback batch. 140 tests (net: rewrote `cumulativeSeries.test.ts`
+for the new ordering behavior, added an `absolute.ts` rounding test, updated
+`overall.test.ts`'s halving expectations), lint/typecheck/test/build all
+green, dev-server smoke test of `/`, `/setup`, `/events` (clean compile,
+200s). **Needs migration 0010 run against the live project — not yet
+confirmed.**
+
+- **No fractional points anywhere.** `scoreAbsolute` now rounds its
+  proportional result (`src/lib/scoring/absolute.ts`) — this REVERSES an
+  earlier explicit decision (the old spec text argued rounding would blur
+  close absolute results); overridden by direct instruction this session.
+  `overallPayoutValue` now rounds after each switch-halving
+  (`src/lib/betting/overall.ts`): 100→50→25→13→6→3… instead of
+  →12.5→6.25→… Placement scoring was already whole. Per-event bet
+  wagers/payouts are deliberately NOT touched — they're a different
+  currency (0.1-increment multiplier units, not "points"), a scoping
+  judgment call documented in the relevant commit/docs rather than assumed
+  silently.
+- **Progress chart now sequences by actual award order, not planned sort
+  order** (`src/lib/scoring/cumulativeSeries.ts`, rewritten). Needed
+  `resolved_at` added to `events` (migration 0010, backfilled for
+  already-resolved rows; `setEventStatus`/`resetEvent`/`resetWeekend` all
+  updated to stamp/clear it appropriately) since nothing previously
+  recorded when an event actually finished, only its pre-planned position.
+  Bonus events (`created_at`, already existed) now interleave into the
+  same timeline by timestamp. Events still awaiting a result trail at the
+  end in configured order, unchanged from before — we don't know when
+  they'll happen yet, so they can't be interleaved for real.
+- **Events are now fully groom-managed**, not just seeded from
+  `src/lib/events/config.ts`: new `createEvent`/`updateEvent`/
+  `reorderEvents` mutations (`cancelEvent` already existed and is reused
+  for delete). `sort_order` — already read by `fetchEvents` and therefore
+  by every screen — is what reordering rewrites, so "the order shown
+  everywhere" needed zero other code changes. Scoring-type edits
+  (placement↔absolute) are blocked once an event leaves "planned," since
+  the two modes store a result in different columns (`position` vs `raw`)
+  and switching mid-scoring would corrupt whatever's already there.
+  - `src/components/manage-events-card.tsx` (new): `@dnd-kit` drag list
+    (same `PointerSensor` pattern as `GroomRankingEditor`) wrapping
+    `manage-event-row.tsx` (new, mirrors `ManagePlayerRow`'s collapsed/
+    edit-expanded shape) and `add-event-row.tsx` (new). Optimistic local
+    reorder state so a drag feels instant instead of waiting on a
+    round-trip + Realtime refetch, cleared once the mutation resolves (or
+    fails) so it can't drift from the real DB order if something else
+    changes concurrently.
+- **"Add" and "edit" now share one interaction, for both players and
+  events** — the standalone "Add player" form that used to live inside the
+  Groom Tools card is gone; `add-player-row.tsx` (new) is a collapsed
+  "+ Add player" button living at the top of "Manage players" that expands
+  to the exact same field layout as `ManagePlayerRow`'s edit form.
+  `add-event-row.tsx` mirrors this shape for events. "Manage players" now
+  shows (groom-gated) even with zero players, since it's now the only way
+  to add the first one.
+- **Not independently screenshot-verified** — same standing limitation (no
+  browser driver, no live Supabase creds in this worktree). The drag-
+  reorder interaction in particular is the kind of thing that's easy to
+  get subtly wrong visually (item snapping, drop-target feedback) in ways
+  unit tests can't catch — worth an extra-careful manual pass once live.
 
 ## 2026-08-11 — Overall-bet settlement: the last open gap in the spec
 

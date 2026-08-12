@@ -7,11 +7,12 @@ import {
 } from "./overall";
 
 describe("overallPayoutValue", () => {
-  it("win starts at 100 and halves per switch", () => {
+  it("win starts at 100 and halves per switch, rounded to whole points", () => {
     expect(overallPayoutValue("win", 0)).toBe(100);
     expect(overallPayoutValue("win", 1)).toBe(50);
     expect(overallPayoutValue("win", 2)).toBe(25);
-    expect(overallPayoutValue("win", 3)).toBe(12.5);
+    expect(overallPayoutValue("win", 3)).toBe(13); // 12.5 -> rounds up
+    expect(Number.isInteger(overallPayoutValue("win", 3))).toBe(true);
   });
 
   it("top3 starts at 20 and halves per switch", () => {

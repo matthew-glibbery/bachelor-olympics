@@ -59,6 +59,7 @@ export default function Home() {
     eventResults,
     multipliers,
     players.map((p) => p.id),
+    bonusEvents,
   );
 
   return (
@@ -80,7 +81,8 @@ export default function Home() {
             Progress
           </CardTitle>
           <CardDescription>
-            Cumulative points after each event. Hover a point for details.
+            Cumulative points after each event or bonus event, in the order
+            they actually happened. Hover a point for details.
           </CardDescription>
         </CardHeader>
         <CardContent>

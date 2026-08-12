@@ -19,6 +19,7 @@ export function eventConfigToRow(def: EventDefinition, sortOrder: number): Event
     sort_order: sortOrder,
     status: "planned",
     photo_url: null,
+    resolved_at: null,
   };
 }
 
