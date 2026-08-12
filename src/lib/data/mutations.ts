@@ -297,18 +297,19 @@ export async function switchOverallBetPick(
 export interface NewPerEventBet {
   player_id: string;
   event_id: string;
+  pick_player_id: string;
   target: "win" | "place";
   wager: number;
 }
 
 /**
  * Place a per-event multiplier bet — PRODUCT_SPEC.md → Per-event multiplier
- * betting. Escrows `wager` out of the player's *already-locked* multiplier
- * for that event; the UI is responsible for only offering this while the
- * event is "scoring" (multiplier locked, outcome not yet known) and for
- * capping the wager at whatever's not already tied up in another open bet on
- * the same event — same "no DB constraint, UI-enforced" pattern as overall
- * bets.
+ * betting. Escrows `wager` out of the player's unallocated multiplier
+ * reserve (src/lib/betting/reserve.ts), not out of any specific event's own
+ * multiplier value. The UI is responsible for only offering this while the
+ * event is still "planned" (bets close once it starts) and for capping the
+ * wager at the bettor's current reserve — same "no DB constraint,
+ * UI-enforced" pattern as overall bets.
  */
 export async function placePerEventBet(
   client: SupabaseClient,
@@ -363,7 +364,7 @@ export async function resolvePerEventBets(
   const outcomes = resolveOpenPerEventBets(
     (openBets as PerEventBetRow[]).map((b) => ({
       id: b.id,
-      playerId: b.player_id,
+      pickPlayerId: b.pick_player_id,
       target: b.target,
       wager: b.wager,
     })),

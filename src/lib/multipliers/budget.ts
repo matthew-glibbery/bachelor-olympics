@@ -3,13 +3,18 @@
  *
  * Every player has one multiplier per event, adjustable before the weekend:
  *   - Range 0.5 to 1.5, in steps of 0.1.
- *   - Zero-sum: the SUM of a player's multipliers across all events is
- *     constant. Raising one event has to lower others by the same total. This
- *     is the core strategic tension — it's a hard constraint, enforced via a
- *     "budget remaining" that must hit exactly zero to submit.
+ *   - Budget: every player starts with `eventCount × 1.0` total to spend
+ *     across events. Raising one event's multiplier has to come from
+ *     lowering others by the same amount — you can spend up to the full
+ *     budget, but NOT over it. Originally a strict zero-sum (must land on
+ *     exactly zero remaining to submit); relaxed to "must not go negative"
+ *     once per-event betting needed somewhere to draw wagers from — leftover,
+ *     unallocated budget is now a deliberate reserve, spendable on live
+ *     per-event bets (src/lib/betting/reserve.ts) instead of only on event
+ *     multipliers. See docs/PRODUCT_SPEC.md → Multipliers for the decision.
  *   - Locking: a multiplier is locked once its event starts being scored.
- *     Locked values can't move; the zero-sum must balance across whatever
- *     events are still unlocked.
+ *     Locked values can't move; the remaining budget must still not go
+ *     negative across whatever events are still unlocked.
  *
  * All math is done in integer tenths internally so the 0.1 grid never suffers
  * floating-point drift (0.1 + 0.2 !== 0.3 in IEEE floats).
@@ -57,16 +62,17 @@ export function isValidMultiplierValue(value: number): boolean {
 export interface BudgetValidation {
   valid: boolean;
   /**
-   * How far the allocation is from balancing, in multiplier units. Must be
-   * exactly 0 to submit. Positive means the player has budget left to spend;
-   * negative means they've over-allocated.
+   * How far the allocation is from the full budget, in multiplier units.
+   * Zero or positive is fine to submit — positive is unspent budget, held in
+   * reserve for per-event betting (src/lib/betting/reserve.ts). Negative
+   * means over-allocated across events, which is never valid.
    */
   budgetRemaining: number;
   errors: string[];
 }
 
 /**
- * Validate a player's full set of allocations against the zero-sum constraint.
+ * Validate a player's full set of allocations against the total budget.
  *
  * `eventCount` is the number of events the budget is spread across (normally
  * `allocations.length`, but passable explicitly so a caller can reason about a
@@ -91,9 +97,9 @@ export function validateAllocations(
 
   const totalTenths = eventCount * DEFAULT_T;
   const remainingTenths = totalTenths - sumTenths;
-  if (remainingTenths !== 0) {
+  if (remainingTenths < 0) {
     errors.push(
-      `budget must balance to zero (off by ${(remainingTenths / 10).toFixed(1)})`,
+      `over budget by ${(-remainingTenths / 10).toFixed(1)} — lower another event first`,
     );
   }
 
@@ -106,8 +112,9 @@ export function validateAllocations(
 
 /**
  * The amount of budget still free to spend across the *unlocked* events, given
- * the locked events already consume part of the total. Drives the UI's "budget
- * remaining" indicator: it must reach exactly 0 for the set to be submittable.
+ * the locked events already consume part of the total. Feeds the UI's "budget
+ * remaining" indicator — must not go negative; anything left at zero-or-above
+ * is fine (unspent budget becomes the per-event betting reserve).
  */
 export function unlockedBudgetRemaining(
   allocations: MultiplierAllocation[],

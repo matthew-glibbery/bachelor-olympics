@@ -7,16 +7,21 @@ import {
 } from "./overall";
 
 describe("overallPayoutValue", () => {
-  it("starts at 100 and halves per switch", () => {
-    expect(overallPayoutValue(0)).toBe(100);
-    expect(overallPayoutValue(1)).toBe(50);
-    expect(overallPayoutValue(2)).toBe(25);
-    expect(overallPayoutValue(3)).toBe(12.5);
+  it("win starts at 100 and halves per switch", () => {
+    expect(overallPayoutValue("win", 0)).toBe(100);
+    expect(overallPayoutValue("win", 1)).toBe(50);
+    expect(overallPayoutValue("win", 2)).toBe(25);
+    expect(overallPayoutValue("win", 3)).toBe(12.5);
+  });
+
+  it("top3 starts at 20 and halves per switch", () => {
+    expect(overallPayoutValue("top3", 0)).toBe(20);
+    expect(overallPayoutValue("top3", 1)).toBe(10);
   });
 
   it("rejects a negative or fractional switch count", () => {
-    expect(() => overallPayoutValue(-1)).toThrow();
-    expect(() => overallPayoutValue(1.5)).toThrow();
+    expect(() => overallPayoutValue("win", -1)).toThrow();
+    expect(() => overallPayoutValue("win", 1.5)).toThrow();
   });
 });
 
@@ -58,17 +63,6 @@ describe("isPickAlive — top3", () => {
       { playerId: "pick", current: 100, maxRemaining: 300, minRemaining: 0 }, // ceiling 400
     ];
     expect(isPickAlive("top3", "pick", f)).toBe(false);
-  });
-});
-
-describe("isPickAlive — last", () => {
-  it("is eliminated when a rival is guaranteed below the pick", () => {
-    // 'leader' can't be last: tail ceiling 250 < leader floor 510.
-    expect(isPickAlive("last", "leader", field())).toBe(false);
-  });
-
-  it("keeps the trailing player alive for the last-place bet", () => {
-    expect(isPickAlive("last", "tail", field())).toBe(true);
   });
 });
 

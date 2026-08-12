@@ -9,7 +9,7 @@ blow-by-blow if you need it, but this is the map.
 
 **Live and working**, verified against the real Supabase project + a real
 GitHub repo + Vercel deploy (not just typechecked), except this session's
-work — see the caveat in the log entry below:
+work — see the caveats in the log entries below:
 - **Repo**: `github.com/matthew-glibbery/bachelor-olympics` (private), `main`
   branch, CI green on every push (`.github/workflows/ci.yml`: pnpm, Node 22).
   Deployed on Vercel, auto-deploys from `main`.
@@ -17,53 +17,60 @@ work — see the caveat in the log entry below:
   "Switch from npm to pnpm" log entry). Don't reintroduce npm/package-lock.json.
 - **8 real players** already set up in the live DB, one groom, real states,
   some photos uploaded. **Beach Volleyball** is the one resolved event so far.
-- **Five core screens**, all `max-w-2xl` now — every page was on that width
-  except `/` and `/events`, which had drifted to `max-w-3xl`; normalized to
-  one width this session (shared bottom-floating-on-mobile nav,
-  `src/components/app-nav.tsx`):
+- **Five core screens**, all `max-w-2xl`:
   - `/` — live cumulative progress chart (player photos as markers,
     flag-inspired colors, dataviz-skill-validated) + Medal Table.
-  - `/events` — groom-gated event board: start scoring → drag-to-reorder
-    placement results (or numeric for absolute events, e.g. golf) → finalize
-    → resolved. Ties via a "tied with row above" toggle. Results list is
-    vertical (one player per row). Cancel = hard delete (per spec); Reset
-    clears results and reopens the event without deleting it. Finalizing a
-    placement event now also settles any open per-event bets on it.
-  - `/multipliers` — per-player sliders, zero-sum budget gate, locks once an
-    event leaves "planned."
-  - `/bets` — **reworked this session**: overall betting (win/top3 only — the
-    "last place" joke bet was cut) with odds shown inline next to each pick,
-    plus per-event multiplier betting (new this session, placement events
-    only) with that event's own odds shown next to the wager form. There is
-    no more separate `/odds` page — odds always live right next to the bet
-    they inform. See log entry below.
-  - `/setup` ("Player Settings" in the nav, shows your name once picked) —
-    player picker, groom PIN gate (`GROOM_PIN` env var, checked server-side
-    via `/api/groom/unlock`), add/edit/remove players + photos, shared
-    tweakcn theme picker, a "Set the odds" card (**moved here this
-    session** — the groom ranks players **per event**, one event at a time,
-    not one overall ranking), and a "Danger zone" card: full weekend reset.
-- **All 7 Supabase migrations exist**; **0007 has NOT been run yet** on the
-  live project (only 0001–0006 have — user confirmed 0006 mid-session, before
-  this rework started). 0007 drops the old single `groom_ranking` table
-  (replaced by per-event `event_rankings`) and `peer_award_votes` (feature
-  cut), and tightens `overall_bets.bet_type`'s check constraint to drop
-  "last". **Needs to be run in the SQL Editor before any of this session's
-  odds/betting work functions against the live project.**
+  - `/events` — groom-gated event board. Each event card is now **tabbed:
+    Results / Odds / Bets** (this session). Results tab has the existing
+    flow: start scoring → drag-to-reorder placement results (or numeric for
+    absolute events) → finalize → resolved, ties via "tied with row above,"
+    vertical results list, Cancel (hard delete) / Reset (clear + reopen).
+    Odds tab: read-only win/place payout table from that event's own
+    ranking. Bets tab: every bet placed on that event, revealed only once
+    it's left "planned" (bets stay secret until placement closes).
+    Finalizing a placement event auto-settles any open per-event bets on it.
+  - `/multipliers` — per-player sliders. Budget is no longer a strict
+    zero-sum (this session) — you can leave some unspent as a reserve for
+    per-event bets; a new "Betting reserve" card shows what's available to
+    wager vs. tied up in open wagers.
+  - `/bets` — overall betting (win/top3 only, win=100pts/top3=20pts) with
+    odds shown inline next to each pick; new bet placement locks once the
+    first event starts, existing bets can still switch if eliminated,
+    "everyone's bets" only reveals once locked. Per-event betting (this
+    session, was previously unbuilt beyond pure math): pick ANY player to
+    win/place in an upcoming ("planned") event, wager drawn from your
+    unallocated multiplier reserve (not that event's own multiplier),
+    payout scaled by that event's own odds. Closes once the event starts —
+    the reveal moves to that event's Bets tab on `/events`.
+  - `/setup` — player picker, groom PIN gate, add/edit/remove players +
+    photos, theme picker, "Set the odds" card (groom ranks players **per
+    event**, one event at a time — now shows ✓/○ per event plus an "N of M
+    ranked" count, this session), and "Danger zone": full weekend reset.
+- **8 Supabase migrations exist; 0007 AND 0008 have NOT been run yet** on
+  the live project (only 0001–0006 have). **Both need to run in the SQL
+  Editor, in order, before any betting/odds work functions against live
+  data**:
+  - 0007: drops old single `groom_ranking` → `event_rankings` (per-event),
+    drops `peer_award_votes` (feature cut), tightens `overall_bets.bet_type`
+    to drop "last".
+  - 0008 (this session): adds `pick_player_id` to `per_event_bets` (wipes
+    the table first — per-event bets went from a self-bet to a pick-based
+    bet, a real schema shape change, and nothing real was riding on the old
+    shape yet).
 - Domain/scoring logic (`src/lib/scoring/*`, `src/lib/multipliers/*`,
-  `src/lib/betting/*`, `src/lib/odds/*`) is pure, unit-tested (121 tests),
+  `src/lib/betting/*`, `src/lib/odds/*`) is pure, unit-tested (126 tests),
   and matches `docs/PRODUCT_SPEC.md` — placement scoring rounds to whole
   numbers (100/72/52/37/27/19/14/10), per an explicit product decision from
   an earlier session.
 
 **Not built yet** (rest of Phase 3–4, `docs/PRODUCT_SPEC.md` has the rules):
 groom's one-time power move, on-the-fly bonus events. Peer award vote was
-explicitly cut this session, not deferred — see the log entry below. Also
-**not built for either betting mechanic**: crediting a winning payout back
-onto the player's spendable multiplier budget / medal-table total — both
-`/bets` mechanics compute and store the correct payout on resolution, but
-nothing yet feeds it back into `src/lib/multipliers/budget.ts`'s zero-sum
-total or the medal table. Flagged as an open question below.
+explicitly cut, not deferred. Also **not built for either betting
+mechanic**: crediting a WON OVERALL bet's points onto the medal-table total
+— per-event bets now correctly feed their payout back into the multiplier
+reserve (`src/lib/betting/reserve.ts`, this session), but overall bets still
+just sit there computed-but-uncredited once the weekend actually ends. See
+the open question below.
 
 **Environment quirk worth knowing**: this dev machine sits behind corporate
 TLS interception (Zscaler) and a corporate npm registry mirror. Both are
@@ -73,38 +80,127 @@ directly, not needed for `next dev`/`next build` themselves). See the
 relevant log entries below if this bites again.
 
 **Open questions for next session**:
-- **Migration 0007 has not been run against the live project yet** (see
-  above) — everything in this session's rework is dead on arrival against
-  live data until it is. Run it, then re-verify: set a per-event ranking on
-  Setup, confirm odds show up on `/bets`, place both bet types.
-- The per-event ranking editor and the multiplier sliders both only lock
-  once an event leaves "planned" — UI-only, no DB-level enforcement (same
-  judgment call as last session, now applied per-event too). Still judged
-  fine given this app's app-level trust model (`0002_rls.sql`).
-- **Neither betting mechanic credits its payout anywhere yet.** Overall bets
-  and per-event bets both compute and store a correct payout on
-  resolve/finalize, but nothing feeds a won overall bet's 100 (or halved)
-  points into the medal-table total, and nothing feeds a won per-event bet's
-  payout back into the player's spendable multiplier budget
-  (`src/lib/multipliers/budget.ts`'s zero-sum total is still fixed at
-  `eventCount × 1.0`, unaware of bet winnings). Needs a "settle the weekend"
-  step and a "reallocatable bonus pool" concept respectively — worth
-  designing together with bonus-event payouts (also unbuilt) rather than
-  three ad hoc mechanisms.
-- **Per-event betting is placement-events-only** (`/bets`'s `scoringEvents`
-  filters on `scoring_mode === "placement"`) — resolution keys off the
+- **Migrations 0007 and 0008 have not been run against the live project
+  yet** — everything in the last two sessions' rework is dead on arrival
+  against live data until both run, in order. Then re-verify end to end:
+  set a per-event ranking on Setup, confirm odds show up on `/bets`, place
+  an overall bet, place a per-event bet on someone else, resolve it by
+  finalizing that event, confirm the reserve on `/multipliers` updates.
+- **Overall-bet payouts still aren't credited anywhere** once a bet wins —
+  nothing adds the points to the medal-table total at the end of the
+  weekend. (Per-event bets ARE credited now, via the reserve ledger.) Needs
+  a "settle the weekend" step, ideally designed together with bonus-event
+  payouts (also unbuilt) rather than two different ad hoc mechanisms.
+- The per-event ranking editor, the multiplier sliders, and per-event bet
+  placement all lock UI-side once an event leaves "planned" — no DB-level
+  enforcement. Same judgment call as prior sessions, still judged fine given
+  this app's app-level trust model (`0002_rls.sql`).
+- **Per-event betting is placement-events-only** — resolution keys off the
   `position` field, which absolute-scored events (golf, etc.) never set.
-  Extending this to absolute events needs a definition of "win"/"place" in
-  terms of `raw` values first.
+  Extending this needs a definition of "win"/"place" in terms of `raw`
+  values first.
+- The odds decay (`ODDS_DECAY` in `src/lib/odds/ranking.ts`) was retuned
+  this session from 0.72 to 0.9 to bring an 8-player field's longshot win
+  payout down from ~33x to ~11-12x — a documented, tunable judgment call
+  (see that file's header), not derived from a formula. Worth a gut-check
+  once real per-event bets get placed and resolved at the actual event.
 - The elimination bounds in `src/lib/betting/fromRows.ts` (used for the
   overall bet's alive/eliminated status) still use the placement curve's
   last-place value as the floor for every remaining event, even ones that
-  turn out absolute-scored. Unchanged from last session, still a documented,
-  conservative-direction judgment call.
-- Resetting a single event (`EventCard`'s Reset) doesn't touch any open
-  per-event bet that was riding on it — the event reverting to "planned"
-  just makes it disappear from `/bets`'s "in progress" list until the event
-  is started again, rather than voiding the bet outright. Minor, but noted.
+  turn out absolute-scored. Still a documented, conservative-direction
+  judgment call, unchanged across sessions.
+- Resetting a single event (`EventCard`'s Reset, on the Results tab) doesn't
+  touch any open per-event bet that was riding on it — the event reverting
+  to "planned" re-opens it for betting again rather than voiding whatever
+  was already wagered. Minor, but noted.
+
+## 2026-08-11 — Real-use feedback: tabbed events, pick-based bets, budget reserve, tuning
+
+Feedback after the previous rework actually got clicked around. Several
+entangled changes landed together. 126 tests (5 net new —
+`src/lib/betting/reserve.test.ts` new, `src/lib/betting/
+resolvePerEventBets.test.ts` reworked in place, `overall.test.ts` lost its
+"last" describe block), lint/typecheck/test/build all green, dev-server
+smoke test of all 5 routes (clean compile, 200s). **Not verified against
+live data — migrations 0007 AND 0008 both still need to run, see the open
+question above.**
+
+- **Setup's ranking picker now shows progress**: `✓`/`○` prefix per event in
+  the dropdown, plus an "N of M events ranked" line
+  (`src/components/event-odds-editor.tsx`) — the ask was simply "make it
+  clearer which events I've done."
+- **Odds retuned down**: `ODDS_DECAY` in `src/lib/odds/ranking.ts` split out
+  from the placement-scoring decay it used to borrow (0.72 → its own 0.9).
+  An 8-player field's win-bet longshot payout was hitting ~33x, which read
+  as absurd against a per-player budget of only ~8.0 total multiplier
+  points to wager with; 0.9 brings that down to roughly 11-12x. Documented
+  as a tunable judgment call in the file header, same as the original 0.72
+  choice was.
+- **Overall bet payouts split by type**: win stays 100, top3 drops to 20
+  (`OVERALL_BASE_PAYOUT` in `src/lib/betting/overall.ts`) — top3 lands
+  roughly 3x more often than win in an 8-player field (3 slots vs. 1 every
+  event), so a payout cut well past that ratio keeps it a genuinely
+  lower-reward bet. `overallPayoutValue` now takes the bet type as a
+  parameter. Also fully removed the vestigial "last" bet type from this
+  pure module (`isPickAlive`'s third case, the type union, its tests) —
+  last session only stripped it from the DB/UI layer and left this dead
+  code behind; cleaned up now while already in the area.
+- **Overall betting now locks at weekend start**: new placements close and
+  "everyone's bets" only becomes visible once any event leaves "planned"
+  (`weekendStarted` in `src/app/bets/page.tsx`) — previously bets were
+  visible to everyone immediately, which undercut the "no suspense until
+  it's locked in" framing the groom wanted. Switching an eliminated pick is
+  still allowed post-lock (spec's only deterrent is the halving).
+- **Multiplier budget is no longer a strict zero-sum**
+  (`src/lib/multipliers/budget.ts`): `validateAllocations` used to require
+  landing on exactly zero remaining to save; now it only rejects going
+  *negative*. This was necessary, not cosmetic — per-event bets need
+  somewhere to draw a wager from that isn't a specific event's own
+  multiplier, and "leftover budget you chose not to allocate" is that
+  source. `/multipliers` has a new "Betting reserve" card showing what's
+  available vs. tied up.
+- **New reserve ledger** (`src/lib/betting/reserve.ts`, +test):
+  `bettingReserve(eventCount, allocatedToEvents, bets)` computes a player's
+  spendable reserve as a live recomputation, not a stored balance —
+  `total − allocated − openWagers + Σ(payout − wager)` over every resolved
+  bet. That net-per-bet term is what makes a void bet exactly cancel out, a
+  lost bet permanently shrink the reserve, and a won bet add its actual
+  profit — got this wrong on the first pass (a test caught it: a void bet
+  was coming out *ahead* of never having bet at all) and fixed it before
+  it shipped.
+- **Per-event betting redesigned around a pick** (schema change, migration
+  0008): the original build had bettors wagering on their OWN finish,
+  inferred from `per_event_bets` having no pick column. That was wrong —
+  the ask was "pick someone to win or place," same shape as an overall bet
+  but scoped to one event. `pick_player_id` added to the table;
+  `resolveOpenPerEventBets` (`src/lib/betting/resolvePerEventBets.ts`) now
+  checks the PICK's finishing position, not the bettor's. Wager currency
+  changed too: draws from the new unallocated reserve instead of that
+  event's own multiplier value (see above), and the betting window moved
+  from "while the event is in progress" to "only before it starts" — you
+  size up the odds and lock in a pick, you don't bet live mid-event.
+- **Events page is now tabbed per event** (`src/components/event-card.tsx`,
+  using a hand-written `src/components/ui/tabs.tsx` — `npx shadcn add tabs`
+  failed in this sandboxed environment same as every prior shadcn attempt,
+  hand-matched the New York style from the existing `badge.tsx`/`card.tsx`
+  shape; `@radix-ui/react-tabs` was already an installed dependency).
+  Results / Odds / Bets. Odds tab is read-only
+  (`src/components/event-odds-table.tsx`) — ranking editing stays on Setup,
+  per the groom's explicit "keep editing on Setup" answer. Bets tab
+  (`src/components/event-bets-list.tsx`) only renders once the event has
+  left "planned," revealing what was wagered on it — this is also where
+  "everyone's per-event bets" now lives, replacing the card of the same
+  name that used to sit on `/bets` (removed — redundant with this reveal,
+  and showing it pre-lock would have spoiled the suspense the groom wanted).
+- **Not independently screenshot-verified** — same standing limitation
+  (no browser driver, no live Supabase creds in this worktree). This
+  session's changes are the most structurally different from prior
+  sessions' builds (a real pick-column schema change, a relaxed budget
+  invariant, tab-based navigation) — **recommend the most thorough
+  real-project click-through yet** once both migrations run: rank an
+  event, place an overall bet, place a per-event bet on someone else,
+  finalize that event, and confirm the reserve, the bet's resolved status,
+  and the Bets-tab reveal all agree with each other.
 
 ## 2026-08-11 — Odds move to Setup, per-event ranking, per-event betting, cuts
 

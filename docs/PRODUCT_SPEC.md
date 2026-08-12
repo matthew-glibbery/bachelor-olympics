@@ -86,32 +86,40 @@ Every player has one multiplier per event, adjustable before the weekend
 starts.
 
 - **Range**: 0.5 to 1.5 per event, in steps of 0.1.
-- **Zero-sum constraint**: the sum of all eight (or however many) multipliers
-  for a given player must stay constant. Raising one event's multiplier has
-  to lower others by the same total amount. This is the core strategic
-  tension of the whole game — enforce it as a hard constraint in the UI (e.g.
-  a "budget remaining" indicator that has to hit exactly zero to submit), not
-  just a soft warning.
+- **Budget, not a strict zero-sum**: every player starts with a total budget
+  of `eventCount × 1.0` to spend across events. Raising one event's
+  multiplier has to come from lowering others by the same amount — you can
+  spend up to the full budget, but never over it. Originally a hard
+  zero-sum (had to land on exactly zero remaining to submit); relaxed once
+  per-event betting needed somewhere to draw wagers from — unspent budget is
+  now a deliberate reserve, spendable on live per-event bets instead of only
+  on event multipliers (see below). Enforce "not negative" as the hard
+  constraint in the UI, not "exactly zero."
 - **Final event score = placement/absolute points × multiplier.**
 - **Locking**: a player's multiplier for an event is locked once that event
   starts being scored. Before that, they can freely re-adjust it, subject to
-  the zero-sum constraint across whatever events are still unlocked.
+  the budget constraint across whatever events are still unlocked.
 
 ## Per-event multiplier betting
 
 Separate from the multiplier sliders themselves, players can wager a portion
-of their *already-allocated* multiplier on a specific event's outcome (win or
-place), live, during the weekend.
+of their **unallocated multiplier reserve** (the leftover budget described
+above — not any specific event's own multiplier) on a chosen PLAYER'S
+win/place outcome in a specific upcoming event. Like the overall bet, this
+is a pick — the bettor and the pick can be different players (or the same
+one).
 
-- Wagering, say, 0.3 of an event's multiplier **removes that 0.3 from the
-  pool immediately** — it's escrowed, not spendable elsewhere while the bet
-  is open.
-- When the event resolves: if the bet won, the wagered amount pays out
-  **scaled by how much of an underdog the bet was** (same odds logic as the
-  overall bet below — favorites pay out close to 1:1, longshots pay out
-  much more) and returns to the player's pool, reallocatable to any
-  still-unlocked event.
-- If the bet lost, the wagered multiplier is simply gone.
+- Betting on an event closes once that event starts — wagers can only be
+  placed while it's still "planned."
+- Wagering, say, 0.3 **removes that 0.3 from the reserve immediately** — it's
+  escrowed, not spendable elsewhere while the bet is open.
+- When the event resolves: if the pick actually won/placed as bet, the
+  wagered amount pays out **scaled by how much of an underdog the pick
+  was** (same odds logic as the overall bet below, but priced off that
+  event's own ranking — favorites pay out close to 1:1, longshots pay out
+  much more) and returns to the player's reserve, reallocatable to any
+  still-unlocked event or another bet.
+- If the bet lost, the wagered amount is simply gone.
 - This needs its own small state machine per bet: `open → won/lost →
   resolved`, since a bet can be placed then the event can be delayed or
   cancelled (see Cancelled Events below).
@@ -131,24 +139,37 @@ as its currency.
   a single composite order from that (src/lib/odds/aggregate.ts) — it
   updates automatically as the groom ranks more events, with no separate
   input of its own.
+- **Placement window**: new overall bets can only be placed before the
+  weekend starts — once the first event leaves "planned," placement locks
+  and every player's picks become visible to everyone (no suspense once
+  it's locked in). Switching an already-placed, now-eliminated pick is still
+  allowed after lock — the halving is deterrent enough.
 - **Bet types** (deliberately kept to exactly two, do not add more without
   revisiting this decision — the whole design intent here was "simple, not a
   spreadsheet"; a third "pick who finishes last" joke bet was considered and
   dropped):
   1. Pick a player to win outright
   2. Pick a player to place top 3
-- **Payout**: a flat **100 points** if correct, regardless of who was picked
-  (the odds already reflect difficulty — a longshot pick is simply harder to
-  land, so the reward doesn't need to scale on top of that). This number was
-  derived from simulation, not picked arbitrarily — see `simulation-notes.md`
-  in this folder. The typical gap between adjacent final placements across 8
-  events runs roughly 70–130 points, so 100 points is enough to plausibly
-  flip 2nd/3rd but not enough to single-handedly overturn a dominant win.
-  Don't change this number without re-running that simulation.
+- **Payout**: flat if correct, regardless of who was picked (the odds
+  already reflect difficulty — a longshot pick is simply harder to land, so
+  the reward doesn't need to scale on top of that) — but **different by bet
+  type**, not a single flat number:
+  - **Win: 100 points.** Derived from simulation, not picked arbitrarily —
+    see `simulation-notes.md` in this folder. The typical gap between
+    adjacent final placements across 8 events runs roughly 70–130 points,
+    so 100 points is enough to plausibly flip 2nd/3rd but not enough to
+    single-handedly overturn a dominant win. Don't change this number
+    without re-running that simulation.
+  - **Top 3: 20 points.** In an 8-player field, every event guarantees
+    exactly 3 "top3" slots against 1 "win" slot, so an average pick is
+    roughly 3x likelier to land top3 than win outright — a payout cut well
+    past that 3x (100→20, a 5x cut) keeps top3 clearly the
+    lower-conviction, lower-reward bet without making it worthless.
 - **Switching picks**: if a player's pick becomes mathematically eliminated
   from the category they bet on, they get the option to switch to a
-  still-alive player — but each switch halves the payout value: 100 → 50 →
-  25 → 12.5, and so on. No limit on number of switches, the halving is the
+  still-alive player — but each switch halves that bet type's own payout
+  value (100 → 50 → 25 → 12.5… for win; 20 → 10 → 5… for top3). No limit on
+  number of switches, the halving is the
   only deterrent.
 - **Mathematical elimination**: computed live, after each event resolves,
   based on whether a player could still reach the bet's target position even

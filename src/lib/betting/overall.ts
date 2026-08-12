@@ -2,19 +2,24 @@
  * Overall betting — the "who wins it all" bet (PRODUCT_SPEC.md → Overall
  * betting). Uses POINTS as currency, not multiplier.
  *
- * Exactly three bet types (do not add more without revisiting the spec):
+ * Exactly two bet types (do not add more without revisiting the spec — a
+ * third "pick who finishes last" joke bet was considered and cut):
  *   - win:  pick a player to win outright
  *   - top3: pick a player to place top 3
- *   - last: pick a player to finish last (the joke bet)
  *
- * Payout is a flat 100 points if correct, regardless of who was picked — the
- * odds already reflect difficulty. Do NOT change 100 without re-running
- * docs/simulation-notes.md.
+ * Payout is flat if correct, regardless of who was picked — the odds already
+ * reflect difficulty. Win pays 100 (derived from simulation, see
+ * docs/simulation-notes.md — don't change without re-running it). Top3 pays
+ * 20: in an 8-player field every event guarantees exactly 3 "top3" slots
+ * against 1 "win" slot, so an average pick is roughly 3x likelier to land
+ * top3 than win — a payout cut well past 3x (100→20, a 5x cut) keeps top3
+ * clearly the lower-conviction, lower-reward bet without making it
+ * worthless.
  *
  * Switching picks: if a pick becomes mathematically eliminated from its
  * category, the bettor may switch to a still-alive player, but each switch
- * HALVES the payout: 100 → 50 → 25 → 12.5 → … No limit; the halving is the
- * only deterrent.
+ * HALVES the payout relative to that bet type's own base value. No limit;
+ * the halving is the only deterrent.
  *
  * Mathematical elimination is computed live after each event resolves (and must
  * be recomputed whenever an event is cancelled, since that changes how many
@@ -22,16 +27,19 @@
  * switch-pick option.
  */
 
-export type OverallBetType = "win" | "top3" | "last";
+export type OverallBetType = "win" | "top3";
 
-export const OVERALL_BET_BASE_PAYOUT = 100;
+export const OVERALL_BASE_PAYOUT: Record<OverallBetType, number> = {
+  win: 100,
+  top3: 20,
+};
 
-/** The payout value after `switches` pick-switches (each halves it). */
-export function overallPayoutValue(switches: number): number {
+/** The payout value for `betType` after `switches` pick-switches (each halves it). */
+export function overallPayoutValue(betType: OverallBetType, switches: number): number {
   if (switches < 0 || !Number.isInteger(switches)) {
     throw new Error(`switches must be a non-negative integer, got ${switches}`);
   }
-  return OVERALL_BET_BASE_PAYOUT / 2 ** switches;
+  return OVERALL_BASE_PAYOUT[betType] / 2 ** switches;
 }
 
 /** A player's current multiplier-adjusted total, plus their reachable bounds. */
@@ -59,8 +67,6 @@ const floorOf = (p: EliminationInput) => p.current + p.minRemaining;
  *           ceiling (that rival is guaranteed ahead).
  *   - top3: alive unless at least 3 other players' floors exceed the pick's
  *           ceiling (3+ rivals guaranteed ahead ⇒ can't be top 3).
- *   - last: alive unless some other player's ceiling is below the pick's floor
- *           (that rival is guaranteed below ⇒ the pick can't be last).
  */
 export function isPickAlive(
   betType: OverallBetType,
@@ -71,22 +77,9 @@ export function isPickAlive(
   if (!pick) throw new Error(`pick ${pickId} is not in the field`);
   const others = field.filter((p) => p.playerId !== pickId);
   const pickCeiling = ceilingOf(pick);
-  const pickFloor = floorOf(pick);
 
-  switch (betType) {
-    case "win": {
-      const guaranteedAhead = others.filter((o) => floorOf(o) > pickCeiling).length;
-      return guaranteedAhead === 0;
-    }
-    case "top3": {
-      const guaranteedAhead = others.filter((o) => floorOf(o) > pickCeiling).length;
-      return guaranteedAhead < 3;
-    }
-    case "last": {
-      const guaranteedBelow = others.some((o) => ceilingOf(o) < pickFloor);
-      return !guaranteedBelow;
-    }
-  }
+  const guaranteedAhead = others.filter((o) => floorOf(o) > pickCeiling).length;
+  return betType === "win" ? guaranteedAhead === 0 : guaranteedAhead < 3;
 }
 
 export interface RemainingBoundsOptions {
