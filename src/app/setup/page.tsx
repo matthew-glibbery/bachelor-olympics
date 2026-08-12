@@ -18,6 +18,7 @@ import { PlayerName } from "@/components/player-name";
 import { ManagePlayerRow } from "@/components/manage-player-row";
 import { ThemePicker } from "@/components/theme-picker";
 import { EventOddsEditor } from "@/components/event-odds-editor";
+import { PowerMoveCard } from "@/components/power-move-card";
 import { AppNav } from "@/components/app-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -29,7 +30,7 @@ import { DEFAULT_THEME_ID } from "@/lib/themes";
 const STATE_OPTIONS = stateOptions();
 
 export default function SetupPage() {
-  const { players, events, eventRankings, appSettings, connect, ready } = useGameStore();
+  const { players, events, eventRankings, appSettings, powerMove, connect, ready } = useGameStore();
   const {
     selectedPlayerId,
     groomUnlocked,
@@ -301,6 +302,8 @@ export default function SetupPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      {groomUnlocked ? <PowerMoveCard powerMove={powerMove} /> : null}
 
       {groomUnlocked ? (
         <Card className="border-destructive/40">

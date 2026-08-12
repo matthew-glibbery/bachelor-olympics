@@ -5,12 +5,23 @@ import { CalendarDays } from "lucide-react";
 
 import { AppNav } from "@/components/app-nav";
 import { EventCard } from "@/components/event-card";
+import { BonusEventsCard } from "@/components/bonus-events-card";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 
 export default function EventsPage() {
-  const { players, events, eventResults, eventRankings, perEventBets, connect, loading, error, ready } =
-    useGameStore();
+  const {
+    players,
+    events,
+    eventResults,
+    eventRankings,
+    perEventBets,
+    bonusEvents,
+    connect,
+    loading,
+    error,
+    ready,
+  } = useGameStore();
   const { groomUnlocked, hydrate } = useSessionStore();
 
   useEffect(() => {
@@ -34,27 +45,39 @@ export default function EventsPage() {
         <p className="text-destructive text-sm">{error}</p>
       ) : !ready && loading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
-      ) : events.length === 0 ? (
-        <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-          <CalendarDays className="size-4" />
-          No events configured yet.
-        </p>
       ) : (
-        <div className="flex flex-col gap-4">
-          {events.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
+        <>
+          {events.length === 0 ? (
+            <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
+              <CalendarDays className="size-4" />
+              No events configured yet.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {events.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  players={players}
+                  results={eventResults.filter((r) => r.event_id === event.id)}
+                  ranking={eventRankings
+                    .filter((r) => r.event_id === event.id)
+                    .map((r) => ({ playerId: r.player_id, rank: r.rank }))}
+                  bets={perEventBets.filter((b) => b.event_id === event.id)}
+                  groomUnlocked={groomUnlocked}
+                />
+              ))}
+            </div>
+          )}
+
+          {players.length > 0 ? (
+            <BonusEventsCard
               players={players}
-              results={eventResults.filter((r) => r.event_id === event.id)}
-              ranking={eventRankings
-                .filter((r) => r.event_id === event.id)
-                .map((r) => ({ playerId: r.player_id, rank: r.rank }))}
-              bets={perEventBets.filter((b) => b.event_id === event.id)}
+              bonusEvents={bonusEvents}
               groomUnlocked={groomUnlocked}
             />
-          ))}
-        </div>
+          ) : null}
+        </>
       )}
     </main>
   );

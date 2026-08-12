@@ -7,6 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   AppSettingsRow,
+  BonusEventRow,
   EventResultRow,
   EventRankingRow,
   EventRow,
@@ -14,6 +15,7 @@ import type {
   OverallBetRow,
   PerEventBetRow,
   PlayerRow,
+  PowerMoveRow,
 } from "./database.types";
 import { eventSeedRows } from "./events";
 
@@ -71,6 +73,24 @@ export function fetchOverallBets(client: SupabaseClient): Promise<OverallBetRow[
  * multiplier betting). */
 export function fetchPerEventBets(client: SupabaseClient): Promise<PerEventBetRow[]> {
   return selectAll<PerEventBetRow>(client, "per_event_bets");
+}
+
+/** Every on-the-fly bonus event awarded so far (PRODUCT_SPEC.md → Event-
+ * specific structure), newest first. */
+export async function fetchBonusEvents(client: SupabaseClient): Promise<BonusEventRow[]> {
+  const rows = await selectAll<BonusEventRow>(client, "bonus_events");
+  return [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** The single shared power_move row (PRODUCT_SPEC.md → Extras). */
+export async function fetchPowerMove(client: SupabaseClient): Promise<PowerMoveRow> {
+  const { data, error } = await client
+    .from("power_move")
+    .select("*")
+    .eq("id", 1)
+    .single();
+  if (error) throw new Error(`power_move: ${error.message}`);
+  return data as PowerMoveRow;
 }
 
 /** The single shared app_settings row (currently just the active theme). */

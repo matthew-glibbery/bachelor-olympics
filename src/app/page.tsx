@@ -20,7 +20,7 @@ import { deriveScoreLines } from "@/lib/scoring/fromRows";
 import { cumulativeSeries } from "@/lib/scoring/cumulativeSeries";
 
 export default function Home() {
-  const { players, events, eventResults, multipliers, connect, loading, error, ready } =
+  const { players, events, eventResults, multipliers, bonusEvents, connect, loading, error, ready } =
     useGameStore();
 
   useEffect(() => {
@@ -35,6 +35,9 @@ export default function Home() {
     photoUrl: p.photo_url,
   }));
   const scoreLines = deriveScoreLines(events, eventResults, multipliers);
+  const bonusAwards = bonusEvents
+    .filter((b) => b.winner_player_id)
+    .map((b) => ({ playerId: b.winner_player_id as string, points: b.points }));
   const series = cumulativeSeries(
     events,
     eventResults,
@@ -82,7 +85,8 @@ export default function Home() {
             Medal Table
           </CardTitle>
           <CardDescription>
-            Live standings — raw event points and multiplier-adjusted totals.
+            Live standings — raw event points and multiplier-adjusted totals,
+            plus any bonus-event points.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -99,7 +103,7 @@ export default function Home() {
               to get started.
             </p>
           ) : (
-            <MedalTable players={medalPlayers} scoreLines={scoreLines} />
+            <MedalTable players={medalPlayers} scoreLines={scoreLines} bonusAwards={bonusAwards} />
           )}
         </CardContent>
       </Card>

@@ -9,6 +9,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   fetchAppSettings,
+  fetchBonusEvents,
   fetchEventRankings,
   fetchEventResults,
   fetchEvents,
@@ -16,9 +17,11 @@ import {
   fetchOverallBets,
   fetchPerEventBets,
   fetchPlayers,
+  fetchPowerMove,
 } from "@/lib/data/queries";
 import type {
   AppSettingsRow,
+  BonusEventRow,
   EventRankingRow,
   EventResultRow,
   EventRow,
@@ -26,6 +29,7 @@ import type {
   OverallBetRow,
   PerEventBetRow,
   PlayerRow,
+  PowerMoveRow,
 } from "@/lib/data/database.types";
 
 const REALTIME_TABLES = [
@@ -37,6 +41,8 @@ const REALTIME_TABLES = [
   "event_rankings",
   "overall_bets",
   "per_event_bets",
+  "bonus_events",
+  "power_move",
 ] as const;
 
 interface GameState {
@@ -47,6 +53,8 @@ interface GameState {
   eventRankings: EventRankingRow[];
   overallBets: OverallBetRow[];
   perEventBets: PerEventBetRow[];
+  bonusEvents: BonusEventRow[];
+  powerMove: PowerMoveRow | null;
   appSettings: AppSettingsRow | null;
   loading: boolean;
   error: string | null;
@@ -68,6 +76,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   eventRankings: [],
   overallBets: [],
   perEventBets: [],
+  bonusEvents: [],
+  powerMove: null,
   appSettings: null,
   loading: false,
   error: null,
@@ -79,16 +89,27 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const client = getSupabaseBrowserClient();
     try {
-      const [players, events, eventResults, multipliers, eventRankings, overallBets, perEventBets] =
-        await Promise.all([
-          fetchPlayers(client),
-          fetchEvents(client),
-          fetchEventResults(client),
-          fetchMultipliers(client),
-          fetchEventRankings(client),
-          fetchOverallBets(client),
-          fetchPerEventBets(client),
-        ]);
+      const [
+        players,
+        events,
+        eventResults,
+        multipliers,
+        eventRankings,
+        overallBets,
+        perEventBets,
+        bonusEvents,
+        powerMove,
+      ] = await Promise.all([
+        fetchPlayers(client),
+        fetchEvents(client),
+        fetchEventResults(client),
+        fetchMultipliers(client),
+        fetchEventRankings(client),
+        fetchOverallBets(client),
+        fetchPerEventBets(client),
+        fetchBonusEvents(client),
+        fetchPowerMove(client),
+      ]);
       // Fetched separately and allowed to fail without taking down the rest
       // of the app: app_settings is a newer table, so until its migration has
       // been run against a given project this would otherwise throw and
@@ -103,6 +124,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         eventRankings,
         overallBets,
         perEventBets,
+        bonusEvents,
+        powerMove,
         appSettings,
         loading: false,
         ready: true,
@@ -139,16 +162,27 @@ async function refetch(
   client: ReturnType<typeof getSupabaseBrowserClient>,
   set: (partial: Partial<GameState>) => void,
 ) {
-  const [players, events, eventResults, multipliers, eventRankings, overallBets, perEventBets] =
-    await Promise.all([
-      fetchPlayers(client),
-      fetchEvents(client),
-      fetchEventResults(client),
-      fetchMultipliers(client),
-      fetchEventRankings(client),
-      fetchOverallBets(client),
-      fetchPerEventBets(client),
-    ]);
+  const [
+    players,
+    events,
+    eventResults,
+    multipliers,
+    eventRankings,
+    overallBets,
+    perEventBets,
+    bonusEvents,
+    powerMove,
+  ] = await Promise.all([
+    fetchPlayers(client),
+    fetchEvents(client),
+    fetchEventResults(client),
+    fetchMultipliers(client),
+    fetchEventRankings(client),
+    fetchOverallBets(client),
+    fetchPerEventBets(client),
+    fetchBonusEvents(client),
+    fetchPowerMove(client),
+  ]);
   const appSettings = await fetchAppSettings(client).catch(() => null);
   set({
     players,
@@ -158,6 +192,8 @@ async function refetch(
     eventRankings,
     overallBets,
     perEventBets,
+    bonusEvents,
+    powerMove,
     appSettings,
   });
 }
