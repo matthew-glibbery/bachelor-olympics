@@ -126,3 +126,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Subtle "breathing" loop for the character-select bust (src/components/
+   character-bust.tsx) — a small weight-shift, not a bounce, so the game-boot
+   screens feel alive without being distracting. */
+@keyframes idle-bob {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.015);
+  }
+}
