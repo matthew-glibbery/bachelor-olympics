@@ -15,6 +15,15 @@
  * a full tweakcn export) but not applied yet: this app has no dark-mode
  * toggle wired up (nothing ever adds the `.dark` class), so only `light` is
  * live right now.
+ *
+ * "Olympic" is hand-authored (like Classic), not a tweakcn preset — tweakcn
+ * has nothing Olympics-themed. Built from the actual Olympic ring colors
+ * (blue #0081C8, gold #FCB131, green #00A651, red #EE334E, near-black in
+ * place of pure ring-black so it stays legible as chart-3 on a light card)
+ * converted to oklch via the standard sRGB→OKLab→OKLCH path (no library
+ * dependency added for one theme). Primary/accent/destructive map to
+ * blue/gold/red so the app's own buttons and status colors read as
+ * "Olympics", not just the chart legend.
  */
 
 export interface ThemeTokens {
@@ -130,6 +139,78 @@ export const THEMES: AppTheme[] = [
       "sidebar-accent-foreground": "oklch(0.95 0.005 75)",
       "sidebar-border": "oklch(1 0 0 / 10%)",
       "sidebar-ring": "oklch(0.68 0.14 40)",
+    },
+  },
+  {
+    id: "olympic",
+    name: "Olympic",
+    light: {
+      radius: "0.5rem",
+      background: "oklch(0.9755 0.0045 258.3245)",
+      foreground: "oklch(0.2161 0.0379 257.1811)",
+      card: "oklch(1 0 0)",
+      "card-foreground": "oklch(0.2161 0.0379 257.1811)",
+      popover: "oklch(1 0 0)",
+      "popover-foreground": "oklch(0.2161 0.0379 257.1811)",
+      primary: "oklch(0.5338 0.1349 245.1833)",
+      "primary-foreground": "oklch(1 0 0)",
+      secondary: "oklch(0.9412 0.0138 258.3456)",
+      "secondary-foreground": "oklch(0.2881 0.0531 258.6352)",
+      muted: "oklch(0.9523 0.0171 256.2807)",
+      "muted-foreground": "oklch(0.4004 0.0565 255.618)",
+      accent: "oklch(0.8123 0.1576 75.2006)",
+      "accent-foreground": "oklch(0.2161 0.0379 257.1811)",
+      destructive: "oklch(0.5814 0.2046 18.8258)",
+      border: "oklch(0.9135 0.0277 253.2412)",
+      input: "oklch(0.9135 0.0277 253.2412)",
+      ring: "oklch(0.5338 0.1349 245.1833)",
+      "chart-1": "oklch(0.5338 0.1349 245.1833)",
+      "chart-2": "oklch(0.7047 0.1445 84.7961)",
+      "chart-3": "oklch(0.205 0.02 248.8302)",
+      "chart-4": "oklch(0.6346 0.17 151.1813)",
+      "chart-5": "oklch(0.5814 0.2046 18.8258)",
+      sidebar: "oklch(0.9412 0.0138 258.3456)",
+      "sidebar-foreground": "oklch(0.2161 0.0379 257.1811)",
+      "sidebar-primary": "oklch(0.5338 0.1349 245.1833)",
+      "sidebar-primary-foreground": "oklch(1 0 0)",
+      "sidebar-accent": "oklch(0.8123 0.1576 75.2006)",
+      "sidebar-accent-foreground": "oklch(0.2161 0.0379 257.1811)",
+      "sidebar-border": "oklch(0.9135 0.0277 253.2412)",
+      "sidebar-ring": "oklch(0.5338 0.1349 245.1833)",
+    },
+    dark: {
+      radius: "0.5rem",
+      background: "oklch(0.2161 0.0379 257.1811)",
+      foreground: "oklch(0.9755 0.0045 258.3245)",
+      card: "oklch(0.2881 0.0531 258.6352)",
+      "card-foreground": "oklch(0.9755 0.0045 258.3245)",
+      popover: "oklch(0.2881 0.0531 258.6352)",
+      "popover-foreground": "oklch(0.9755 0.0045 258.3245)",
+      primary: "oklch(0.7404 0.1441 244.6288)",
+      "primary-foreground": "oklch(0.2161 0.0379 257.1811)",
+      secondary: "oklch(0.3336 0.0482 257.0624)",
+      "secondary-foreground": "oklch(0.9755 0.0045 258.3245)",
+      muted: "oklch(0.3336 0.0482 257.0624)",
+      "muted-foreground": "oklch(0.7854 0.0372 253.4956)",
+      accent: "oklch(0.8123 0.1576 75.2006)",
+      "accent-foreground": "oklch(0.2161 0.0379 257.1811)",
+      destructive: "oklch(0.6844 0.206 17.8676)",
+      border: "oklch(1 0 0 / 12%)",
+      input: "oklch(1 0 0 / 15%)",
+      ring: "oklch(0.7404 0.1441 244.6288)",
+      "chart-1": "oklch(0.7404 0.1441 244.6288)",
+      "chart-2": "oklch(0.8123 0.1576 75.2006)",
+      "chart-3": "oklch(0.7854 0.0372 253.4956)",
+      "chart-4": "oklch(0.7294 0.1773 155.8879)",
+      "chart-5": "oklch(0.6844 0.206 17.8676)",
+      sidebar: "oklch(0.2 0.02 248.8302)",
+      "sidebar-foreground": "oklch(0.9755 0.0045 258.3245)",
+      "sidebar-primary": "oklch(0.7404 0.1441 244.6288)",
+      "sidebar-primary-foreground": "oklch(0.2161 0.0379 257.1811)",
+      "sidebar-accent": "oklch(0.8123 0.1576 75.2006)",
+      "sidebar-accent-foreground": "oklch(0.2161 0.0379 257.1811)",
+      "sidebar-border": "oklch(1 0 0 / 12%)",
+      "sidebar-ring": "oklch(0.7404 0.1441 244.6288)",
     },
   },
   {
