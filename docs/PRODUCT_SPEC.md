@@ -177,6 +177,12 @@ as its currency.
   recalculated any time an event is cancelled (see below), since that changes
   how many points are left on the table. This is genuinely load-bearing app
   logic, not just a display — it's what triggers the switch-pick option.
+- **Settlement**: once every event has resolved (the weekend is over), every
+  still-open overall bet settles against the actual final standings
+  (multiplier-adjusted totals, including bonus-event points) — won bets pay
+  out onto the bettor's medal-table total, lost bets pay nothing. This
+  happens automatically the moment the last event finalizes, not as a
+  separate manual step.
 
 ## Live standings
 
