@@ -259,9 +259,17 @@ export async function reorderEvents(
   client: SupabaseClient,
   orderedEventIds: string[],
 ): Promise<void> {
-  const rows = orderedEventIds.map((id, i) => ({ id, sort_order: i }));
-  const { error } = await client.from("events").upsert(rows, { onConflict: "id" });
-  if (error) throw new Error(`reorderEvents: ${error.message}`);
+  // Every id here already exists — this only ever updates, never inserts —
+  // so plain per-row UPDATEs, not upsert(). `events.name`/`scoring_mode` are
+  // NOT NULL with no default: upsert()'s INSERT ... ON CONFLICT DO UPDATE
+  // still forms an INSERT-branch tuple with those columns defaulted to NULL
+  // and fails the NOT NULL check before it ever reaches the conflict
+  // redirect, so a sort_order-only upsert() throws on every call.
+  const results = await Promise.all(
+    orderedEventIds.map((id, i) => client.from("events").update({ sort_order: i }).eq("id", id)),
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) throw new Error(`reorderEvents: ${failed.error.message}`);
 }
 
 export interface EventResultInput {

@@ -262,7 +262,10 @@ function ProgressTooltip({
   return (
     <div className="bg-popover text-popover-foreground rounded-md border p-2.5 text-sm shadow-md">
       <p className="text-muted-foreground mb-1.5 text-xs font-medium">{point.label}</p>
-      <div className="flex flex-col gap-1">
+      {/* Grid (not flex) so rank / rank-change / name / total / points-change
+       * each form their own left-aligned column across rows, per the ask —
+       * a flex row with justify-between only aligns within a row. */}
+      <div className="grid grid-cols-[auto_auto_1fr_auto_auto] items-center gap-x-2.5 gap-y-1">
         {rows.map(({ playerId, value }) => {
           const player = playerById.get(playerId);
           if (!player) return null;
@@ -276,8 +279,17 @@ function ProgressTooltip({
             typeof prevValue === "number" ? Math.round(value - prevValue) : null;
 
           return (
-            <div key={playerId} className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-1.5">
+            <div key={playerId} className="contents">
+              <span className="text-muted-foreground text-left text-xs tabular-nums">
+                {rank != null ? `#${rank}` : ""}
+              </span>
+              <span
+                className="text-left text-xs font-medium tabular-nums"
+                style={rankChange ? { color: rankChange > 0 ? STATUS_GOOD : STATUS_BAD } : undefined}
+              >
+                {rankChange ? `${rankChange > 0 ? "▲" : "▼"}${Math.abs(rankChange)}` : ""}
+              </span>
+              <span className="flex items-center gap-1.5 text-left">
                 <span
                   aria-hidden
                   className="h-0.5 w-3 shrink-0 rounded-full"
@@ -285,25 +297,12 @@ function ProgressTooltip({
                 />
                 <PlayerName name={player.name} state={player.state ?? "??"} size="sm" />
               </span>
-              <span className="flex items-center gap-2 tabular-nums">
-                {rank != null ? (
-                  <span className="text-muted-foreground text-xs">#{rank}</span>
-                ) : null}
-                {rankChange ? (
-                  <span
-                    className="text-xs font-medium"
-                    style={{ color: rankChange > 0 ? STATUS_GOOD : STATUS_BAD }}
-                  >
-                    {rankChange > 0 ? "▲" : "▼"}
-                    {Math.abs(rankChange)}
-                  </span>
-                ) : null}
-                {pointsGained ? (
-                  <span className="text-xs font-medium" style={{ color: STATUS_GOOD }}>
-                    +{pointsGained}
-                  </span>
-                ) : null}
-                <span className="font-semibold">{Math.round(value)}</span>
+              <span className="text-left font-semibold tabular-nums">{Math.round(value)}</span>
+              <span
+                className="text-left text-xs font-medium tabular-nums"
+                style={{ color: STATUS_GOOD }}
+              >
+                {pointsGained ? `+${pointsGained}` : ""}
               </span>
             </div>
           );
