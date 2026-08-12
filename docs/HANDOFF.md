@@ -8,8 +8,9 @@ Start here if you're picking this up cold — the detailed log below has the
 blow-by-blow if you need it, but this is the map.
 
 **Live and working**, verified against the real Supabase project + a real
-GitHub repo + Vercel deploy (not just typechecked), except this session's
-work — see the caveats in the log entries below:
+GitHub repo + Vercel deploy (not just typechecked), except the newest
+session's work — see the caveat in that log entry below (migrations 0007
+and 0008 ARE confirmed run against the live project as of this update):
 - **Repo**: `github.com/matthew-glibbery/bachelor-olympics` (private), `main`
   branch, CI green on every push (`.github/workflows/ci.yml`: pnpm, Node 22).
   Deployed on Vercel, auto-deploys from `main`.
@@ -44,33 +45,30 @@ work — see the caveats in the log entries below:
     the reveal moves to that event's Bets tab on `/events`.
   - `/setup` — player picker, groom PIN gate, add/edit/remove players +
     photos, theme picker, "Set the odds" card (groom ranks players **per
-    event**, one event at a time — now shows ✓/○ per event plus an "N of M
-    ranked" count, this session), and "Danger zone": full weekend reset.
-- **8 Supabase migrations exist; 0007 AND 0008 have NOT been run yet** on
-  the live project (only 0001–0006 have). **Both need to run in the SQL
-  Editor, in order, before any betting/odds work functions against live
-  data**:
-  - 0007: drops old single `groom_ranking` → `event_rankings` (per-event),
-    drops `peer_award_votes` (feature cut), tightens `overall_bets.bet_type`
-    to drop "last".
-  - 0008 (this session): adds `pick_player_id` to `per_event_bets` (wipes
-    the table first — per-event bets went from a self-bet to a pick-based
-    bet, a real schema shape change, and nothing real was riding on the old
-    shape yet).
+    event**, one event at a time, ✓/○ progress indicator), a "Power move"
+    card (**new**: one-time freeform groom action, note + a single
+    irreversible button), and "Danger zone": full weekend reset.
+  - `/events` also gained a **"Bonus events" card** (**new**, below the
+    planned-event list): groom names a spontaneous event and picks a
+    winner on the spot, flat points (default 50) land straight on the
+    medal table — no odds, no multiplier, no elimination-math effect, per
+    spec's explicit isolation.
+- **9 Supabase migrations exist, all confirmed run against the live
+  project** (0001–0008 run before this update; 0009 doesn't exist — power
+  move and bonus events needed zero new migrations, both tables + RLS +
+  Realtime already existed from Phase 1).
 - Domain/scoring logic (`src/lib/scoring/*`, `src/lib/multipliers/*`,
-  `src/lib/betting/*`, `src/lib/odds/*`) is pure, unit-tested (126 tests),
-  and matches `docs/PRODUCT_SPEC.md` — placement scoring rounds to whole
-  numbers (100/72/52/37/27/19/14/10), per an explicit product decision from
-  an earlier session.
+  `src/lib/betting/*`, `src/lib/odds/*`, `src/lib/bonus/*`) is pure, unit-
+  tested (130 tests), and matches `docs/PRODUCT_SPEC.md` — placement
+  scoring rounds to whole numbers (100/72/52/37/27/19/14/10), per an
+  explicit product decision from an earlier session.
 
-**Not built yet** (rest of Phase 3–4, `docs/PRODUCT_SPEC.md` has the rules):
-groom's one-time power move, on-the-fly bonus events. Peer award vote was
-explicitly cut, not deferred. Also **not built for either betting
-mechanic**: crediting a WON OVERALL bet's points onto the medal-table total
-— per-event bets now correctly feed their payout back into the multiplier
-reserve (`src/lib/betting/reserve.ts`, this session), but overall bets still
-just sit there computed-but-uncredited once the weekend actually ends. See
-the open question below.
+**Not built yet**: everything in `docs/PRODUCT_SPEC.md`'s core rules is now
+built. What's left is the payout-crediting gap flagged over the last two
+sessions — **a won OVERALL bet's points still aren't credited anywhere**
+once the weekend actually ends (per-event bets and bonus events ARE both
+credited live, via the reserve ledger and `applyBonusAwards` respectively).
+See the open question below.
 
 **Environment quirk worth knowing**: this dev machine sits behind corporate
 TLS interception (Zscaler) and a corporate npm registry mirror. Both are
@@ -80,17 +78,20 @@ directly, not needed for `next dev`/`next build` themselves). See the
 relevant log entries below if this bites again.
 
 **Open questions for next session**:
-- **Migrations 0007 and 0008 have not been run against the live project
-  yet** — everything in the last two sessions' rework is dead on arrival
-  against live data until both run, in order. Then re-verify end to end:
-  set a per-event ranking on Setup, confirm odds show up on `/bets`, place
-  an overall bet, place a per-event bet on someone else, resolve it by
-  finalizing that event, confirm the reserve on `/multipliers` updates.
+- **This newest session's power move / bonus events work is not yet
+  verified against live data** (no browser driver, no live creds in this
+  worktree — see the caveat in that log entry). Needs zero new migrations
+  though, so it should Just Work — recommend a real click-through: award a
+  bonus event, confirm it lands on the medal table; use the power move,
+  confirm it shows as used everywhere.
 - **Overall-bet payouts still aren't credited anywhere** once a bet wins —
   nothing adds the points to the medal-table total at the end of the
-  weekend. (Per-event bets ARE credited now, via the reserve ledger.) Needs
-  a "settle the weekend" step, ideally designed together with bonus-event
-  payouts (also unbuilt) rather than two different ad hoc mechanisms.
+  weekend. Per-event bets and bonus events ARE both credited live now
+  (reserve ledger, `applyBonusAwards`) — overall bets are the one remaining
+  gap. Needs a "the weekend is over, settle every open overall bet" step:
+  compare each pick against the actual final standings, award
+  `overallPayoutValue(betType, switches)` to the ones that landed. This is
+  the last piece of PRODUCT_SPEC.md's core rules with no code behind it.
 - The per-event ranking editor, the multiplier sliders, and per-event bet
   placement all lock UI-side once an event leaves "planned" — no DB-level
   enforcement. Same judgment call as prior sessions, still judged fine given
@@ -113,6 +114,51 @@ relevant log entries below if this bites again.
   touch any open per-event bet that was riding on it — the event reverting
   to "planned" re-opens it for betting again rather than voiding whatever
   was already wagered. Minor, but noted.
+
+## 2026-08-11 — Power move + bonus events: the last two Phase 3-4 features
+
+Migrations 0007 and 0008 (previous two sessions) confirmed run against the
+live project by the user at the start of this session. Continuing
+autonomously per "continue with the next phases of work" — these were the
+last two unbuilt items in `docs/PRODUCT_SPEC.md`'s core rules. 130 tests (4
+new, all in `src/lib/bonus/bonus.test.ts` — `applyBonusAwards`),
+lint/typecheck/test/build all green, dev-server smoke test of `/`,
+`/events`, `/setup` (clean compile, 200s). **No new migration needed** —
+both `bonus_events` and `power_move` have existed with RLS + Realtime since
+Phase 1, just never had a UI.
+
+- **Bonus events** (`src/components/bonus-events-card.tsx`, new card on
+  `/events` below the planned-event list): groom names what happened and
+  picks a winner on the spot — no separate "create, then resolve" step,
+  matching how spontaneous the spec says these are meant to be. Flat points
+  (default 50, editable). Deliberately its own card, not folded into the
+  tabbed per-event UI, since the spec is explicit these live entirely
+  outside the core event/scoring/betting system.
+  - **New: `applyBonusAwards`** (`src/lib/bonus/bonusEvent.ts`, +test) —
+    folds bonus points straight onto a `PlayerTotal`, added equally to
+    `raw` and `adjusted` (no multiplier applies to a flat bonus), then
+    re-sorted with the same tie-break `standings()` uses. `total.ts`'s
+    `PlayerTotal` docstring already anticipated this exact extension point
+    ("Bonuses ... are added on top elsewhere"). Kept as a one-way
+    dependency (bonus imports scoring's `PlayerTotal` type; scoring still
+    never imports bonus) to preserve the module's stated isolation.
+    `MedalTable` now takes an optional `bonusAwards` prop; the home page
+    passes `bonusEvents` from the store, mapped to awards.
+- **Power move** (`src/components/power-move-card.tsx`, new card on
+  `/setup`, groom-gated): a note field (optional — "what did you do?") plus
+  one big irreversible button, matching the spec's explicit "the mechanic
+  is deliberately undefined, the fun is in the surprise and timing" — this
+  isn't a picker of specific effects, just a record that it happened, when,
+  and what. Visible to everyone once used (no groom-only gate on viewing),
+  since the whole point is the reveal. Named the mutation `spendPowerMove`,
+  not `usePowerMove` — the obvious name collided with the `react-hooks/
+  rules-of-hooks` ESLint rule, which flags any non-component function
+  starting with `use` as a suspected hook.
+- **Not independently screenshot-verified** — same standing limitation
+  (no browser driver, no live Supabase creds in this worktree). Dev-server
+  smoke test only. Both features are additive and low-risk (no schema
+  change, no altered validation rules) compared to the last two sessions —
+  still worth the real click-through noted in the open question above.
 
 ## 2026-08-11 — Real-use feedback: tabbed events, pick-based bets, budget reserve, tuning
 

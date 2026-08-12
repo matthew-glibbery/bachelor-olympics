@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PlayerName } from "@/components/player-name";
+import { applyBonusAwards, type BonusAward } from "@/lib/bonus/bonusEvent";
 import { standings, type EventScoreLine } from "@/lib/scoring/total";
 
 /**
@@ -34,6 +35,9 @@ export interface MedalTablePlayer {
 export interface MedalTableProps {
   players: MedalTablePlayer[];
   scoreLines: EventScoreLine[];
+  /** Bonus-event points, added straight onto the total (PRODUCT_SPEC.md →
+   * Extras) — no multiplier, no odds, outside core scoring. */
+  bonusAwards?: BonusAward[];
 }
 
 /** Podium tint for ranks 1–3 (gold/silver/bronze), transparent otherwise. */
@@ -41,9 +45,9 @@ const PODIUM_ICON = ["text-chart-3", "text-muted-foreground", "text-primary"];
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-export function MedalTable({ players, scoreLines }: MedalTableProps) {
+export function MedalTable({ players, scoreLines, bonusAwards = [] }: MedalTableProps) {
   const byId = new Map(players.map((p) => [p.id, p]));
-  const ranked = standings(scoreLines);
+  const ranked = applyBonusAwards(standings(scoreLines), bonusAwards);
 
   return (
     <Table>

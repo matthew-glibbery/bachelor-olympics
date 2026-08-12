@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveOpenPerEventBets } from "@/lib/betting/resolvePerEventBets";
 import type {
+  BonusEventRow,
   EventRow,
   EventStatus,
   OverallBetRow,
@@ -379,6 +380,50 @@ export async function resolvePerEventBets(
       .eq("id", outcome.id);
     if (error) throw new Error(`resolvePerEventBets (write ${outcome.id}): ${error.message}`);
   }
+}
+
+export interface NewBonusEvent {
+  name: string;
+  winner_player_id: string;
+  points?: number;
+}
+
+/**
+ * Award a spontaneous, on-the-fly bonus event — PRODUCT_SPEC.md → Event-
+ * specific structure. Deliberately outside the core scoring/betting system
+ * (no odds, no multiplier, no elimination-math effect); its points still
+ * land on the medal table via src/lib/bonus/bonusEvent.ts's
+ * `applyBonusAwards`. Winner is chosen at award time — there's no separate
+ * "create, then resolve later" step, matching how spontaneous this is meant
+ * to be.
+ */
+export async function createBonusEvent(
+  client: SupabaseClient,
+  bonus: NewBonusEvent,
+): Promise<BonusEventRow> {
+  const { data, error } = await client
+    .from("bonus_events")
+    .insert(bonus)
+    .select()
+    .single();
+  if (error) throw new Error(`createBonusEvent: ${error.message}`);
+  return data as BonusEventRow;
+}
+
+/**
+ * Spend the groom's one-time power move — PRODUCT_SPEC.md → Extras. A
+ * manual, freeform admin action (the spec deliberately keeps the mechanic
+ * undefined — "the fun is in the surprise and timing"): this just records
+ * that it happened, with a note for what the groom did, and when. Can only
+ * be used once — the UI is responsible for checking `used` first and
+ * hiding the control once it's true.
+ */
+export async function spendPowerMove(client: SupabaseClient, note: string): Promise<void> {
+  const { error } = await client
+    .from("power_move")
+    .update({ used: true, note: note || null, used_at: new Date().toISOString() })
+    .eq("id", 1);
+  if (error) throw new Error(`spendPowerMove: ${error.message}`);
 }
 
 /** Set the shared app theme — applies live to every device via Realtime. */
