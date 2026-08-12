@@ -30,6 +30,10 @@ export interface EventRow {
   sort_order: number;
   status: EventStatus;
   photo_url: string | null;
+  /** Set the moment the event resolves (src/lib/data/mutations.ts →
+   * setEventStatus), cleared if it ever leaves "resolved." Drives the
+   * progress chart's true award-order sequencing. */
+  resolved_at: string | null;
 }
 
 export interface EventResultRow {

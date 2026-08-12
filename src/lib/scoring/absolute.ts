@@ -11,6 +11,11 @@
  * monotonic, never bottoms out at zero for real results, and makes the size of
  * a gap show up proportionally. For higher-is-better metrics the score is
  * `100 * raw / best`; for lower-is-better (golf) it's `100 * best / raw`.
+ *
+ * Rounded to the nearest whole number, per explicit product decision — no
+ * scoring currency in this app awards fractional points, placement or
+ * absolute. (Earlier spec language argued fractions here preserved
+ * close-result detail; overridden — whole numbers everywhere wins.)
  */
 
 export interface AbsoluteEntry {
@@ -45,7 +50,7 @@ export function scoreAbsolute(
 
   for (const { playerId, raw } of entries) {
     const ratio = lowerIsBetter ? best / raw : raw / best;
-    points.set(playerId, 100 * ratio);
+    points.set(playerId, Math.round(100 * ratio));
   }
   return points;
 }

@@ -76,14 +76,23 @@ export async function updatePlayer(
   return data as PlayerRow;
 }
 
-/** Move an event through planned -> scoring -> resolved. Multipliers lock
- * for an event as soon as it leaves "planned" (PRODUCT_SPEC.md → Multipliers). */
+/**
+ * Move an event through planned -> scoring -> resolved. Multipliers lock
+ * for an event as soon as it leaves "planned" (PRODUCT_SPEC.md → Multipliers).
+ * Stamps `resolved_at` the moment it resolves — the progress chart
+ * (src/lib/scoring/cumulativeSeries.ts) uses this to interleave events with
+ * bonus events in the actual order points were awarded, not just planned
+ * sort order. Cleared if the event ever leaves "resolved" again.
+ */
 export async function setEventStatus(
   client: SupabaseClient,
   eventId: string,
   status: EventStatus,
 ): Promise<void> {
-  const { error } = await client.from("events").update({ status }).eq("id", eventId);
+  const { error } = await client
+    .from("events")
+    .update({ status, resolved_at: status === "resolved" ? new Date().toISOString() : null })
+    .eq("id", eventId);
   if (error) throw new Error(`setEventStatus: ${error.message}`);
 }
 
@@ -118,7 +127,7 @@ export async function resetEvent(client: SupabaseClient, eventId: string): Promi
 
   const { error: statusError } = await client
     .from("events")
-    .update({ status: "planned" })
+    .update({ status: "planned", resolved_at: null })
     .eq("id", eventId);
   if (statusError) throw new Error(`resetEvent (status): ${statusError.message}`);
 }
@@ -148,7 +157,7 @@ export async function resetWeekend(client: SupabaseClient): Promise<void> {
 
   const { error: eventsError } = await client
     .from("events")
-    .update({ status: "planned" })
+    .update({ status: "planned", resolved_at: null })
     .neq("status", "planned");
   if (eventsError) throw new Error(`resetWeekend (events): ${eventsError.message}`);
 
@@ -172,6 +181,87 @@ export async function updateEventPhoto(
     .single();
   if (error) throw new Error(`updateEventPhoto: ${error.message}`);
   return data as EventRow;
+}
+
+export interface NewEvent {
+  name: string;
+  scoring_mode: "placement" | "absolute";
+  lower_is_better?: boolean;
+  notes?: string | null;
+  /** Caller supplies this from the live events list it already has (e.g.
+   * `events.length`) — no extra round-trip to look up the current max. */
+  sort_order: number;
+}
+
+/**
+ * Create a groom-added event — events are no longer only seeded from
+ * src/lib/events/config.ts, the groom can add more from Setup → Manage
+ * events. Generates its own id (the config-seeded events use readable slugs
+ * like "golf"; a UUID is just as valid a primary key and needs no
+ * uniqueness checking against user-typed names).
+ */
+export async function createEvent(
+  client: SupabaseClient,
+  event: NewEvent,
+): Promise<EventRow> {
+  const { data, error } = await client
+    .from("events")
+    .insert({
+      id: crypto.randomUUID(),
+      name: event.name,
+      scoring_mode: event.scoring_mode,
+      lower_is_better: event.lower_is_better ?? false,
+      notes: event.notes ?? null,
+      sort_order: event.sort_order,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(`createEvent: ${error.message}`);
+  return data as EventRow;
+}
+
+export interface EventPatch {
+  name?: string;
+  scoring_mode?: "placement" | "absolute";
+  lower_is_better?: boolean;
+  notes?: string | null;
+  photo_url?: string | null;
+}
+
+/**
+ * Edit an event's own details — name, description, scoring type, photo.
+ * The UI is responsible for only offering scoring-type changes while the
+ * event is still "planned" (no results on file yet to get corrupted by a
+ * placement<->absolute switch, which store the result differently —
+ * `position` vs `raw`).
+ */
+export async function updateEvent(
+  client: SupabaseClient,
+  eventId: string,
+  patch: EventPatch,
+): Promise<EventRow> {
+  const { data, error } = await client
+    .from("events")
+    .update(patch)
+    .eq("id", eventId)
+    .select()
+    .single();
+  if (error) throw new Error(`updateEvent: ${error.message}`);
+  return data as EventRow;
+}
+
+/**
+ * Persist a new drag-to-reorder order for every event in one round trip.
+ * Upsert only touches the columns present in the payload (same trick as
+ * seedEvents), so this can't clobber anything else about an event.
+ */
+export async function reorderEvents(
+  client: SupabaseClient,
+  orderedEventIds: string[],
+): Promise<void> {
+  const rows = orderedEventIds.map((id, i) => ({ id, sort_order: i }));
+  const { error } = await client.from("events").upsert(rows, { onConflict: "id" });
+  if (error) throw new Error(`reorderEvents: ${error.message}`);
 }
 
 export interface EventResultInput {

@@ -12,6 +12,7 @@ const baseEvent: Omit<EventRow, "id" | "scoring_mode" | "status"> = {
   notes: null,
   sort_order: 0,
   photo_url: null,
+  resolved_at: null,
 };
 
 describe("eliminationField", () => {

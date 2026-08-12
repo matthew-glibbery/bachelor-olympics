@@ -28,6 +28,15 @@ Eight pre-planned events, decided in advance:
 (Yes, that's 9 listed — the roster may still get trimmed to a clean 8; don't
 hardcode the count, read it from event config.)
 
+The list above is the initial seed, not a hard ceiling — the groom can add,
+edit (name, photo, description, scoring type), delete, and reorder events
+from the app itself (Setup → Manage events), not just via
+`src/lib/events/config.ts`. Reordering is what every screen's event order
+follows. Scoring type is only editable while an event is still "planned" —
+switching placement↔absolute after results exist would corrupt them (the
+two modes store a result differently). This is distinct from on-the-fly
+BONUS events (below), which are a separate, deliberately isolated concept.
+
 ### Event-specific structure
 
 - **Beach volleyball / 3v3 soccer** (team, reshuffled): no true individual
@@ -72,9 +81,11 @@ Two scoring modes, chosen per event:
   golf strokes, a timed event): scale the best performance in the group to
   100 points, then scale everyone else proportionally to how close their raw
   result was to the best one — not just by rank. A blowout should look like a
-  blowout in the points. Not rounded to whole numbers (unlike placement
-  scoring above) — the proportional scaling is the point, and rounding it away
-  would blur close absolute results.
+  blowout in the points. **Rounded to the nearest whole number**, same as
+  placement scoring — an earlier version of this spec argued against
+  rounding here to preserve close-result detail, but the product decision
+  is now that no scoring currency in this app ever shows a fraction,
+  full stop.
 
 - **Ties**: if two or more players tie a placement, sum the point values for
   all the places they're tying across (e.g. 2nd + 3rd) and split evenly
@@ -168,8 +179,9 @@ as its currency.
 - **Switching picks**: if a player's pick becomes mathematically eliminated
   from the category they bet on, they get the option to switch to a
   still-alive player — but each switch halves that bet type's own payout
-  value (100 → 50 → 25 → 12.5… for win; 20 → 10 → 5… for top3). No limit on
-  number of switches, the halving is the
+  value, rounded to the nearest whole point each time (100 → 50 → 25 → 13 →
+  6… for win; 20 → 10 → 5 → 3… for top3 — no fractional points, ever). No
+  limit on number of switches, the halving is the
   only deterrent.
 - **Mathematical elimination**: computed live, after each event resolves,
   based on whether a player could still reach the bet's target position even

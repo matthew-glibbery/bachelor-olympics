@@ -48,7 +48,7 @@ export function BonusEventsCard({
   const playersById = new Map(players.map((p) => [p.id, p]));
 
   async function handleAward() {
-    const pts = Number(points);
+    const pts = Math.round(Number(points));
     if (!name.trim() || !winnerId || !Number.isFinite(pts) || pts <= 0) return;
     setBusy(true);
     setError(null);
@@ -99,6 +99,7 @@ export function BonusEventsCard({
                   id="bonus-points"
                   type="number"
                   min={1}
+                  step={1}
                   value={points}
                   onChange={(e) => setPoints(e.target.value)}
                 />
