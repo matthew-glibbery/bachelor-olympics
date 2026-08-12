@@ -2,6 +2,41 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-12 — Tooltip column layout + the *real* drag-reorder fix
+
+Two follow-ups on the previous session's own fixes, both requested after a
+real look at the deployed app. 140 tests (unchanged), lint/typecheck/build
+green.
+
+- **Progress chart tooltip** (`src/components/progress-chart.tsx`): reordered
+  and restructured into a genuine CSS grid (`grid-cols-[auto_auto_1fr_auto_auto]`,
+  each row `contents`) so rank, rank-change, player name, total points, and
+  points-change each form their own left-aligned column across rows — the
+  previous version was a flex row with `justify-between`, which only aligned
+  within a single row, not down the column. Column order per the ask: rank →
+  rank-change → name → total → points-change (previously name was first).
+- **The drag-reorder-then-revert bug was NOT actually fixed by the previous
+  session's patch.** That patch fixed a real race condition (clearing the
+  optimistic order too early), but there was a second, more fundamental bug
+  underneath it that made the write fail on *every* drag, race or not:
+  `reorderEvents` (`src/lib/data/mutations.ts`) did
+  `.upsert([{id, sort_order}, ...])` — sending only two columns. `events.name`
+  and `events.scoring_mode` are `NOT NULL` with no default
+  (`0001_init.sql`). Postgres's `INSERT ... ON CONFLICT DO UPDATE` still
+  builds the INSERT-branch tuple first (missing columns default to `NULL`)
+  and checks `NOT NULL` constraints *before* it reaches the conflict
+  redirect — so this upsert threw a not-null-violation on every single call,
+  the `.catch()` in `manage-events-card.tsx` swallowed it, and
+  `setLocalOrder(null)` snapped the list back to the stale order. This is
+  provable from the schema alone, no live DB needed to confirm it. Fixed by
+  switching `reorderEvents` to per-row `UPDATE ... WHERE id = ...` calls
+  (all ids already exist — this never inserts, so upsert was never the right
+  tool) instead of a batch upsert.
+- Not independently screenshot-verified (no browser driver in this
+  environment). Worth confirming both live: the tooltip's 5-column layout on
+  an actual phone width, and dragging an event in Manage Events now actually
+  sticking through a real Realtime round-trip.
+
 ## Current state (as of 2026-08-12, end of session)
 
 Start here if you're picking this up cold — the detailed log below has the
