@@ -2,6 +2,59 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-12 — Boot/character-select screens (docs/visual_spec.md, placeholder art)
+
+User added `docs/visual_spec.md` (N64-style character-select direction, real
+character art pipeline via Nano Banana + Seedance, not built yet) and asked
+for a placeholder start screen → character select flow now, ahead of having
+any actual character renders. 140 tests (unchanged), lint/typecheck/build
+green, dev-server smoke test of `/start` and `/select` (clean compiles,
+200s).
+
+- **`/start`** (`src/app/start/page.tsx`): N64 cartridge-boot title screen,
+  not a normal landing page — chunky beveled logo text (layered
+  `text-shadow` using `var(--primary)`/`var(--accent)`, not hardcoded hex)
+  over a full-screen `bg-foreground` "dark stage." Using `--foreground` as
+  the stage color (rather than inventing a new dark token) means this screen
+  automatically follows whichever app theme is active — try it under the
+  new Olympic theme vs. Classic, both just work. "Press Start" is the whole
+  screen (a full-bleed `<button>`) plus any keypress, not a conventional
+  button, per the spec's explicit ask.
+  - **Placeholder title**: `STAG64`, the exact example the spec floated as a
+    "direction, not decided" — pulled into one named constant
+    (`GAME_TITLE`) so renaming it later is a one-line change.
+- **`/select`** (`src/app/select/page.tsx`): Mario Kart 64-style roster —
+  every player's bust along the top, a big centered idling render of
+  whoever's focused, name plate below, arrow-key/click to browse. **This is
+  not a mockup wired to fake data** — "confirm" calls the real
+  `selectPlayer` (`src/store/sessionStore.ts`), the same mechanism `/setup`'s
+  plain picker already uses, then routes into `/`. It's a re-skin of
+  existing, working identity logic, not new business logic.
+  - Player colors via the existing `assignPlayerColors` (`chartColors.ts`,
+    `mode: "dark"` since the stage is dark here vs. the progress chart's
+    white card) — same validated categorical palette as the progress chart,
+    so a player's roster color is consistent app-wide.
+- **`CharacterBust`** (`src/components/character-bust.tsx`): the shared
+  "big render" piece both screens use (and the visual spec's multiplier
+  screen will reuse later). **Deliberate placeholder**: shows the player's
+  already-uploaded `photo_url` (or a silhouette) in a thick-outlined plate,
+  idling via a new `idle-bob` keyframe (`globals.css`) — a gentle
+  translateY+scale loop, not a bounce, per the spec's "breathing loop, not
+  static" note. Explicitly documented as a **swap seam**: once real Nano
+  Banana character renders exist, only this component's `photoUrl` source
+  needs to change, every call site stays the same (same pattern as `Flag`'s
+  `FlagGlyph` seam).
+- **Not wired into `AppNav`** — these are a new pre-game entry point, not one
+  of the four core screens, so they're only reachable by URL
+  (`/start` → `/select` → `/`) for now. Worth a real "how do people actually
+  get here" decision once the character art exists (a link from `/setup`?
+  make `/start` the actual root and move the dashboard elsewhere? probably
+  not worth deciding on placeholder art).
+- **Not independently screenshot-verified** — no browser driver in this
+  environment, standing limitation. The chunky-logo bevel effect and the
+  idle-bob animation in particular are worth an actual look before treating
+  the visual direction as confirmed.
+
 ## 2026-08-12 — Olympic theme
 
 Added an "Olympic" option to the shared theme picker (`src/lib/themes.ts`).
