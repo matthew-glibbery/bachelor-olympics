@@ -2,16 +2,16 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
-## Current state (as of 2026-08-11, end of session)
+## Current state (as of 2026-08-12, end of session)
 
 Start here if you're picking this up cold — the detailed log below has the
 blow-by-blow if you need it, but this is the map.
 
 **Live and working**, verified against the real Supabase project + a real
 GitHub repo + Vercel deploy (not just typechecked), except the newest
-session's work — see the caveat in that log entry below. Migrations
-0001–0009 ARE confirmed run against the live project; **0010 (this
-session) is NOT confirmed run yet**:
+session's work — see the caveat in that log entry below. All 11 migrations
+(0001–0010) are confirmed run against the live project — no migration is
+pending as of this update:
 - **Repo**: `github.com/matthew-glibbery/bachelor-olympics` (private), `main`
   branch, CI green on every push (`.github/workflows/ci.yml`: pnpm, Node 22).
   Deployed on Vercel, auto-deploys from `main`.
@@ -22,13 +22,17 @@ session) is NOT confirmed run yet**:
 - **Five core screens**, all `max-w-2xl`:
   - `/` — live cumulative progress chart (player photos as markers,
     flag-inspired colors, dataviz-skill-validated) + Medal Table. Total
-    includes bonus-event points and settled overall-bet winnings. **X-axis
-    now sequences by actual award order** (this session) — a bonus event
-    awarded between two planned events shows up between them, not lumped at
-    the end; every resolved event, in the real order it resolved
-    (`resolved_at`, new column), interleaved with bonus events by their
-    timestamp. Events still awaiting a result trail at the end in
-    configured order, same as before.
+    includes bonus-event points and settled overall-bet winnings. X-axis
+    sequences by actual award order — a bonus event awarded between two
+    planned events shows up between them, not lumped at the end; every
+    resolved event, in the real order it resolved (`resolved_at`),
+    interleaved with bonus events by their timestamp. Events still
+    awaiting a result trail at the end in configured order. **Tooltip
+    (this fix)**: more clearance from the hovered dot (was covering it),
+    plus per-player place (#N), a ▲/▼ place-change indicator vs. the
+    previous moment, and a "+N" for points gained that moment — reserved
+    status colors, not the categorical player-line palette (see
+    `progress-chart.tsx`).
   - `/events` — groom-gated event board. Each event card is now **tabbed:
     Results / Odds / Bets** (this session). Results tab has the existing
     flow: start scoring → drag-to-reorder placement results (or numeric for
@@ -59,9 +63,11 @@ session) is NOT confirmed run yet**:
     a-form interaction as editing an existing player. New **"Manage
     events" card**: add, edit (name, photo, description, scoring type —
     scoring type locks once the event starts), delete, and drag-to-reorder
-    events, mirroring the players card's interaction exactly. Events are
-    no longer only seeded from `src/lib/events/config.ts` — the groom can
-    add more, and the drag order here is what every screen follows. Also:
+    events, mirroring the players card's interaction exactly (**a real
+    revert-after-drag bug from the first pass is fixed** — see the log
+    entry below). Events are no longer only seeded from
+    `src/lib/events/config.ts` — the groom can add more, and the drag
+    order here is what every screen follows. Also:
     "Set the odds" card (per-event ranking, ✓/○ progress indicator), a
     "Power move" card, and "Danger zone" (full weekend reset).
   - `/events` has a **"Bonus events" card** below the planned-event list:
@@ -69,9 +75,9 @@ session) is NOT confirmed run yet**:
     whole-number points (default 50) land straight on the medal table AND
     (this session) the progress chart — no odds, no multiplier, no
     elimination-math effect, per spec's explicit isolation.
-- **11 Supabase migrations exist. 0010 (this session) needs to run** — adds
+- **11 Supabase migrations exist, all confirmed run** — 0010 adds
   `resolved_at` to `events` (backfilled for already-resolved rows) for the
-  progress-chart ordering above. 0001–0009 already confirmed run.
+  progress-chart ordering above.
 - **No scoring currency ever shows a fraction now** (this session) —
   absolute-scored events round to the nearest whole point (previously
   deliberately unrounded; reversed by explicit product decision), and
@@ -94,15 +100,16 @@ directly, not needed for `next dev`/`next build` themselves). See the
 relevant log entries below if this bites again.
 
 **Open questions for next session**:
-- **Migration 0010 has not been run against the live project yet** — the
-  progress chart's award-order sequencing (this session) needs
-  `events.resolved_at`, which doesn't exist until it runs. Also still
-  needs a live click-through of last session's overall-bet settlement
-  (needs a full weekend of resolved events to observe for real) and this
-  session's event management (add/edit/delete/reorder an event, confirm it
-  reorders everywhere) and progress-chart interleaving (award a bonus
-  event between two resolved events, confirm it lands in between on the
-  chart, not at the end).
+- **Still needs a live click-through** — nothing since the odds-ranking
+  work several sessions back has been screenshot-verified (no browser
+  driver in this environment, throughout). Worth a real pass covering: the
+  overall-bet settlement flow end-to-end (needs a full weekend of resolved
+  events); event management (add/edit/delete/reorder, confirm it reflects
+  everywhere); progress-chart interleaving (award a bonus event between two
+  resolved events, confirm it lands in between, not at the end); and the
+  new tooltip fields (place/place-change/points-gained) for layout on an
+  actual phone screen, plus confirming the drag-reorder fix actually holds
+  under real Realtime latency, not just the reasoning behind the fix.
 - **`eventConfigToRow`/`seedEvents` (`src/lib/data/events.ts`,
   `queries.ts`) can silently clobber a groom edit.** If the groom edits one
   of the original 9 config-seeded events' name/notes/scoring-type via the
@@ -147,6 +154,55 @@ relevant log entries below if this bites again.
   touch any open per-event bet that was riding on it — the event reverting
   to "planned" re-opens it for betting again rather than voiding whatever
   was already wagered. Minor, but noted.
+
+## 2026-08-12 — Progress chart tooltip detail + a real drag-reorder bug fix
+
+Two fixes requested right after the previous batch shipped and got a real
+look. 140 tests (unchanged — both fixes are UI/presentation, no domain
+logic touched), lint/typecheck/test/build all green, dev-server smoke test
+of `/` and `/setup` (clean compile, 200s).
+
+- **Progress chart tooltip** (`src/components/progress-chart.tsx`):
+  - More clearance from the hovered point — it was rendering close enough
+    to cover the dot markers underneath. Recharts' `<Tooltip offset={28}>`
+    (was the library default of 10).
+  - Each player row now also shows: their **place** at that moment (`#N`,
+    standard competition ranking so ties don't skip a number — same
+    technique as `settleOverallBets.ts`), a **▲/▼ place-change** indicator
+    vs. the immediately preceding moment (green = moved toward 1st, red =
+    fell back), and a **"+N" points-gained** figure for that specific
+    moment. Needed the tooltip to see the previous data point, not just
+    the hovered one, so it now takes the full `data` array as a prop
+    (already computed in `ProgressChart`) instead of only Recharts'
+    `payload` for the current point.
+  - New reserved status colors (`STATUS_GOOD`/`STATUS_BAD`, this file) —
+    loaded the dataviz skill before adding them, per its trigger on "chart
+    colors." Deliberately NOT the categorical palette's own green/red
+    player-line slots (`chartColors.ts`) — reusing those would make a
+    status badge look like it belongs to whichever player happens to be on
+    that slot, which the skill explicitly calls out as wrong ("status
+    colors are reserved... never reused for 'series 4'"). Checked contrast
+    by hand against the white tooltip surface (green 7.13:1, red 8.31:1 —
+    both comfortably clear WCAG AA); both also always ship with a glyph
+    (▲/▼) or sign (+) alongside the color, never color alone, so a
+    colorblind reader isn't relying on the hue to tell them apart.
+- **Fixed a real bug: dragging an event in "Manage events" visually
+  reordered it, then snapped back.** Root cause: the optimistic local
+  order (`manage-events-card.tsx`) was being cleared the moment the
+  Supabase write *succeeded*, not once the store's `events` actually
+  reflected the new order — the write resolves faster than the Realtime
+  round-trip that updates the store, so for a beat (sometimes longer, if
+  Realtime lagged) the component fell back to `events`' still-stale order
+  and visibly un-reordered itself. Fixed by holding the optimistic order
+  until `events`' own id sequence genuinely matches it (a `useEffect`
+  watching both), rather than clearing on promise resolution. This is
+  exactly the kind of thing the previous entry's "not independently
+  screenshot-verified... worth an extra-careful manual pass" note called
+  out — confirmed now by the user actually finding it.
+- **Not independently screenshot-verified** — same standing limitation (no
+  browser driver, no live Supabase creds in this worktree). The tooltip
+  layout in particular (spacing, whether the new fields wrap awkwardly on
+  a narrow phone screen) is worth a real look once deployed.
 
 ## 2026-08-12 — Event management, progress-chart ordering, whole-number points
 

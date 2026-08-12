@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -35,9 +35,24 @@ export function ManageEventsCard({ events }: { events: EventRow[] }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   // Optimistic local order so the drag feels instant instead of waiting on
   // a round-trip + Realtime refetch before the list visually reorders.
+  //
+  // The write itself resolves faster than the Realtime round-trip that
+  // updates `events` in the store — clearing this the moment the write
+  // succeeded (rather than once `events` actually reflects it) made the
+  // list visibly snap back to the OLD order for a beat, since `events`
+  // was still stale at that instant. Instead, hang onto the optimistic
+  // order until `events` genuinely matches it.
   const [localOrder, setLocalOrder] = useState<string[] | null>(null);
   const orderedIds = localOrder ?? events.map((e) => e.id);
   const eventsById = new Map(events.map((e) => [e.id, e]));
+
+  useEffect(() => {
+    if (!localOrder) return;
+    const liveOrder = events.map((e) => e.id);
+    if (liveOrder.length === localOrder.length && liveOrder.every((id, i) => id === localOrder[i])) {
+      setLocalOrder(null);
+    }
+  }, [events, localOrder]);
 
   function handleDragEnd(dragEvent: DragEndEvent) {
     const { active, over } = dragEvent;
@@ -47,9 +62,7 @@ export function ManageEventsCard({ events }: { events: EventRow[] }) {
     if (from === -1 || to === -1) return;
     const next = arrayMove(orderedIds, from, to);
     setLocalOrder(next);
-    reorderEvents(getSupabaseBrowserClient(), next)
-      .then(() => setLocalOrder(null))
-      .catch(() => setLocalOrder(null));
+    reorderEvents(getSupabaseBrowserClient(), next).catch(() => setLocalOrder(null));
   }
 
   return (
