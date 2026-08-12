@@ -38,7 +38,24 @@ const GRID = "#e3ddd7"; // --border
 const AXIS_TEXT = "#68625e"; // --muted-foreground
 const SURFACE = "#ffffff"; // --card
 
+// Reserved status colors for the tooltip's rank-change/points-gained
+// indicators — deliberately NOT the categorical palette's own green/red
+// slots (chartColors.ts), which are tied to specific players' identity;
+// reusing them here would make a status badge look like it belongs to
+// whichever player happens to be on that slot. Both contrast >5:1 against
+// the white tooltip surface (WCAG AA for small text), and always ship with
+// a +/− sign or ▲/▼ glyph alongside the color, never color alone.
+const STATUS_GOOD = "#166534";
+const STATUS_BAD = "#991b1b";
+
 const DOT_SIZE = 22;
+
+interface ChartRow {
+  key: string;
+  label: string;
+  tick: string;
+  [playerId: string]: string | number | null;
+}
 
 export interface ProgressChartProps {
   players: PlayerRow[];
@@ -56,7 +73,7 @@ export function ProgressChart({ players, series }: ProgressChartProps) {
     );
   }, [players]);
 
-  const data = useMemo(
+  const data = useMemo<ChartRow[]>(
     () =>
       series.map((point, i) => ({
         key: point.key,
@@ -96,8 +113,14 @@ export function ProgressChart({ players, series }: ProgressChartProps) {
             />
             <Tooltip
               cursor={{ stroke: GRID, strokeWidth: 1 }}
+              offset={28}
               content={(props) => (
-                <ProgressTooltip {...props} playerById={playerById} colorByPlayer={colorByPlayer} />
+                <ProgressTooltip
+                  {...props}
+                  data={data}
+                  playerById={playerById}
+                  colorByPlayer={colorByPlayer}
+                />
               )}
             />
             {players.map((p) => (
@@ -193,25 +216,45 @@ function ProgressLegend({
   );
 }
 
+/** Standard competition ranking (1,2,2,4 — a tie doesn't consume the next
+ * rank number), same technique as settleOverallBets.ts. */
+function computeRanks(row: ChartRow, playerIds: string[]): Map<string, number> {
+  const values = playerIds
+    .map((id) => ({ id, v: row[id] }))
+    .filter((x): x is { id: string; v: number } => typeof x.v === "number");
+  const ranks = new Map<string, number>();
+  for (const { id, v } of values) {
+    ranks.set(id, 1 + values.filter((o) => o.v > v).length);
+  }
+  return ranks;
+}
+
 function ProgressTooltip({
   active,
   payload,
+  data,
   playerById,
   colorByPlayer,
 }: TooltipContentProps & {
+  data: ChartRow[];
   playerById: Map<string, PlayerRow>;
   colorByPlayer: Record<string, string>;
 }) {
   if (!active || !payload || payload.length === 0) return null;
-  const point = payload[0]?.payload as { label: string } | undefined;
+  const point = payload[0]?.payload as ChartRow | undefined;
   if (!point) return null;
 
-  const rows = payload
-    .filter((entry) => entry.value != null)
-    .map((entry) => ({
-      playerId: String(entry.dataKey),
-      value: entry.value as number,
-    }))
+  const index = data.findIndex((d) => d.key === point.key);
+  if (index === -1) return null;
+  const previous = index > 0 ? data[index - 1] : null;
+
+  const playerIds = [...playerById.keys()];
+  const currentRanks = computeRanks(point, playerIds);
+  const previousRanks = previous ? computeRanks(previous, playerIds) : null;
+
+  const rows = playerIds
+    .map((playerId) => ({ playerId, value: point[playerId] }))
+    .filter((r): r is { playerId: string; value: number } => typeof r.value === "number")
     .sort((a, b) => b.value - a.value);
 
   if (rows.length === 0) return null;
@@ -223,6 +266,15 @@ function ProgressTooltip({
         {rows.map(({ playerId, value }) => {
           const player = playerById.get(playerId);
           if (!player) return null;
+
+          const rank = currentRanks.get(playerId);
+          const prevRank = previousRanks?.get(playerId);
+          // Positive = moved toward 1st (fewer places to go = improvement).
+          const rankChange = prevRank != null && rank != null ? prevRank - rank : null;
+          const prevValue = previous ? previous[playerId] : null;
+          const pointsGained =
+            typeof prevValue === "number" ? Math.round(value - prevValue) : null;
+
           return (
             <div key={playerId} className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-1.5">
@@ -233,7 +285,26 @@ function ProgressTooltip({
                 />
                 <PlayerName name={player.name} state={player.state ?? "??"} size="sm" />
               </span>
-              <span className="font-semibold tabular-nums">{Math.round(value)}</span>
+              <span className="flex items-center gap-2 tabular-nums">
+                {rank != null ? (
+                  <span className="text-muted-foreground text-xs">#{rank}</span>
+                ) : null}
+                {rankChange ? (
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: rankChange > 0 ? STATUS_GOOD : STATUS_BAD }}
+                  >
+                    {rankChange > 0 ? "▲" : "▼"}
+                    {Math.abs(rankChange)}
+                  </span>
+                ) : null}
+                {pointsGained ? (
+                  <span className="text-xs font-medium" style={{ color: STATUS_GOOD }}>
+                    +{pointsGained}
+                  </span>
+                ) : null}
+                <span className="font-semibold">{Math.round(value)}</span>
+              </span>
             </div>
           );
         })}
