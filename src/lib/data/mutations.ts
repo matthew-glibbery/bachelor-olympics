@@ -3,7 +3,14 @@
  * src/lib/data/queries.ts — no business logic here.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { EventRow, EventStatus, OverallBetRow, PlayerRow } from "./database.types";
+import { resolveOpenPerEventBets } from "@/lib/betting/resolvePerEventBets";
+import type {
+  EventRow,
+  EventStatus,
+  OverallBetRow,
+  PerEventBetRow,
+  PlayerRow,
+} from "./database.types";
 
 export interface NewPlayer {
   name: string;
@@ -111,8 +118,8 @@ export async function resetEvent(client: SupabaseClient, eventId: string): Promi
 
 /**
  * Full weekend reset — wipes every table of weekend *activity* (results,
- * multiplier allocations, all bet/vote/bonus-event/power-move state, and the
- * groom's ranking) and puts every event back to "planned". Players and the
+ * multiplier allocations, all bet/bonus-event/power-move state, and every
+ * event's ranking) and puts every event back to "planned". Players and the
  * app theme are left alone; this is for restarting the competition itself,
  * not the roster or presentation. A destructive, rarely-used groom action —
  * gated the same way as every other groom tool, with a confirm step in the
@@ -125,8 +132,7 @@ export async function resetWeekend(client: SupabaseClient): Promise<void> {
     ["overall_bets", "player_id"],
     ["per_event_bets", "player_id"],
     ["bonus_events", "id"],
-    ["peer_award_votes", "id"],
-    ["groom_ranking", "player_id"],
+    ["event_rankings", "player_id"],
   ];
   for (const [table, column] of wipes) {
     const { error } = await client.from(table).delete().not(column, "is", null);
@@ -208,30 +214,33 @@ export async function upsertMultipliers(
 }
 
 /**
- * Replace the groom's entire ranking in one go — the odds screen always
- * saves a full 1..N ordering (PRODUCT_SPEC.md → Overall betting), never a
- * partial edit, so wipe-then-insert is simpler and safer here than trying to
- * diff against whatever was there before. Not atomic (two round-trips), but
- * this is a single-groom, low-concurrency admin action.
+ * Replace one event's ranking in one go — the ranking editor always saves a
+ * full 1..N ordering for that event (PRODUCT_SPEC.md → Overall betting →
+ * Odds source), never a partial edit, so wipe-then-insert (scoped to this
+ * event only — other events' rankings are untouched) is simpler and safer
+ * than diffing against whatever was there before. Not atomic (two
+ * round-trips), but this is a single-groom, low-concurrency admin action.
  */
-export async function setGroomRanking(
+export async function setEventRanking(
   client: SupabaseClient,
+  eventId: string,
   ranking: { player_id: string; rank: number }[],
 ): Promise<void> {
   const { error: deleteError } = await client
-    .from("groom_ranking")
+    .from("event_rankings")
     .delete()
-    .not("player_id", "is", null);
-  if (deleteError) throw new Error(`setGroomRanking (clear): ${deleteError.message}`);
+    .eq("event_id", eventId);
+  if (deleteError) throw new Error(`setEventRanking (clear): ${deleteError.message}`);
 
   if (ranking.length === 0) return;
-  const { error: insertError } = await client.from("groom_ranking").insert(ranking);
-  if (insertError) throw new Error(`setGroomRanking (insert): ${insertError.message}`);
+  const rows = ranking.map((r) => ({ ...r, event_id: eventId }));
+  const { error: insertError } = await client.from("event_rankings").insert(rows);
+  if (insertError) throw new Error(`setEventRanking (insert): ${insertError.message}`);
 }
 
 export interface NewOverallBet {
   player_id: string;
-  bet_type: "win" | "top3" | "last";
+  bet_type: "win" | "top3";
   pick_player_id: string;
 }
 
@@ -283,6 +292,92 @@ export async function switchOverallBetPick(
     .single();
   if (error) throw new Error(`switchOverallBetPick (write): ${error.message}`);
   return data as OverallBetRow;
+}
+
+export interface NewPerEventBet {
+  player_id: string;
+  event_id: string;
+  target: "win" | "place";
+  wager: number;
+}
+
+/**
+ * Place a per-event multiplier bet — PRODUCT_SPEC.md → Per-event multiplier
+ * betting. Escrows `wager` out of the player's *already-locked* multiplier
+ * for that event; the UI is responsible for only offering this while the
+ * event is "scoring" (multiplier locked, outcome not yet known) and for
+ * capping the wager at whatever's not already tied up in another open bet on
+ * the same event — same "no DB constraint, UI-enforced" pattern as overall
+ * bets.
+ */
+export async function placePerEventBet(
+  client: SupabaseClient,
+  bet: NewPerEventBet,
+): Promise<PerEventBetRow> {
+  const { data, error } = await client
+    .from("per_event_bets")
+    .insert(bet)
+    .select()
+    .single();
+  if (error) throw new Error(`placePerEventBet: ${error.message}`);
+  return data as PerEventBetRow;
+}
+
+/**
+ * Settle every open per-event bet on one just-finalized event. Reads the
+ * open bets and that event's ranking, runs the pure resolution logic
+ * (src/lib/betting/resolvePerEventBets.ts — a deliberate exception to this
+ * file's "no business logic" rule, same as switchOverallBetPick's
+ * read-then-write above: the alternative is duplicating the fetch/write
+ * plumbing at every call site), and writes the outcomes back. Called right
+ * after `upsertEventResults` + `setEventStatus(..., "resolved")` in the
+ * event-finalize flow.
+ */
+export async function resolvePerEventBets(
+  client: SupabaseClient,
+  eventId: string,
+  finalResults: EventResultInput[],
+): Promise<void> {
+  const { data: openBets, error: betsError } = await client
+    .from("per_event_bets")
+    .select("*")
+    .eq("event_id", eventId)
+    .eq("status", "open");
+  if (betsError) throw new Error(`resolvePerEventBets (read bets): ${betsError.message}`);
+  if (!openBets || openBets.length === 0) return;
+
+  const { data: rankingRows, error: rankingError } = await client
+    .from("event_rankings")
+    .select("*")
+    .eq("event_id", eventId);
+  if (rankingError) throw new Error(`resolvePerEventBets (read ranking): ${rankingError.message}`);
+
+  const finishingPositions = new Map(
+    finalResults.map((r) => [r.player_id, r.position ?? null]),
+  );
+  const eventRanking = (rankingRows ?? []).map((r) => ({
+    playerId: r.player_id as string,
+    rank: r.rank as number,
+  }));
+
+  const outcomes = resolveOpenPerEventBets(
+    (openBets as PerEventBetRow[]).map((b) => ({
+      id: b.id,
+      playerId: b.player_id,
+      target: b.target,
+      wager: b.wager,
+    })),
+    finishingPositions,
+    eventRanking,
+  );
+
+  for (const outcome of outcomes) {
+    const { error } = await client
+      .from("per_event_bets")
+      .update({ status: outcome.status, payout: outcome.payout })
+      .eq("id", outcome.id);
+    if (error) throw new Error(`resolvePerEventBets (write ${outcome.id}): ${error.message}`);
+  }
 }
 
 /** Set the shared app theme — applies live to every device via Realtime. */

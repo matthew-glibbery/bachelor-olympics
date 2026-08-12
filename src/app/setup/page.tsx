@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { PlayerName } from "@/components/player-name";
 import { ManagePlayerRow } from "@/components/manage-player-row";
 import { ThemePicker } from "@/components/theme-picker";
+import { EventOddsEditor } from "@/components/event-odds-editor";
 import { AppNav } from "@/components/app-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -28,7 +29,7 @@ import { DEFAULT_THEME_ID } from "@/lib/themes";
 const STATE_OPTIONS = stateOptions();
 
 export default function SetupPage() {
-  const { players, appSettings, connect, ready } = useGameStore();
+  const { players, events, eventRankings, appSettings, connect, ready } = useGameStore();
   const {
     selectedPlayerId,
     groomUnlocked,
@@ -274,6 +275,22 @@ export default function SetupPage() {
       {groomUnlocked ? (
         <Card>
           <CardHeader>
+            <CardTitle>Set the odds</CardTitle>
+            <CardDescription>
+              Rank all competitors strongest-to-weakest for one event at a
+              time — private, drives that event&apos;s bet odds plus the
+              overall win/top3 odds. Locks once the event starts.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EventOddsEditor players={players} events={events} eventRankings={eventRankings} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {groomUnlocked ? (
+        <Card>
+          <CardHeader>
             <CardTitle>App theme</CardTitle>
             <CardDescription>
               Picks the look for everyone, live — tweakcn presets.
@@ -291,9 +308,9 @@ export default function SetupPage() {
             <CardTitle className="text-destructive">Danger zone</CardTitle>
             <CardDescription>
               Resetting per event happens on the Events screen. This wipes the
-              whole weekend — every result, multiplier, bet, vote, bonus event,
-              the power move, and the ranking — back to a fresh start. Players
-              and the theme are kept. No undo.
+              whole weekend — every result, multiplier, bet, bonus event, the
+              power move, and every event&apos;s ranking — back to a fresh
+              start. Players and the theme are kept. No undo.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
