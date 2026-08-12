@@ -20,8 +20,18 @@ import { deriveScoreLines } from "@/lib/scoring/fromRows";
 import { cumulativeSeries } from "@/lib/scoring/cumulativeSeries";
 
 export default function Home() {
-  const { players, events, eventResults, multipliers, bonusEvents, connect, loading, error, ready } =
-    useGameStore();
+  const {
+    players,
+    events,
+    eventResults,
+    multipliers,
+    bonusEvents,
+    overallBets,
+    connect,
+    loading,
+    error,
+    ready,
+  } = useGameStore();
 
   useEffect(() => {
     connect();
@@ -35,9 +45,15 @@ export default function Home() {
     photoUrl: p.photo_url,
   }));
   const scoreLines = deriveScoreLines(events, eventResults, multipliers);
-  const bonusAwards = bonusEvents
-    .filter((b) => b.winner_player_id)
-    .map((b) => ({ playerId: b.winner_player_id as string, points: b.points }));
+  const bonusAwards = [
+    ...bonusEvents
+      .filter((b) => b.winner_player_id)
+      .map((b) => ({ playerId: b.winner_player_id as string, points: b.points })),
+    // A won overall bet's payout goes to the BETTOR, not their pick.
+    ...overallBets
+      .filter((b) => b.status === "won" && b.payout != null)
+      .map((b) => ({ playerId: b.player_id, points: b.payout as number })),
+  ];
   const series = cumulativeSeries(
     events,
     eventResults,
@@ -86,7 +102,7 @@ export default function Home() {
           </CardTitle>
           <CardDescription>
             Live standings — raw event points and multiplier-adjusted totals,
-            plus any bonus-event points.
+            plus any bonus-event points and settled overall-bet winnings.
           </CardDescription>
         </CardHeader>
         <CardContent>

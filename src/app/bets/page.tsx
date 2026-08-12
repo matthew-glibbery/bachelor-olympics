@@ -286,15 +286,23 @@ export default function BetsPage() {
                             size="sm"
                             photoUrl={pick.photo_url}
                           />
-                          <Badge variant={alive ? "default" : "destructive"}>
-                            {alive ? "Alive" : "Eliminated"}
-                          </Badge>
+                          {bet.status !== "open" ? (
+                            <Badge variant={bet.status === "won" ? "default" : "destructive"}>
+                              {bet.status === "won" ? `Won ${bet.payout} pts` : "Lost"}
+                            </Badge>
+                          ) : (
+                            <Badge variant={alive ? "default" : "destructive"}>
+                              {alive ? "Alive" : "Eliminated"}
+                            </Badge>
+                          )}
                         </div>
-                        <p className="text-muted-foreground text-sm">
-                          Worth {overallPayoutValue(type, bet.switches)} pts if it lands
-                          {bet.switches > 0 ? ` (switched ${bet.switches}×)` : ""}.
-                        </p>
-                        {!alive ? (
+                        {bet.status === "open" ? (
+                          <p className="text-muted-foreground text-sm">
+                            Worth {overallPayoutValue(type, bet.switches)} pts if it lands
+                            {bet.switches > 0 ? ` (switched ${bet.switches}×)` : ""}.
+                          </p>
+                        ) : null}
+                        {bet.status === "open" && !alive ? (
                           <div className="flex items-end gap-2">
                             <select
                               className={SELECT_CLASS}
@@ -379,11 +387,10 @@ export default function BetsPage() {
                       const bettor = playersById.get(bet.player_id);
                       const pick = playersById.get(bet.pick_player_id);
                       if (!bettor || !pick) return null;
-                      const alive = isPickAlive(
-                        bet.bet_type,
-                        bet.pick_player_id,
-                        eliminationFieldValue,
-                      );
+                      const alive =
+                        bet.status === "open"
+                          ? isPickAlive(bet.bet_type, bet.pick_player_id, eliminationFieldValue)
+                          : null;
                       return (
                         <div
                           key={bet.id}
@@ -398,9 +405,15 @@ export default function BetsPage() {
                             </span>
                             <PlayerName name={pick.name} state={pick.state ?? "??"} size="sm" />
                           </span>
-                          <Badge variant={alive ? "outline" : "destructive"}>
-                            {alive ? "Alive" : "Eliminated"}
-                          </Badge>
+                          {bet.status !== "open" ? (
+                            <Badge variant={bet.status === "won" ? "default" : "destructive"}>
+                              {bet.status === "won" ? `Won ${bet.payout} pts` : "Lost"}
+                            </Badge>
+                          ) : (
+                            <Badge variant={alive ? "outline" : "destructive"}>
+                              {alive ? "Alive" : "Eliminated"}
+                            </Badge>
+                          )}
                         </div>
                       );
                     })}

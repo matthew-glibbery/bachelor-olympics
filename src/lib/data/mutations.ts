@@ -4,10 +4,16 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveOpenPerEventBets } from "@/lib/betting/resolvePerEventBets";
+import { settleOverallBets } from "@/lib/betting/settleOverallBets";
+import { applyBonusAwards } from "@/lib/bonus/bonusEvent";
+import { deriveScoreLines } from "@/lib/scoring/fromRows";
+import { standings } from "@/lib/scoring/total";
 import type {
   BonusEventRow,
+  EventResultRow,
   EventRow,
   EventStatus,
+  MultiplierRow,
   OverallBetRow,
   PerEventBetRow,
   PlayerRow,
@@ -379,6 +385,79 @@ export async function resolvePerEventBets(
       .update({ status: outcome.status, payout: outcome.payout })
       .eq("id", outcome.id);
     if (error) throw new Error(`resolvePerEventBets (write ${outcome.id}): ${error.message}`);
+  }
+}
+
+/**
+ * Settle every open overall bet, but ONLY once the weekend has actually
+ * ended — every event has resolved (cancelled events are hard-deleted per
+ * PRODUCT_SPEC.md → Cancelled events, so they never linger in a
+ * not-yet-resolved state). A no-op otherwise, so it's safe to call after
+ * every single event finalize (src/components/event-card.tsx does exactly
+ * that) without needing a separate "end the weekend" step — it naturally
+ * fires for real on whichever finalize happens to be the last one, and any
+ * call after that finds zero still-open bets and does nothing.
+ *
+ * Final standings include bonus-event points (`applyBonusAwards`) — same
+ * total a player would see on the medal table — since a bet is about who
+ * actually finishes where, not just raw event scoring.
+ */
+export async function settleOverallBetsIfWeekendOver(client: SupabaseClient): Promise<void> {
+  const { data: events, error: eventsError } = await client.from("events").select("*");
+  if (eventsError) throw new Error(`settleOverallBets (read events): ${eventsError.message}`);
+  if (!events || events.length === 0) return;
+  const weekendOver = (events as EventRow[]).every((e) => e.status === "resolved");
+  if (!weekendOver) return;
+
+  const { data: openBets, error: betsError } = await client
+    .from("overall_bets")
+    .select("*")
+    .eq("status", "open");
+  if (betsError) throw new Error(`settleOverallBets (read bets): ${betsError.message}`);
+  if (!openBets || openBets.length === 0) return;
+
+  const [
+    { data: results, error: resultsError },
+    { data: multipliers, error: multipliersError },
+    { data: bonusEvents, error: bonusError },
+  ] = await Promise.all([
+    client.from("event_results").select("*"),
+    client.from("multipliers").select("*"),
+    client.from("bonus_events").select("*"),
+  ]);
+  if (resultsError) throw new Error(`settleOverallBets (read results): ${resultsError.message}`);
+  if (multipliersError) throw new Error(`settleOverallBets (read multipliers): ${multipliersError.message}`);
+  if (bonusError) throw new Error(`settleOverallBets (read bonus events): ${bonusError.message}`);
+
+  const scoreLines = deriveScoreLines(
+    events as EventRow[],
+    (results ?? []) as EventResultRow[],
+    (multipliers ?? []) as MultiplierRow[],
+  );
+  const bonusAwards = ((bonusEvents ?? []) as BonusEventRow[])
+    .filter((b) => b.winner_player_id)
+    .map((b) => ({ playerId: b.winner_player_id as string, points: b.points }));
+  const finalStandings = applyBonusAwards(standings(scoreLines), bonusAwards).map((t) => ({
+    playerId: t.playerId,
+    adjusted: t.adjusted,
+  }));
+
+  const outcomes = settleOverallBets(
+    (openBets as OverallBetRow[]).map((b) => ({
+      id: b.id,
+      betType: b.bet_type,
+      pickPlayerId: b.pick_player_id,
+      switches: b.switches,
+    })),
+    finalStandings,
+  );
+
+  for (const outcome of outcomes) {
+    const { error } = await client
+      .from("overall_bets")
+      .update({ status: outcome.status, payout: outcome.payout })
+      .eq("id", outcome.id);
+    if (error) throw new Error(`settleOverallBets (write ${outcome.id}): ${error.message}`);
   }
 }
 

@@ -24,6 +24,7 @@ import {
   cancelEvent,
   resetEvent,
   resolvePerEventBets,
+  settleOverallBetsIfWeekendOver,
   setEventStatus,
   updateEventPhoto,
   upsertEventResults,
@@ -144,6 +145,7 @@ export function EventCard({
         if (isPlacement) {
           await resolvePerEventBets(client, event.id, entries);
         }
+        await settleOverallBetsIfWeekendOver(client);
         setEditing(false);
       }
     } catch (err) {

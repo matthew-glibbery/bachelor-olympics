@@ -61,6 +61,11 @@ export interface OverallBetRow {
   pick_player_id: string;
   switches: number;
   created_at: string;
+  /** "open" until the weekend ends and every event has resolved, then
+   * settled to "won"/"lost" (src/lib/data/mutations.ts →
+   * settleOverallBetsIfWeekendOver). */
+  status: "open" | "won" | "lost";
+  payout: number | null;
 }
 
 /** A wager on a specific PLAYER'S win/place outcome at one event — the

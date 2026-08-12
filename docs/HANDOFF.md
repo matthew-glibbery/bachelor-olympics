@@ -9,8 +9,9 @@ blow-by-blow if you need it, but this is the map.
 
 **Live and working**, verified against the real Supabase project + a real
 GitHub repo + Vercel deploy (not just typechecked), except the newest
-session's work — see the caveat in that log entry below (migrations 0007
-and 0008 ARE confirmed run against the live project as of this update):
+session's work — see the caveat in that log entry below. Migrations
+0001–0008 ARE confirmed run against the live project; **0009 (this session)
+is NOT confirmed run yet**:
 - **Repo**: `github.com/matthew-glibbery/bachelor-olympics` (private), `main`
   branch, CI green on every push (`.github/workflows/ci.yml`: pnpm, Node 22).
   Deployed on Vercel, auto-deploys from `main`.
@@ -20,7 +21,9 @@ and 0008 ARE confirmed run against the live project as of this update):
   some photos uploaded. **Beach Volleyball** is the one resolved event so far.
 - **Five core screens**, all `max-w-2xl`:
   - `/` — live cumulative progress chart (player photos as markers,
-    flag-inspired colors, dataviz-skill-validated) + Medal Table.
+    flag-inspired colors, dataviz-skill-validated) + Medal Table. Total now
+    includes bonus-event points AND (this session) settled overall-bet
+    winnings.
   - `/events` — groom-gated event board. Each event card is now **tabbed:
     Results / Odds / Bets** (this session). Results tab has the existing
     flow: start scoring → drag-to-reorder placement results (or numeric for
@@ -37,8 +40,10 @@ and 0008 ARE confirmed run against the live project as of this update):
   - `/bets` — overall betting (win/top3 only, win=100pts/top3=20pts) with
     odds shown inline next to each pick; new bet placement locks once the
     first event starts, existing bets can still switch if eliminated,
-    "everyone's bets" only reveals once locked. Per-event betting (this
-    session, was previously unbuilt beyond pure math): pick ANY player to
+    "everyone's bets" only reveals once locked. **Now settles automatically**
+    (this session) once every event has resolved — a bet's badge switches
+    from live Alive/Eliminated to a final Won/Lost, and a won bet's points
+    show up on the medal table. Per-event betting: pick ANY player to
     win/place in an upcoming ("planned") event, wager drawn from your
     unallocated multiplier reserve (not that event's own multiplier),
     payout scaled by that event's own odds. Closes once the event starts —
@@ -53,22 +58,20 @@ and 0008 ARE confirmed run against the live project as of this update):
     winner on the spot, flat points (default 50) land straight on the
     medal table — no odds, no multiplier, no elimination-math effect, per
     spec's explicit isolation.
-- **9 Supabase migrations exist, all confirmed run against the live
-  project** (0001–0008 run before this update; 0009 doesn't exist — power
-  move and bonus events needed zero new migrations, both tables + RLS +
-  Realtime already existed from Phase 1).
+- **10 Supabase migrations exist. 0009 (this session) needs to run** — adds
+  `status`/`payout` columns to `overall_bets` so a settled bet's outcome can
+  be recorded. 0001–0008 already confirmed run.
 - Domain/scoring logic (`src/lib/scoring/*`, `src/lib/multipliers/*`,
   `src/lib/betting/*`, `src/lib/odds/*`, `src/lib/bonus/*`) is pure, unit-
-  tested (130 tests), and matches `docs/PRODUCT_SPEC.md` — placement
+  tested (138 tests), and matches `docs/PRODUCT_SPEC.md` — placement
   scoring rounds to whole numbers (100/72/52/37/27/19/14/10), per an
   explicit product decision from an earlier session.
 
-**Not built yet**: everything in `docs/PRODUCT_SPEC.md`'s core rules is now
-built. What's left is the payout-crediting gap flagged over the last two
-sessions — **a won OVERALL bet's points still aren't credited anywhere**
-once the weekend actually ends (per-event bets and bonus events ARE both
-credited live, via the reserve ledger and `applyBonusAwards` respectively).
-See the open question below.
+**Not built yet**: nothing — every mechanic in `docs/PRODUCT_SPEC.md` now has
+code behind it, including the overall-bet settlement gap flagged across the
+last three sessions (closed this session, see the log entry below). What's
+left is verification against live data and the open questions below, not
+missing features.
 
 **Environment quirk worth knowing**: this dev machine sits behind corporate
 TLS interception (Zscaler) and a corporate npm registry mirror. Both are
@@ -78,20 +81,25 @@ directly, not needed for `next dev`/`next build` themselves). See the
 relevant log entries below if this bites again.
 
 **Open questions for next session**:
-- **This newest session's power move / bonus events work is not yet
-  verified against live data** (no browser driver, no live creds in this
-  worktree — see the caveat in that log entry). Needs zero new migrations
-  though, so it should Just Work — recommend a real click-through: award a
-  bonus event, confirm it lands on the medal table; use the power move,
-  confirm it shows as used everywhere.
-- **Overall-bet payouts still aren't credited anywhere** once a bet wins —
-  nothing adds the points to the medal-table total at the end of the
-  weekend. Per-event bets and bonus events ARE both credited live now
-  (reserve ledger, `applyBonusAwards`) — overall bets are the one remaining
-  gap. Needs a "the weekend is over, settle every open overall bet" step:
-  compare each pick against the actual final standings, award
-  `overallPayoutValue(betType, switches)` to the ones that landed. This is
-  the last piece of PRODUCT_SPEC.md's core rules with no code behind it.
+- **Migration 0009 has not been run against the live project yet** —
+  overall-bet settlement (this session) is dead on arrival against live
+  data until it runs (SQL Editor, same as every prior migration). Also
+  still needs a live click-through: award a bonus event and confirm it
+  lands on the medal table; use the power move and confirm it shows as used
+  everywhere (both from last session, also not yet verified live).
+- **Settlement only fires from the event-finalize path** — there's no
+  standalone "end the weekend" button. If every event happens to already be
+  resolved and something else changes afterward (e.g. a groom edits an
+  already-resolved event's results via "Edit results"), open overall bets
+  from a *newly-added* player or a late per-event bet wouldn't re-trigger
+  settlement, since nothing calls `settleOverallBetsIfWeekendOver` outside
+  the finalize flow. Unlikely in practice (all 8 events finalizing is the
+  natural end state) but worth a manual "re-settle" trigger if it ever
+  comes up.
+- Rank ties in settlement use standard competition ranking (1,2,2,4 — a
+  tie for 2nd doesn't consume rank 3), tested in
+  `src/lib/betting/settleOverallBets.test.ts`. Worth a sanity check against
+  real data if the final standings end up close.
 - The per-event ranking editor, the multiplier sliders, and per-event bet
   placement all lock UI-side once an event leaves "planned" — no DB-level
   enforcement. Same judgment call as prior sessions, still judged fine given
@@ -114,6 +122,64 @@ relevant log entries below if this bites again.
   touch any open per-event bet that was riding on it — the event reverting
   to "planned" re-opens it for betting again rather than voiding whatever
   was already wagered. Minor, but noted.
+
+## 2026-08-11 — Overall-bet settlement: the last open gap in the spec
+
+Continuing autonomously per "continue with the next phases of work while
+I'm away." This closes the payout-crediting gap flagged as an open question
+across the previous two sessions — the last piece of `docs/PRODUCT_SPEC.md`
+with no code behind it. 138 tests (8 new, `src/lib/betting/
+settleOverallBets.test.ts`), lint/typecheck/test/build all green,
+dev-server smoke test of `/`, `/bets`, `/events` (clean compile, 200s).
+**Needs migration 0009 run against the live project — not yet confirmed.**
+
+- **New migration 0009**: `overall_bets` gets `status` ('open'/'won'/'lost',
+  default 'open') and `payout` (numeric) columns — the table only ever
+  tracked the live pick before, nowhere to record whether it ultimately
+  landed.
+- **New pure `settleOverallBets`** (`src/lib/betting/
+  settleOverallBets.ts`, +test): compares each open bet's CURRENT pick
+  (switch history already baked into `pick_player_id`/`switches` by
+  `switchOverallBetPick`) against final standings, using standard
+  competition ranking so ties resolve the way a real podium would (a tie
+  for 2nd doesn't consume rank 3 — tested explicitly, since this is exactly
+  the kind of edge case that's easy to get subtly wrong).
+- **New `settleOverallBetsIfWeekendOver`** mutation
+  (`src/lib/data/mutations.ts`): reads all events, no-ops unless every
+  single one has resolved (cancelled events don't linger — they're hard-
+  deleted per spec, so "every event resolved" is the only state to check
+  for). If the weekend's over, computes final standings the same way the
+  medal table does — `deriveScoreLines` → `standings` → `applyBonusAwards`,
+  so a bet's outcome reflects the SAME total a player would see on `/`, not
+  a separate parallel calculation — then settles every open bet and writes
+  the outcomes back. Wired into `EventCard`'s finalize flow right after the
+  existing per-event-bet resolution call, for every event (not just
+  placement ones, since checking "is the weekend over" doesn't care about
+  scoring mode). No separate "end the weekend" step needed: since the
+  function no-ops until the LAST event resolves, calling it after every
+  finalize is both correct and idempotent — once bets are settled, a later
+  call finds zero still-open bets and does nothing.
+- **Medal table now credits won overall bets**: `src/app/page.tsx` maps
+  `overallBets` with `status === "won"` into the same `BonusAward` shape
+  `applyBonusAwards` already accepts, crediting the payout to the BETTOR
+  (not their pick) alongside bonus-event points — no new plumbing needed,
+  reused the extension point from last session.
+- **`/bets` now shows a bet's final outcome once resolved**: the live
+  Alive/Eliminated badge and switch-pick control only apply while
+  `status === "open"`; a settled bet shows a plain Won/Lost badge with the
+  payout instead (both in the per-type card and in "Everyone's overall
+  bets").
+- `docs/PRODUCT_SPEC.md` gained a "Settlement" bullet under Overall betting
+  documenting when/how this fires — this behavior was previously implied
+  but never actually written down.
+- **Not independently screenshot-verified** — same standing limitation (no
+  browser driver, no live Supabase creds in this worktree), compounded by
+  this feature only being observable at the very end of a full weekend of
+  play, which obviously hasn't happened yet on the live project. The
+  reasonable proxy check (unit tests covering tie-breaking, halving, and
+  the no-op-until-weekend-over gate) is done; the real end-to-end check
+  will only be possible once the actual event's 8+ events are all finalized
+  for real.
 
 ## 2026-08-11 — Power move + bonus events: the last two Phase 3-4 features
 
