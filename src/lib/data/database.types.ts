@@ -46,7 +46,10 @@ export interface MultiplierRow {
   locked: boolean;
 }
 
-export interface GroomRankingRow {
+/** The groom's private per-event ranking (PRODUCT_SPEC.md → Overall betting
+ * → Odds source) — one ranking per event, not one overall ranking. */
+export interface EventRankingRow {
+  event_id: string;
   player_id: string;
   rank: number;
 }
@@ -54,7 +57,7 @@ export interface GroomRankingRow {
 export interface OverallBetRow {
   id: string;
   player_id: string;
-  bet_type: "win" | "top3" | "last";
+  bet_type: "win" | "top3";
   pick_player_id: string;
   switches: number;
   created_at: string;
@@ -76,14 +79,6 @@ export interface BonusEventRow {
   name: string;
   winner_player_id: string | null;
   points: number;
-  created_at: string;
-}
-
-export interface PeerAwardVoteRow {
-  id: string;
-  round: string;
-  voter_id: string;
-  choice_id: string;
   created_at: string;
 }
 

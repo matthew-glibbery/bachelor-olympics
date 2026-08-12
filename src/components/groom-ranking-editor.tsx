@@ -20,9 +20,9 @@ import { PlayerName } from "@/components/player-name";
 import type { PlayerRow } from "@/lib/data/database.types";
 
 /**
- * Drag-to-reorder the groom's private strength ranking, top = strongest
- * (rank 1). No ties — PRODUCT_SPEC.md → Overall betting → Odds source
- * requires a strict 1..N ordering, it's the only odds input. Same
+ * Drag-to-reorder the groom's private strength ranking FOR ONE EVENT, top =
+ * strongest (rank 1) at that event. No ties — PRODUCT_SPEC.md → Overall
+ * betting → Odds source requires a strict 1..N ordering per event. Same
  * PointerSensor pattern as RankedResultsEditor so it works on touch.
  */
 

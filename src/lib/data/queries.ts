@@ -8,10 +8,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   AppSettingsRow,
   EventResultRow,
+  EventRankingRow,
   EventRow,
-  GroomRankingRow,
   MultiplierRow,
   OverallBetRow,
+  PerEventBetRow,
   PlayerRow,
 } from "./database.types";
 import { eventSeedRows } from "./events";
@@ -47,21 +48,29 @@ export function fetchMultipliers(
 }
 
 /**
- * The groom's private pre-weekend ranking (PRODUCT_SPEC.md → Overall
- * betting → Odds source), sorted 1=strongest first. Empty until the groom
- * saves one from the odds screen.
+ * The groom's private per-event rankings (PRODUCT_SPEC.md → Overall betting
+ * → Odds source) — one ranking per event, sorted event then 1=strongest
+ * first. Empty for an event until the groom saves one for it on Setup.
  */
-export async function fetchGroomRanking(
+export async function fetchEventRankings(
   client: SupabaseClient,
-): Promise<GroomRankingRow[]> {
-  const rows = await selectAll<GroomRankingRow>(client, "groom_ranking");
-  return [...rows].sort((a, b) => a.rank - b.rank);
+): Promise<EventRankingRow[]> {
+  const rows = await selectAll<EventRankingRow>(client, "event_rankings");
+  return [...rows].sort(
+    (a, b) => a.event_id.localeCompare(b.event_id) || a.rank - b.rank,
+  );
 }
 
 /** Every overall ("who wins it all") bet placed so far (PRODUCT_SPEC.md →
  * Overall betting). */
 export function fetchOverallBets(client: SupabaseClient): Promise<OverallBetRow[]> {
   return selectAll<OverallBetRow>(client, "overall_bets");
+}
+
+/** Every per-event multiplier bet placed so far (PRODUCT_SPEC.md → Per-event
+ * multiplier betting). */
+export function fetchPerEventBets(client: SupabaseClient): Promise<PerEventBetRow[]> {
+  return selectAll<PerEventBetRow>(client, "per_event_bets");
 }
 
 /** The single shared app_settings row (currently just the active theme). */

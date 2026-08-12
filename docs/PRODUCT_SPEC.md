@@ -121,18 +121,22 @@ place), live, during the weekend.
 This is separate from per-event betting and uses **points**, not multiplier,
 as its currency.
 
-- **Odds source**: before the weekend, the groom privately ranks all 8
-  players (himself included) across all 8 events. This ranking is the only
-  input to the odds —
-  players do not set odds themselves, and they aren't expected to know
-  enough about each other to do so credibly. The groom's ranking generates
-  both the per-event odds (used above) and the overall win/place/last odds.
-- **Bet types** (deliberately kept to exactly three, do not add more without
+- **Odds source**: before each event, the groom privately ranks all 8
+  players (himself included) for THAT event specifically — one ranking per
+  event, not one overall ranking. Players do not set odds themselves, and
+  they aren't expected to know enough about each other to do so credibly.
+  Each event's own ranking generates that event's own odds (used by
+  per-event betting below); the overall win/top3 odds are derived by
+  averaging a player's rank across every event ranked so far and re-deriving
+  a single composite order from that (src/lib/odds/aggregate.ts) — it
+  updates automatically as the groom ranks more events, with no separate
+  input of its own.
+- **Bet types** (deliberately kept to exactly two, do not add more without
   revisiting this decision — the whole design intent here was "simple, not a
-  spreadsheet"):
+  spreadsheet"; a third "pick who finishes last" joke bet was considered and
+  dropped):
   1. Pick a player to win outright
   2. Pick a player to place top 3
-  3. Pick a player to finish last (the joke bet)
 - **Payout**: a flat **100 points** if correct, regardless of who was picked
   (the odds already reflect difficulty — a longshot pick is simply harder to
   land, so the reward doesn't need to scale on top of that). This number was
@@ -183,11 +187,6 @@ If a pre-planned event gets cancelled (weather, logistics, whatever):
   or forcing a rematch. This is a manual, one-off admin action in the app
   (a button the groom can hit once), not something that needs elaborate
   rules — the fun is in the surprise and timing, not the mechanic.
-- **Peer award**: at the end of the weekend (or optionally once per day),
-  every player secretly submits one name for something like "funniest
-  moment" or "most chaotic energy." Whoever gets the most votes gets a flat
-  **50-point bonus**, same currency as everything else, added straight to
-  their total. Simple plurality vote, no ranked choice needed.
 - **Theming**: opening ceremony with player intros/nicknames, a real medal
   podium for top 3 at the end, and "medal table" as the label for the
   standings screen instead of "leaderboard." These are presentation-layer
@@ -200,7 +199,9 @@ Decided against, don't reintroduce without asking:
 
 - Betting on other players' predicted rankings (too hard for anyone but the
   groom to do credibly, since no one else knows all 8 people well).
-- Combo/parlay bets, or more than 3 overall bet categories.
+- Combo/parlay bets, or more than 2 overall bet categories.
+- A "pick who finishes last" overall bet category — considered, cut.
+- Peer award vote ("funniest moment," etc.) — considered, cut.
 - Detailed individual stat tracking for team sports (volleyball, soccer) —
   win/loss record per player is enough, no kills/assists/etc.
 - MVP voting for team events — considered and explicitly rejected in favor of

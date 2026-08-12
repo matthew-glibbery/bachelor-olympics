@@ -1,10 +1,14 @@
 /**
  * Odds from the groom's ranking (PRODUCT_SPEC.md → Overall betting).
  *
- * Before the weekend the groom privately ranks all players (himself included),
- * 1 = strongest. That single ranking is the ONLY odds input, and it generates
- * both the per-event odds and the overall win/place/last odds. The groom never
- * updates odds live — one ranking session, upfront.
+ * The groom privately ranks all players (himself included) once PER EVENT,
+ * 1 = strongest at that event — not one overall ranking. Every function
+ * below operates on a single ranking (`RankingEntry[]`); callers pass in
+ * whichever one applies: an event's own ranking for that event's odds
+ * (src/lib/betting/resolvePerEventBets.ts), or the cross-event aggregate
+ * (src/lib/odds/aggregate.ts) for the overall win/top3 bet. The groom never
+ * updates a ranking live once its event has started — see the lock in
+ * src/app/setup/page.tsx.
  *
  * Model (the spec fixes the inputs and the shape, not the exact math, so this
  * is a documented, tunable choice — like docs/simulation-notes.md):

@@ -20,6 +20,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   cancelEvent,
   resetEvent,
+  resolvePerEventBets,
   setEventStatus,
   updateEventPhoto,
   upsertEventResults,
@@ -119,6 +120,9 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
       await upsertEventResults(client, event.id, entries);
       if (finalize) {
         await setEventStatus(client, event.id, "resolved");
+        if (isPlacement) {
+          await resolvePerEventBets(client, event.id, entries);
+        }
         setEditing(false);
       }
     } catch (err) {

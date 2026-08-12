@@ -9,20 +9,22 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   fetchAppSettings,
+  fetchEventRankings,
   fetchEventResults,
   fetchEvents,
-  fetchGroomRanking,
   fetchMultipliers,
   fetchOverallBets,
+  fetchPerEventBets,
   fetchPlayers,
 } from "@/lib/data/queries";
 import type {
   AppSettingsRow,
+  EventRankingRow,
   EventResultRow,
   EventRow,
-  GroomRankingRow,
   MultiplierRow,
   OverallBetRow,
+  PerEventBetRow,
   PlayerRow,
 } from "@/lib/data/database.types";
 
@@ -32,8 +34,9 @@ const REALTIME_TABLES = [
   "event_results",
   "multipliers",
   "app_settings",
-  "groom_ranking",
+  "event_rankings",
   "overall_bets",
+  "per_event_bets",
 ] as const;
 
 interface GameState {
@@ -41,8 +44,9 @@ interface GameState {
   events: EventRow[];
   eventResults: EventResultRow[];
   multipliers: MultiplierRow[];
-  groomRanking: GroomRankingRow[];
+  eventRankings: EventRankingRow[];
   overallBets: OverallBetRow[];
+  perEventBets: PerEventBetRow[];
   appSettings: AppSettingsRow | null;
   loading: boolean;
   error: string | null;
@@ -61,8 +65,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   events: [],
   eventResults: [],
   multipliers: [],
-  groomRanking: [],
+  eventRankings: [],
   overallBets: [],
+  perEventBets: [],
   appSettings: null,
   loading: false,
   error: null,
@@ -74,14 +79,15 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const client = getSupabaseBrowserClient();
     try {
-      const [players, events, eventResults, multipliers, groomRanking, overallBets] =
+      const [players, events, eventResults, multipliers, eventRankings, overallBets, perEventBets] =
         await Promise.all([
           fetchPlayers(client),
           fetchEvents(client),
           fetchEventResults(client),
           fetchMultipliers(client),
-          fetchGroomRanking(client),
+          fetchEventRankings(client),
           fetchOverallBets(client),
+          fetchPerEventBets(client),
         ]);
       // Fetched separately and allowed to fail without taking down the rest
       // of the app: app_settings is a newer table, so until its migration has
@@ -94,8 +100,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         events,
         eventResults,
         multipliers,
-        groomRanking,
+        eventRankings,
         overallBets,
+        perEventBets,
         appSettings,
         loading: false,
         ready: true,
@@ -132,15 +139,25 @@ async function refetch(
   client: ReturnType<typeof getSupabaseBrowserClient>,
   set: (partial: Partial<GameState>) => void,
 ) {
-  const [players, events, eventResults, multipliers, groomRanking, overallBets] =
+  const [players, events, eventResults, multipliers, eventRankings, overallBets, perEventBets] =
     await Promise.all([
       fetchPlayers(client),
       fetchEvents(client),
       fetchEventResults(client),
       fetchMultipliers(client),
-      fetchGroomRanking(client),
+      fetchEventRankings(client),
       fetchOverallBets(client),
+      fetchPerEventBets(client),
     ]);
   const appSettings = await fetchAppSettings(client).catch(() => null);
-  set({ players, events, eventResults, multipliers, groomRanking, overallBets, appSettings });
+  set({
+    players,
+    events,
+    eventResults,
+    multipliers,
+    eventRankings,
+    overallBets,
+    perEventBets,
+    appSettings,
+  });
 }
