@@ -14,8 +14,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlayerName } from "@/components/player-name";
 import { RankedResultsEditor } from "@/components/ranked-results-editor";
+import { EventOddsTable } from "@/components/event-odds-table";
+import { EventBetsList } from "@/components/event-bets-list";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   cancelEvent,
@@ -27,7 +30,13 @@ import {
 } from "@/lib/data/mutations";
 import { uploadPhoto } from "@/lib/supabase/storage";
 import { orderFromResults, positionsFromOrder } from "@/lib/scoring/rankedOrder";
-import type { EventResultRow, EventRow, PlayerRow } from "@/lib/data/database.types";
+import type { RankingEntry } from "@/lib/odds/ranking";
+import type {
+  EventResultRow,
+  EventRow,
+  PerEventBetRow,
+  PlayerRow,
+} from "@/lib/data/database.types";
 
 const STATUS_LABEL: Record<EventRow["status"], string> = {
   planned: "Not started",
@@ -40,13 +49,25 @@ interface EventCardProps {
   event: EventRow;
   players: PlayerRow[];
   results: EventResultRow[];
+  ranking: RankingEntry[];
+  bets: PerEventBetRow[];
   groomUnlocked: boolean;
 }
 
-export function EventCard({ event, players, results, groomUnlocked }: EventCardProps) {
+export function EventCard({
+  event,
+  players,
+  results,
+  ranking,
+  bets,
+  groomUnlocked,
+}: EventCardProps) {
   const isPlacement = event.scoring_mode === "placement";
   const playerIds = players.map((p) => p.id);
   const playerById = new Map(players.map((p) => [p.id, p]));
+  // Betting closes once the event leaves "planned" — bets stay a secret
+  // until then (src/app/bets/page.tsx handles placement while planned).
+  const bettingClosed = event.status !== "planned";
 
   const [editing, setEditing] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -231,131 +252,151 @@ export function EventCard({ event, players, results, groomUnlocked }: EventCardP
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {error ? <p className="text-destructive text-sm">{error}</p> : null}
+      <CardContent>
+        <Tabs defaultValue="results">
+          <TabsList>
+            <TabsTrigger value="results">Results</TabsTrigger>
+            <TabsTrigger value="odds">Odds</TabsTrigger>
+            {bettingClosed ? <TabsTrigger value="bets">Bets</TabsTrigger> : null}
+          </TabsList>
 
-        {!groomUnlocked ? null : (
-          <div className="flex flex-wrap items-center gap-2">
-            {event.status === "planned" ? (
-              <Button size="sm" onClick={startScoring} disabled={busy}>
-                <Play className="size-4" />
-                Start scoring
-              </Button>
-            ) : null}
-            {(event.status === "scoring" || event.status === "resolved") && !editing ? (
-              <Button size="sm" variant="outline" onClick={openEditing}>
-                <Pencil className="size-4" />
-                {event.status === "resolved" ? "Edit results" : "Enter results"}
-              </Button>
-            ) : null}
-            {confirmingReset ? (
-              <>
-                <span className="text-sm">Clear results and reset to not started?</span>
-                <Button size="sm" variant="destructive" onClick={doReset} disabled={busy}>
-                  Yes, reset
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setConfirmingReset(false)}>
-                  No
-                </Button>
-              </>
-            ) : event.status !== "planned" ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground"
-                onClick={() => setConfirmingReset(true)}
-              >
-                <RotateCcw className="size-4" />
-                Reset event
-              </Button>
-            ) : null}
-            {confirmingCancel ? (
-              <>
-                <span className="text-sm">Cancel this event?</span>
-                <Button size="sm" variant="destructive" onClick={doCancel} disabled={busy}>
-                  Yes, cancel
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setConfirmingCancel(false)}>
-                  No
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground"
-                onClick={() => setConfirmingCancel(true)}
-              >
-                <X className="size-4" />
-                Cancel event
-              </Button>
-            )}
-          </div>
-        )}
+          <TabsContent value="results" className="flex flex-col gap-3 pt-3">
+            {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-        {editing ? (
-          <div className="flex flex-col gap-3 border-t pt-3">
-            {isPlacement ? (
-              <RankedResultsEditor
-                order={order}
-                tied={tied}
-                players={playerById}
-                onReorder={setOrder}
-                onToggleTie={toggleTie}
-              />
-            ) : (
-              <div className="flex flex-col gap-2">
-                {players.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between gap-3">
-                    <PlayerName
-                      name={p.name}
-                      state={p.state ?? "??"}
-                      size="sm"
-                      photoUrl={p.photo_url}
-                    />
-                    <Input
-                      type="number"
-                      step="any"
-                      className="w-24"
-                      placeholder="result"
-                      value={rawDraft[p.id] ?? ""}
-                      onChange={(e) =>
-                        setRawDraft((d) => ({ ...d, [p.id]: e.target.value }))
-                      }
-                    />
-                  </div>
-                ))}
+            {!groomUnlocked ? null : (
+              <div className="flex flex-wrap items-center gap-2">
+                {event.status === "planned" ? (
+                  <Button size="sm" onClick={startScoring} disabled={busy}>
+                    <Play className="size-4" />
+                    Start scoring
+                  </Button>
+                ) : null}
+                {(event.status === "scoring" || event.status === "resolved") && !editing ? (
+                  <Button size="sm" variant="outline" onClick={openEditing}>
+                    <Pencil className="size-4" />
+                    {event.status === "resolved" ? "Edit results" : "Enter results"}
+                  </Button>
+                ) : null}
+                {confirmingReset ? (
+                  <>
+                    <span className="text-sm">Clear results and reset to not started?</span>
+                    <Button size="sm" variant="destructive" onClick={doReset} disabled={busy}>
+                      Yes, reset
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setConfirmingReset(false)}>
+                      No
+                    </Button>
+                  </>
+                ) : event.status !== "planned" ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-muted-foreground"
+                    onClick={() => setConfirmingReset(true)}
+                  >
+                    <RotateCcw className="size-4" />
+                    Reset event
+                  </Button>
+                ) : null}
+                {confirmingCancel ? (
+                  <>
+                    <span className="text-sm">Cancel this event?</span>
+                    <Button size="sm" variant="destructive" onClick={doCancel} disabled={busy}>
+                      Yes, cancel
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setConfirmingCancel(false)}>
+                      No
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-muted-foreground"
+                    onClick={() => setConfirmingCancel(true)}
+                  >
+                    <X className="size-4" />
+                    Cancel event
+                  </Button>
+                )}
               </div>
             )}
-            <div className="flex gap-2 pt-1">
-              <Button size="sm" variant="outline" onClick={() => saveResults(false)} disabled={busy}>
-                Save draft
-              </Button>
-              <Button size="sm" onClick={() => saveResults(true)} disabled={busy}>
-                Finalize
-              </Button>
-            </div>
-          </div>
-        ) : event.status !== "planned" ? (
-          <div className="flex flex-col gap-1 border-t pt-3 text-sm">
-            {players.map((p) => {
-              const r = results.find((x) => x.player_id === p.id);
-              const value = isPlacement ? r?.position : r?.raw;
-              return (
-                <span
-                  key={p.id}
-                  className={cn(
-                    "flex items-center justify-between gap-2",
-                    value == null && "text-muted-foreground",
-                  )}
-                >
-                  <PlayerName name={p.name} state={p.state ?? "??"} size="sm" />
-                  <span className="tabular-nums">{value ?? "—"}</span>
-                </span>
-              );
-            })}
-          </div>
-        ) : null}
+
+            {editing ? (
+              <div className="flex flex-col gap-3 border-t pt-3">
+                {isPlacement ? (
+                  <RankedResultsEditor
+                    order={order}
+                    tied={tied}
+                    players={playerById}
+                    onReorder={setOrder}
+                    onToggleTie={toggleTie}
+                  />
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {players.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-3">
+                        <PlayerName
+                          name={p.name}
+                          state={p.state ?? "??"}
+                          size="sm"
+                          photoUrl={p.photo_url}
+                        />
+                        <Input
+                          type="number"
+                          step="any"
+                          className="w-24"
+                          placeholder="result"
+                          value={rawDraft[p.id] ?? ""}
+                          onChange={(e) =>
+                            setRawDraft((d) => ({ ...d, [p.id]: e.target.value }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="outline" onClick={() => saveResults(false)} disabled={busy}>
+                    Save draft
+                  </Button>
+                  <Button size="sm" onClick={() => saveResults(true)} disabled={busy}>
+                    Finalize
+                  </Button>
+                </div>
+              </div>
+            ) : event.status !== "planned" ? (
+              <div className="flex flex-col gap-1 border-t pt-3 text-sm">
+                {players.map((p) => {
+                  const r = results.find((x) => x.player_id === p.id);
+                  const value = isPlacement ? r?.position : r?.raw;
+                  return (
+                    <span
+                      key={p.id}
+                      className={cn(
+                        "flex items-center justify-between gap-2",
+                        value == null && "text-muted-foreground",
+                      )}
+                    >
+                      <PlayerName name={p.name} state={p.state ?? "??"} size="sm" />
+                      <span className="tabular-nums">{value ?? "—"}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            ) : null}
+          </TabsContent>
+
+          <TabsContent value="odds" className="pt-3">
+            <EventOddsTable ranking={ranking} players={playerById} />
+          </TabsContent>
+
+          {bettingClosed ? (
+            <TabsContent value="bets" className="pt-3">
+              <EventBetsList bets={bets} players={playerById} />
+            </TabsContent>
+          ) : null}
+        </Tabs>
       </CardContent>
     </Card>
   );

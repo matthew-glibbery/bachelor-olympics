@@ -25,7 +25,8 @@ import {
   switchOverallBetPick,
 } from "@/lib/data/mutations";
 import { eliminationField } from "@/lib/betting/fromRows";
-import { isPickAlive, overallPayoutValue } from "@/lib/betting/overall";
+import { isPickAlive, overallPayoutValue, type OverallBetType } from "@/lib/betting/overall";
+import { bettingReserve } from "@/lib/betting/reserve";
 import { aggregateRanking } from "@/lib/odds/aggregate";
 import {
   impliedProbabilities,
@@ -33,13 +34,11 @@ import {
   perEventPayoutMultiplier,
   type RankingEntry,
 } from "@/lib/odds/ranking";
-import { MULTIPLIER_DEFAULT, MULTIPLIER_STEP } from "@/lib/multipliers/budget";
+import { MULTIPLIER_STEP } from "@/lib/multipliers/budget";
 import type { OverallBetRow } from "@/lib/data/database.types";
 
 const SELECT_CLASS =
   "border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
-
-type OverallBetType = "win" | "top3";
 
 const OVERALL_BET_TYPES: { type: OverallBetType; label: string; description: string }[] = [
   { type: "win", label: "Win outright", description: "Pick the overall winner." },
@@ -47,8 +46,8 @@ const OVERALL_BET_TYPES: { type: OverallBetType; label: string; description: str
 ];
 
 const PER_EVENT_TARGETS: { target: "win" | "place"; label: string }[] = [
-  { target: "win", label: "Win this event" },
-  { target: "place", label: "Top 3 this event" },
+  { target: "win", label: "to win" },
+  { target: "place", label: "to place top 3" },
 ];
 
 /** Betting — PRODUCT_SPEC.md → Overall betting + Per-event multiplier
@@ -76,7 +75,12 @@ export default function BetsPage() {
 
   const player = players.find((p) => p.id === selectedPlayerId);
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-  const eventsById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
+
+  // Once any event leaves "planned," the weekend has effectively started —
+  // that's when new overall-bet placement locks (existing bets can still be
+  // switched if eliminated) and when the reveal of everyone's overall bets
+  // opens up.
+  const weekendStarted = events.some((e) => e.status !== "planned");
 
   const rankingByEvent = useMemo(() => {
     const map = new Map<string, RankingEntry[]>();
@@ -158,30 +162,47 @@ export default function BetsPage() {
 
   // Placement events only for now: resolution keys off the finishing
   // `position`, which absolute-scored events (golf, etc.) don't record —
-  // see docs/HANDOFF.md for the open question on extending this.
-  const scoringEvents = events.filter(
-    (e) => e.status === "scoring" && e.scoring_mode === "placement",
+  // see docs/HANDOFF.md for the open question on extending this. Betting
+  // closes once an event starts, so only "planned" events take new bets.
+  const bettableEvents = events.filter(
+    (e) => e.status === "planned" && e.scoring_mode === "placement",
   );
   const [wagerDraft, setWagerDraft] = useState<Record<string, string>>({});
   const [targetDraft, setTargetDraft] = useState<Record<string, "win" | "place">>({});
+  const [pickDraft, setPickDraft] = useState<Record<string, string>>({});
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
   const [perEventError, setPerEventError] = useState<string | null>(null);
+
+  const reserve = player
+    ? bettingReserve(
+        events.length,
+        multipliers
+          .filter((m) => m.player_id === player.id)
+          .reduce((sum, m) => sum + m.value, 0),
+        perEventBets
+          .filter((b) => b.player_id === player.id)
+          .map((b) => ({ wager: b.wager, status: b.status, payout: b.payout })),
+      )
+    : null;
 
   async function handlePlacePerEvent(eventId: string) {
     if (!player) return;
     const raw = wagerDraft[eventId];
     const wager = raw ? Number(raw) : NaN;
-    if (!Number.isFinite(wager) || wager <= 0) return;
+    const pickPlayerId = pickDraft[eventId];
+    if (!Number.isFinite(wager) || wager <= 0 || !pickPlayerId) return;
     setBusyEventId(eventId);
     setPerEventError(null);
     try {
       await placePerEventBet(getSupabaseBrowserClient(), {
         player_id: player.id,
         event_id: eventId,
+        pick_player_id: pickPlayerId,
         target: targetDraft[eventId] ?? "win",
         wager,
       });
       setWagerDraft((d) => ({ ...d, [eventId]: "" }));
+      setPickDraft((d) => ({ ...d, [eventId]: "" }));
     } catch (err) {
       setPerEventError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -195,8 +216,8 @@ export default function BetsPage() {
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold tracking-tight">Bets</h1>
           <p className="text-muted-foreground text-sm">
-            Overall picks and live per-event wagers, with the odds right next
-            to where you place them.
+            Overall picks and per-event wagers, with the odds right next to
+            where you place them.
           </p>
         </div>
         <AppNav />
@@ -221,9 +242,12 @@ export default function BetsPage() {
                 Overall bets
               </CardTitle>
               <CardDescription>
-                Flat 100 points if you&apos;re right, whoever you pick.
-                Switching a pick after it&apos;s eliminated halves the payout
-                each time.
+                Flat 100 points for a win pick, 20 for top 3, whoever you
+                choose. Switching a pick after it&apos;s eliminated halves
+                the payout each time.{" "}
+                {weekendStarted
+                  ? "New picks are closed — the weekend's underway."
+                  : "Locks once the first event starts."}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
@@ -267,7 +291,7 @@ export default function BetsPage() {
                           </Badge>
                         </div>
                         <p className="text-muted-foreground text-sm">
-                          Worth {overallPayoutValue(bet.switches)} pts if it lands
+                          Worth {overallPayoutValue(type, bet.switches)} pts if it lands
                           {bet.switches > 0 ? ` (switched ${bet.switches}×)` : ""}.
                         </p>
                         {!alive ? (
@@ -298,6 +322,10 @@ export default function BetsPage() {
                           </div>
                         ) : null}
                       </>
+                    ) : weekendStarted ? (
+                      <p className="text-muted-foreground text-sm">
+                        Betting closed for the weekend.
+                      </p>
                     ) : (
                       <div className="flex items-end gap-2">
                         <select
@@ -333,49 +361,54 @@ export default function BetsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Everyone&apos;s overall bets</CardTitle>
-              <CardDescription>No suspense here — visible to everyone.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {overallBets.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No bets placed yet.</p>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  {overallBets.map((bet) => {
-                    const bettor = playersById.get(bet.player_id);
-                    const pick = playersById.get(bet.pick_player_id);
-                    if (!bettor || !pick) return null;
-                    const alive = isPickAlive(
-                      bet.bet_type,
-                      bet.pick_player_id,
-                      eliminationFieldValue,
-                    );
-                    return (
-                      <div
-                        key={bet.id}
-                        className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <PlayerName name={bettor.name} state={bettor.state ?? "??"} size="sm" />
-                          <span className="text-muted-foreground">
-                            {OVERALL_BET_TYPES.find((b) => b.type === bet.bet_type)?.label ??
-                              bet.bet_type}
-                            :
+          {weekendStarted ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Everyone&apos;s overall bets</CardTitle>
+                <CardDescription>
+                  No suspense here — visible to everyone once the weekend
+                  starts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {overallBets.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No bets were placed.</p>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {overallBets.map((bet) => {
+                      const bettor = playersById.get(bet.player_id);
+                      const pick = playersById.get(bet.pick_player_id);
+                      if (!bettor || !pick) return null;
+                      const alive = isPickAlive(
+                        bet.bet_type,
+                        bet.pick_player_id,
+                        eliminationFieldValue,
+                      );
+                      return (
+                        <div
+                          key={bet.id}
+                          className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <PlayerName name={bettor.name} state={bettor.state ?? "??"} size="sm" />
+                            <span className="text-muted-foreground">
+                              {OVERALL_BET_TYPES.find((b) => b.type === bet.bet_type)?.label ??
+                                bet.bet_type}
+                              :
+                            </span>
+                            <PlayerName name={pick.name} state={pick.state ?? "??"} size="sm" />
                           </span>
-                          <PlayerName name={pick.name} state={pick.state ?? "??"} size="sm" />
-                        </span>
-                        <Badge variant={alive ? "outline" : "destructive"}>
-                          {alive ? "Alive" : "Eliminated"}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                          <Badge variant={alive ? "outline" : "destructive"}>
+                            {alive ? "Alive" : "Eliminated"}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>
@@ -384,32 +417,42 @@ export default function BetsPage() {
                 Per-event bets
               </CardTitle>
               <CardDescription>
-                Wager a slice of your already-locked multiplier on your own
-                finish in an event that&apos;s currently underway. Win = the
-                wager pays out scaled by that event&apos;s odds and returns to
-                your pool; lose = it&apos;s gone.
+                Wager a slice of your unallocated multiplier budget on any
+                player&apos;s win/place outcome in an upcoming event — closes
+                once that event starts.{" "}
+                {reserve ? (
+                  <>
+                    You have <strong>{reserve.available.toFixed(1)}</strong>{" "}
+                    available ({reserve.tiedUp.toFixed(1)} tied up in open
+                    wagers) —{" "}
+                    <Link href="/multipliers" className="underline">
+                      see the breakdown on Multipliers
+                    </Link>
+                    .
+                  </>
+                ) : null}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {perEventError ? <p className="text-destructive text-sm">{perEventError}</p> : null}
-              {scoringEvents.length === 0 ? (
+              {bettableEvents.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  No event is in progress right now.
+                  No upcoming event is open for betting right now.
                 </p>
               ) : (
-                scoringEvents.map((event) => {
+                bettableEvents.map((event) => {
                   const ranking = rankingByEvent.get(event.id) ?? [];
                   const rankingComplete = ranking.length === players.length && players.length > 0;
-                  const myMultiplier =
-                    multipliers.find((m) => m.player_id === player.id && m.event_id === event.id)
-                      ?.value ?? MULTIPLIER_DEFAULT;
                   const myBet = perEventBets.find(
                     (b) => b.player_id === player.id && b.event_id === event.id,
                   );
                   const target = targetDraft[event.id] ?? "win";
-                  const odds = rankingComplete
-                    ? perEventPayoutMultiplier(ranking, player.id, target)
-                    : null;
+                  const pickId = pickDraft[event.id] ?? "";
+                  const odds =
+                    rankingComplete && pickId
+                      ? perEventPayoutMultiplier(ranking, pickId, target)
+                      : null;
+                  const maxWager = reserve ? Math.max(0, reserve.available) : 0;
 
                   return (
                     <div key={event.id} className="flex flex-col gap-2 border-t pt-3 first:border-t-0 first:pt-0">
@@ -417,29 +460,18 @@ export default function BetsPage() {
 
                       {myBet ? (
                         <div className="flex items-center justify-between gap-2 text-sm">
-                          <span>
-                            {PER_EVENT_TARGETS.find((t) => t.target === myBet.target)?.label} —
-                            wagered {myBet.wager.toFixed(1)}×
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <PlayerName
+                              name={playersById.get(myBet.pick_player_id)?.name ?? "?"}
+                              state={playersById.get(myBet.pick_player_id)?.state ?? "??"}
+                              size="sm"
+                            />
+                            <span className="text-muted-foreground">
+                              {PER_EVENT_TARGETS.find((t) => t.target === myBet.target)?.label} —
+                              wagered {myBet.wager.toFixed(1)}
+                            </span>
                           </span>
-                          <Badge
-                            variant={
-                              myBet.status === "open"
-                                ? "outline"
-                                : myBet.status === "won"
-                                  ? "default"
-                                  : myBet.status === "lost"
-                                    ? "destructive"
-                                    : "secondary"
-                            }
-                          >
-                            {myBet.status === "open"
-                              ? "Awaiting result"
-                              : myBet.status === "won"
-                                ? `Won ${myBet.payout?.toFixed(1)}×`
-                                : myBet.status === "lost"
-                                  ? "Lost"
-                                  : "Voided"}
-                          </Badge>
+                          <Badge variant="outline">Awaiting result</Badge>
                         </div>
                       ) : !rankingComplete ? (
                         <p className="text-muted-foreground text-sm">
@@ -449,6 +481,20 @@ export default function BetsPage() {
                         <div className="flex flex-wrap items-end gap-2">
                           <select
                             className={SELECT_CLASS + " w-40"}
+                            value={pickId}
+                            onChange={(e) =>
+                              setPickDraft((d) => ({ ...d, [event.id]: e.target.value }))
+                            }
+                          >
+                            <option value="">Pick a player…</option>
+                            {players.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            className={SELECT_CLASS + " w-36"}
                             value={target}
                             onChange={(e) =>
                               setTargetDraft((d) => ({
@@ -467,9 +513,9 @@ export default function BetsPage() {
                             type="number"
                             step={MULTIPLIER_STEP}
                             min={MULTIPLIER_STEP}
-                            max={myMultiplier}
-                            placeholder={`up to ${myMultiplier.toFixed(1)}`}
-                            className="w-28"
+                            max={maxWager}
+                            placeholder={`up to ${maxWager.toFixed(1)}`}
+                            className="w-24"
                             value={wagerDraft[event.id] ?? ""}
                             onChange={(e) =>
                               setWagerDraft((d) => ({ ...d, [event.id]: e.target.value }))
@@ -483,8 +529,9 @@ export default function BetsPage() {
                             onClick={() => handlePlacePerEvent(event.id)}
                             disabled={
                               busyEventId === event.id ||
+                              !pickId ||
                               !wagerDraft[event.id] ||
-                              Number(wagerDraft[event.id]) > myMultiplier
+                              Number(wagerDraft[event.id]) > maxWager
                             }
                           >
                             Wager
@@ -494,58 +541,6 @@ export default function BetsPage() {
                     </div>
                   );
                 })
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Everyone&apos;s per-event bets</CardTitle>
-              <CardDescription>No suspense here either.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {perEventBets.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No wagers placed yet.</p>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  {perEventBets.map((bet) => {
-                    const bettor = playersById.get(bet.player_id);
-                    const event = eventsById.get(bet.event_id);
-                    if (!bettor || !event) return null;
-                    return (
-                      <div
-                        key={bet.id}
-                        className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <PlayerName name={bettor.name} state={bettor.state ?? "??"} size="sm" />
-                          <span className="text-muted-foreground">
-                            {event.name} ({bet.target}, {bet.wager.toFixed(1)}×):
-                          </span>
-                        </span>
-                        <Badge
-                          variant={
-                            bet.status === "open"
-                              ? "outline"
-                              : bet.status === "won"
-                                ? "default"
-                                : bet.status === "lost"
-                                  ? "destructive"
-                                  : "secondary"
-                          }
-                        >
-                          {bet.status === "open"
-                            ? "Open"
-                            : bet.status === "won"
-                              ? `Won ${bet.payout?.toFixed(1)}×`
-                              : bet.status === "lost"
-                                ? "Lost"
-                                : "Voided"}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
               )}
             </CardContent>
           </Card>

@@ -10,7 +10,7 @@ const ranking = [
 describe("resolveOpenPerEventBets", () => {
   it("wins a 'win' bet for the actual 1st-place finisher, scaled by that event's odds", () => {
     const [result] = resolveOpenPerEventBets(
-      [{ id: "b1", playerId: "p1", target: "win", wager: 0.3 }],
+      [{ id: "b1", pickPlayerId: "p1", target: "win", wager: 0.3 }],
       new Map([["p1", 1]]),
       ranking,
     );
@@ -20,7 +20,7 @@ describe("resolveOpenPerEventBets", () => {
 
   it("loses a 'win' bet for anyone who didn't finish 1st", () => {
     const [result] = resolveOpenPerEventBets(
-      [{ id: "b1", playerId: "p2", target: "win", wager: 0.3 }],
+      [{ id: "b1", pickPlayerId: "p2", target: "win", wager: 0.3 }],
       new Map([
         ["p1", 1],
         ["p2", 2],
@@ -32,7 +32,7 @@ describe("resolveOpenPerEventBets", () => {
 
   it("wins a 'place' bet for a top-3 finish, even if not 1st", () => {
     const [result] = resolveOpenPerEventBets(
-      [{ id: "b1", playerId: "p3", target: "place", wager: 0.2 }],
+      [{ id: "b1", pickPlayerId: "p3", target: "place", wager: 0.2 }],
       new Map([["p3", 3]]),
       ranking,
     );
@@ -41,7 +41,7 @@ describe("resolveOpenPerEventBets", () => {
 
   it("loses if the bettor has no result at all", () => {
     const [result] = resolveOpenPerEventBets(
-      [{ id: "b1", playerId: "p1", target: "win", wager: 0.3 }],
+      [{ id: "b1", pickPlayerId: "p1", target: "win", wager: 0.3 }],
       new Map(),
       ranking,
     );
@@ -50,7 +50,7 @@ describe("resolveOpenPerEventBets", () => {
 
   it("pays out flat 1:1 when the event has no ranking on file", () => {
     const [result] = resolveOpenPerEventBets(
-      [{ id: "b1", playerId: "p1", target: "win", wager: 0.4 }],
+      [{ id: "b1", pickPlayerId: "p1", target: "win", wager: 0.4 }],
       new Map([["p1", 1]]),
       [],
     );

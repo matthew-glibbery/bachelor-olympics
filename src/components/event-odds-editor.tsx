@@ -28,6 +28,12 @@ export function EventOddsEditor({
   eventRankings: EventRankingRow[];
 }) {
   const rankable = events.filter((e) => e.status !== "cancelled");
+  const isRanked = (eventId: string) => {
+    const count = eventRankings.filter((r) => r.event_id === eventId).length;
+    return count > 0 && count === players.length;
+  };
+  const rankedCount = rankable.filter((e) => isRanked(e.id)).length;
+
   const [selectedEventId, setSelectedEventId] = useState(rankable[0]?.id ?? "");
   const selectedEvent = rankable.find((e) => e.id === selectedEventId);
   const locked = selectedEvent ? selectedEvent.status !== "planned" : false;
@@ -84,6 +90,9 @@ export function EventOddsEditor({
 
   return (
     <div className="flex flex-col gap-3">
+      <p className="text-muted-foreground text-xs">
+        {rankedCount} of {rankable.length} events ranked.
+      </p>
       <select
         className={SELECT_CLASS}
         value={selectedEventId}
@@ -91,6 +100,7 @@ export function EventOddsEditor({
       >
         {rankable.map((e) => (
           <option key={e.id} value={e.id}>
+            {isRanked(e.id) ? "✓ " : "○ "}
             {e.name}
           </option>
         ))}

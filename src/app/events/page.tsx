@@ -9,7 +9,8 @@ import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 
 export default function EventsPage() {
-  const { players, events, eventResults, connect, loading, error, ready } = useGameStore();
+  const { players, events, eventResults, eventRankings, perEventBets, connect, loading, error, ready } =
+    useGameStore();
   const { groomUnlocked, hydrate } = useSessionStore();
 
   useEffect(() => {
@@ -46,6 +47,10 @@ export default function EventsPage() {
               event={event}
               players={players}
               results={eventResults.filter((r) => r.event_id === event.id)}
+              ranking={eventRankings
+                .filter((r) => r.event_id === event.id)
+                .map((r) => ({ playerId: r.player_id, rank: r.rank }))}
+              bets={perEventBets.filter((b) => b.event_id === event.id)}
               groomUnlocked={groomUnlocked}
             />
           ))}

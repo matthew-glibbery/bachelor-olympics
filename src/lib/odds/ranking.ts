@@ -13,8 +13,14 @@
  * Model (the spec fixes the inputs and the shape, not the exact math, so this
  * is a documented, tunable choice — like docs/simulation-notes.md):
  *
- *   - Each rank gets an exponentially-decaying "strength" s = DECAY^(rank-1),
- *     reusing the same 0.72 decay as the scoring curve for consistency.
+ *   - Each rank gets an exponentially-decaying "strength" s = DECAY^(rank-1).
+ *     ODDS_DECAY is deliberately its OWN constant, separate from the 0.72
+ *     scoring curve — reusing 0.72 here made an 8-player field's longshot
+ *     (rank 8) pay out ~33x on a win bet, which read as absurd against a
+ *     total per-player budget of only ~8.0 multiplier points to wager with.
+ *     0.9 flattens the strength gap between ranks so the same rank-8
+ *     longshot pays roughly 10-12x instead — still a real reward for a
+ *     correct underdog pick, not a lottery ticket.
  *   - Finishing probabilities come from the Plackett-Luce model over those
  *     strengths: p_win is the chance of being drawn first, p_top3 the chance of
  *     landing in the first three draws, p_last the chance of being drawn first
@@ -26,7 +32,7 @@
  *     the per-event bet payouts use.
  */
 
-export const ODDS_DECAY = 0.72;
+export const ODDS_DECAY = 0.9;
 
 export interface RankingEntry {
   playerId: string;

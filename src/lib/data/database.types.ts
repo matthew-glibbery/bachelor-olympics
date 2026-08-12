@@ -63,10 +63,13 @@ export interface OverallBetRow {
   created_at: string;
 }
 
+/** A wager on a specific PLAYER'S win/place outcome at one event — the
+ * bettor and the pick can be different players (or the same one). */
 export interface PerEventBetRow {
   id: string;
   player_id: string;
   event_id: string;
+  pick_player_id: string;
   target: "win" | "place";
   wager: number;
   status: "open" | "won" | "lost" | "void";

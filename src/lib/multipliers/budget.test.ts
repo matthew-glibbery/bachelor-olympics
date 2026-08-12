@@ -66,10 +66,10 @@ describe("validateAllocations", () => {
     expect(result.budgetRemaining).toBeCloseTo(-0.5, 5);
   });
 
-  it("flags an under-allocated set with positive remaining", () => {
+  it("allows an under-allocated set — leftover becomes betting reserve", () => {
     const allocs = [alloc("a", 0.5), alloc("b", 1.0), alloc("c", 1.0)];
     const result = validateAllocations(allocs); // total 3.0, spent 2.5
-    expect(result.valid).toBe(false);
+    expect(result.valid).toBe(true);
     expect(result.budgetRemaining).toBeCloseTo(0.5, 5);
   });
 

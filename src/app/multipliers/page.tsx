@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Lock, Sliders as SlidersIcon } from "lucide-react";
+import { CheckCircle2, Coins, Lock, Sliders as SlidersIcon } from "lucide-react";
 
 import { AppNav } from "@/components/app-nav";
 import { PlayerName } from "@/components/player-name";
@@ -19,6 +19,7 @@ import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { upsertMultipliers } from "@/lib/data/mutations";
+import { bettingReserve } from "@/lib/betting/reserve";
 import {
   MULTIPLIER_DEFAULT,
   MULTIPLIER_MAX,
@@ -30,7 +31,7 @@ import {
 import Link from "next/link";
 
 export default function MultipliersPage() {
-  const { players, events, multipliers, connect, ready } = useGameStore();
+  const { players, events, multipliers, perEventBets, connect, ready } = useGameStore();
   const { selectedPlayerId, hydrate } = useSessionStore();
 
   useEffect(() => {
@@ -69,6 +70,16 @@ export default function MultipliersPage() {
   }));
   const validation = validateAllocations(allocations, events.length);
 
+  const reserve = player
+    ? bettingReserve(
+        events.length,
+        events.reduce((sum, e) => sum + ((e.status === "planned" ? draft[e.id] : committed[e.id]) ?? MULTIPLIER_DEFAULT), 0),
+        perEventBets
+          .filter((b) => b.player_id === player.id)
+          .map((b) => ({ wager: b.wager, status: b.status, payout: b.payout })),
+      )
+    : null;
+
   async function handleSave() {
     if (!player || !validation.valid) return;
     setSaving(true);
@@ -95,8 +106,9 @@ export default function MultipliersPage() {
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold tracking-tight">Multipliers</h1>
           <p className="text-muted-foreground text-sm">
-            Raising one event has to lower others by the same total — budget
-            must balance to exactly zero to save.
+            Raising one event has to lower others by the same total. You can
+            spend up to your full budget across events — anything you leave
+            unspent becomes your reserve for per-event bets.
           </p>
         </div>
         <AppNav />
@@ -126,13 +138,11 @@ export default function MultipliersPage() {
                   />
                 </span>
                 <Badge
-                  variant={validation.budgetRemaining === 0 ? "default" : "destructive"}
+                  variant={validation.budgetRemaining < 0 ? "destructive" : "default"}
                   className="gap-1"
                 >
-                  {validation.budgetRemaining === 0 ? (
-                    <CheckCircle2 className="size-3.5" />
-                  ) : null}
-                  Budget remaining: {validation.budgetRemaining.toFixed(1)}
+                  {validation.budgetRemaining >= 0 ? <CheckCircle2 className="size-3.5" /> : null}
+                  Unallocated: {validation.budgetRemaining.toFixed(1)}
                 </Badge>
               </CardTitle>
               <CardDescription>
@@ -171,16 +181,48 @@ export default function MultipliersPage() {
           </Card>
 
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
-          {!validation.valid && validation.budgetRemaining !== 0 ? (
-            <p className="text-muted-foreground text-sm">
-              {validation.budgetRemaining > 0
-                ? `You have ${validation.budgetRemaining.toFixed(1)} left to allocate.`
-                : `You're over budget by ${Math.abs(validation.budgetRemaining).toFixed(1)} — lower another event first.`}
+          {validation.budgetRemaining < 0 ? (
+            <p className="text-destructive text-sm">
+              Over budget by {Math.abs(validation.budgetRemaining).toFixed(1)} — lower another
+              event first.
             </p>
           ) : null}
           <Button onClick={handleSave} disabled={!validation.valid || saving} className="w-fit">
             Save multipliers
           </Button>
+
+          {reserve ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Coins className="text-primary size-5" />
+                  Betting reserve
+                </CardTitle>
+                <CardDescription>
+                  What&apos;s left of your budget after events and open
+                  per-event wagers — see{" "}
+                  <Link href="/bets" className="underline">
+                    Bets
+                  </Link>
+                  .
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex gap-6 text-sm">
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-xs">Available to wager</span>
+                  <span className="text-lg font-semibold tabular-nums">
+                    {reserve.available.toFixed(1)}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-xs">Tied up in open wagers</span>
+                  <span className="text-lg font-semibold tabular-nums">
+                    {reserve.tiedUp.toFixed(1)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
         </>
       )}
     </main>
