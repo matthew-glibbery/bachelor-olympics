@@ -188,9 +188,11 @@ export default function SetupPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <AddPlayerRow />
-            {players.map((p) => (
-              <ManagePlayerRow key={p.id} player={p} />
-            ))}
+            {[...players]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((p) => (
+                <ManagePlayerRow key={p.id} player={p} />
+              ))}
           </CardContent>
         </Card>
       ) : null}

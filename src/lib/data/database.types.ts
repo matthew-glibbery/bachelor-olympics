@@ -17,7 +17,6 @@ export interface PlayerRow {
   photo_url: string | null;
   /** N64-style character media (docs/VISUAL_SPEC.md) — distinct from
    * `photo_url`, which is the real photo used elsewhere in the app. */
-  character_portrait_url: string | null;
   character_select_video_url: string | null;
   character_fullbody_video_url: string | null;
   /** Plays once on /select right after confirming, before routing into the

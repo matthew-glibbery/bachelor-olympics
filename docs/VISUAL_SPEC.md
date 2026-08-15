@@ -14,8 +14,10 @@ don't let it drift out of sync with what's actually built.
 The plumbing is in place and works today with zero uploaded assets (every
 screen degrades gracefully to a plain fallback until real clips exist):
 
-- `supabase/migrations/0011_character_media.sql` + `0012_character_confirm_video.sql`
-  — `character_portrait_url` / `character_select_video_url` /
+- `supabase/migrations/0011_character_media.sql` (`character_portrait_url`
+  dropped again in `0013_drop_character_portrait.sql` — unused, nothing ever
+  read it, the roster strip uses `photo_url` directly) +
+  `0012_character_confirm_video.sql` — `character_select_video_url` /
   `character_fullbody_video_url` / `character_confirm_video_url` /
   `character_victory_video_url` on `players`, `boot_video_url` on
   `app_settings`, and a `videos` Storage bucket (same trusted-friends RLS

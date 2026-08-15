@@ -101,7 +101,7 @@ export default function SelectPage() {
           Back
         </Link>
         <p className="text-background/50 text-xs font-semibold tracking-[0.3em] uppercase">
-          Choose your competitor
+          Choose your character
         </p>
         <span className="w-10" aria-hidden />
       </div>
@@ -236,7 +236,8 @@ function RosterBust({
     >
       <CharacterBust
         name={name}
-        videoUrl={active || hovering ? videoUrl : null}
+        videoUrl={videoUrl}
+        playing={active || hovering}
         photoUrl={photoUrl}
         color={color}
         size="sm"
