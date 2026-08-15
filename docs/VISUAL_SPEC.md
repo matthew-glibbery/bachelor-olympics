@@ -14,11 +14,14 @@ don't let it drift out of sync with what's actually built.
 The plumbing is in place and works today with zero uploaded assets (every
 screen degrades gracefully to a plain fallback until real clips exist):
 
-- `supabase/migrations/0011_character_media.sql` — `character_portrait_url`
-  / `character_select_video_url` / `character_fullbody_video_url` /
+- `supabase/migrations/0011_character_media.sql` + `0012_character_confirm_video.sql`
+  — `character_portrait_url` / `character_select_video_url` /
+  `character_fullbody_video_url` / `character_confirm_video_url` /
   `character_victory_video_url` on `players`, `boot_video_url` on
   `app_settings`, and a `videos` Storage bucket (same trusted-friends RLS
-  model as `photos`).
+  model as `photos`). `character_confirm_video_url` plays once on `/select`
+  right after hitting "Let's go," before routing into the app — distinct
+  from the fullbody clip, which idles while still choosing.
 - `src/components/identity-gate.tsx` — wraps the whole app (`layout.tsx`).
   Until this device has picked a player, redirects to `/start` (which leads
   into `/select`) instead of rendering the requested page. Bypasses itself
@@ -33,9 +36,10 @@ screen degrades gracefully to a plain fallback until real clips exist):
   resolved `EventCard`, wired via `src/lib/scoring/eventWinner.ts` (pure
   winner-id lookup, handles placement + absolute + ties). Renders nothing if
   the winner has no victory clip uploaded yet.
-- Upload UI: `ManagePlayerRow` (groom tools → Manage players) gets four new
-  upload fields per player; `BootVideoUploader` (groom tools → Boot video)
-  sets the one shared boot clip.
+- Upload UI: `ManagePlayerRow` (groom tools → Manage players, always visible
+  on each player's row, not hidden behind edit mode) gets five upload fields
+  per player; `BootVideoUploader` (groom tools → Boot video) sets the one
+  shared boot clip.
 
 Not built yet: any actual character assets (see the generation pipeline
 below — that's the next step, and it's a content task, not an engineering
@@ -72,6 +76,10 @@ conventional button.
   going anywhere else — a breathing loop, a little shift of weight — so the
   screen feels alive rather than static, same as a real game's select
   screen.
+- **Confirming plays a distinct clip**: hitting "Let's go" plays
+  `character_confirm_video_url` full-bleed once — a different clip from the
+  idling fullbody render, a beat of "you're playing as ___" — before routing
+  into the app. Skippable (tap or any key), doesn't trap the player.
 
 ## Multiplier screen
 

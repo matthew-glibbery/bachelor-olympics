@@ -67,6 +67,7 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
       | "character_portrait_url"
       | "character_select_video_url"
       | "character_fullbody_video_url"
+      | "character_confirm_video_url"
       | "character_victory_video_url",
     kind: "image" | "video",
   ) {
@@ -89,6 +90,72 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
         setBusy(false);
       }
     };
+  }
+
+  const CHARACTER_ASSETS = [
+    {
+      field: "character_portrait_url" as const,
+      kind: "image" as const,
+      label: "portrait",
+      accept: "image/*",
+      set: player.character_portrait_url,
+    },
+    {
+      field: "character_select_video_url" as const,
+      kind: "video" as const,
+      label: "select clip",
+      accept: "video/*",
+      set: player.character_select_video_url,
+    },
+    {
+      field: "character_fullbody_video_url" as const,
+      kind: "video" as const,
+      label: "fullbody clip",
+      accept: "video/*",
+      set: player.character_fullbody_video_url,
+    },
+    {
+      field: "character_confirm_video_url" as const,
+      kind: "video" as const,
+      label: "confirm clip",
+      accept: "video/*",
+      set: player.character_confirm_video_url,
+    },
+    {
+      field: "character_victory_video_url" as const,
+      kind: "video" as const,
+      label: "victory clip",
+      accept: "video/*",
+      set: player.character_victory_video_url,
+    },
+  ];
+
+  function mediaUploads() {
+    return (
+      <div className="flex flex-wrap gap-3">
+        <Label className="text-muted-foreground inline-flex cursor-pointer items-center gap-1.5 text-xs">
+          <Upload className="size-3.5" />
+          {player.photo_url ? "Replace photo" : "Upload photo"}
+          <input type="file" accept="image/*" className="hidden" onChange={handlePhoto} disabled={busy} />
+        </Label>
+        {CHARACTER_ASSETS.map(({ field, kind, label, accept, set }) => (
+          <Label
+            key={field}
+            className="text-muted-foreground inline-flex cursor-pointer items-center gap-1.5 text-xs"
+          >
+            <Upload className="size-3.5" />
+            {set ? `Replace ${label}` : `Upload ${label}`}
+            <input
+              type="file"
+              accept={accept}
+              className="hidden"
+              onChange={handleCharacterAsset(field, kind)}
+              disabled={busy}
+            />
+          </Label>
+        ))}
+      </div>
+    );
   }
 
   async function remove() {
@@ -140,6 +207,7 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
             )}
           </div>
         </div>
+        {mediaUploads()}
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
       </div>
     );
@@ -147,66 +215,10 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
 
   return (
     <div className="flex flex-col gap-3 border-b py-3 last:border-b-0">
-      <div className="flex items-center gap-3">
-        <PlayerName name={player.name} state={player.state ?? "??"} photoUrl={player.photo_url} />
-        <Label className="text-muted-foreground inline-flex cursor-pointer items-center gap-1.5 text-xs">
-          <Upload className="size-3.5" />
-          {player.photo_url ? "Replace photo" : "Upload photo"}
-          <input type="file" accept="image/*" className="hidden" onChange={handlePhoto} disabled={busy} />
-        </Label>
-      </div>
-
+      <PlayerName name={player.name} state={player.state ?? "??"} photoUrl={player.photo_url} />
       {/* N64-style character media (docs/VISUAL_SPEC.md) — optional, separate
           from the real photo above. */}
-      <div className="flex flex-wrap gap-3">
-        {(
-          [
-            {
-              field: "character_portrait_url",
-              kind: "image",
-              label: "portrait",
-              accept: "image/*",
-              set: player.character_portrait_url,
-            },
-            {
-              field: "character_select_video_url",
-              kind: "video",
-              label: "select clip",
-              accept: "video/*",
-              set: player.character_select_video_url,
-            },
-            {
-              field: "character_fullbody_video_url",
-              kind: "video",
-              label: "fullbody clip",
-              accept: "video/*",
-              set: player.character_fullbody_video_url,
-            },
-            {
-              field: "character_victory_video_url",
-              kind: "video",
-              label: "victory clip",
-              accept: "video/*",
-              set: player.character_victory_video_url,
-            },
-          ] as const
-        ).map(({ field, kind, label, accept, set }) => (
-          <Label
-            key={field}
-            className="text-muted-foreground inline-flex cursor-pointer items-center gap-1.5 text-xs"
-          >
-            <Upload className="size-3.5" />
-            {set ? `Replace ${label}` : `Upload ${label}`}
-            <input
-              type="file"
-              accept={accept}
-              className="hidden"
-              onChange={handleCharacterAsset(field, kind)}
-              disabled={busy}
-            />
-          </Label>
-        ))}
-      </div>
+      {mediaUploads()}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <Label>Name</Label>

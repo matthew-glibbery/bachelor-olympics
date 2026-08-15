@@ -20,6 +20,10 @@ export interface PlayerRow {
   character_portrait_url: string | null;
   character_select_video_url: string | null;
   character_fullbody_video_url: string | null;
+  /** Plays once on /select right after confirming, before routing into the
+   * app — distinct from character_fullbody_video_url (the idling render
+   * while still choosing). */
+  character_confirm_video_url: string | null;
   character_victory_video_url: string | null;
   created_at: string;
 }

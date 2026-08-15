@@ -15,8 +15,8 @@ import { cn } from "@/lib/utils";
  * **Swap seam**: `videoUrl` (character_select_video_url /
  * character_fullbody_video_url, uploaded per player in groom tools) takes
  * priority over `photoUrl` the moment a real Nano Banana + Seedance clip
- * exists for that player — every call site stays the same, same pattern as
- * `Flag`'s `FlagGlyph` seam. Falls back to `photoUrl`, then a silhouette.
+ * exists for that player — every call site stays the same. Falls back to
+ * `photoUrl`, then a silhouette.
  */
 export interface CharacterBustProps {
   name: string;

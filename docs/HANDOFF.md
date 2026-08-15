@@ -2,6 +2,59 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-15 — Real-use feedback: photos-not-flags, finishing order, bonus edit/deduct, 5th clip
+
+Follow-up batch after the previous session's PR (#14) landed and got a real
+look. 150 tests (unchanged — all UI/data-layer, no new domain math beyond
+what's already tested), lint/typecheck/build all green, dev-server smoke
+test of `/`, `/events`, `/setup`, `/select` (clean compiles, 200s). **New
+migration 0012** — not yet confirmed run against the live project.
+
+- **State flags dropped everywhere** — photos are now the sole visual
+  identifier. `PlayerName` (`src/components/player-name.tsx`) no longer
+  renders `<Flag>`; `state` is still an accepted prop on every one of its
+  ~20 call sites (so none needed touching) but now only feeds an
+  `sr-only` accessible label, not a visible chip. `src/components/flag.tsx`
+  deleted outright (its only two importers were `PlayerName` and
+  `/select`'s nameplate, both stopped using it). `src/lib/states.ts` and
+  `chartColors.ts`'s state-based hue preferences are untouched — the
+  `state` field/data model stays, only the flag glyph is gone.
+- **Event results show finishing order, not roster order**: `EventCard`
+  (`src/components/event-card.tsx`) now sorts the post-results player list
+  by actual finish — position ascending for placement events, raw value
+  ordered by `lower_is_better` for absolute ones, unresolved trailing last
+  — instead of iterating `players` in whatever order they were added.
+- **Catch-up bonus preview is now a vertical list**, not a wrapped inline
+  row — same `EventCard`, matches how the applied-badge list already read
+  once results exist.
+- **Bonus events: edit, delete, and point deductions**
+  (`src/components/bonus-events-card.tsx`, rewritten;
+  `updateBonusEvent`/`removeBonusEvent` new in `mutations.ts`). Each
+  awarded bonus event now has its own inline edit/delete (same
+  collapsed/expand pattern as `ManagePlayerRow`), and the points field
+  accepts negative numbers — same flat mechanism (`applyBonusAwards`
+  already just adds the value, no change needed there), just documented in
+  `PRODUCT_SPEC.md` as doubling for a groom-assessed deduction. Relabeled
+  "Winner" → "Player" throughout since a deduction isn't a win.
+- **Player media uploads are now always visible**, not hidden behind
+  clicking the pencil/edit icon on a player row (`ManagePlayerRow`) — this
+  was the actual bug behind "I'm not seeing the option to upload media":
+  the controls existed but only rendered in edit mode, which wasn't
+  obvious. Extracted into a shared `mediaUploads()` render function used in
+  both the collapsed and editing views.
+- **Fifth character-media slot: the confirm clip** (migration 0012,
+  `character_confirm_video_url`) — plays once, full-bleed, right after
+  hitting "Let's go" on `/select`, before routing into `/`. Distinct from
+  `character_fullbody_video_url` (idles while still choosing). New
+  `ConfirmClip` component in `select/page.tsx`; skippable via tap or any
+  keypress, doesn't trap the player if there's no clip uploaded yet (falls
+  straight through to the old instant-navigate behavior).
+- **Not independently screenshot-verified** — same standing limitation as
+  every prior session (no browser driver in this environment). The
+  finishing-order sort and the always-visible media uploads in particular
+  are worth a real look — small enough changes that a subtle layout issue
+  wouldn't show up in `tsc`/`eslint`/tests.
+
 ## 2026-08-15 — Catch-up bonus, victory replay, character-media pipeline, "Bachelor Party"
 
 Two unrelated threads landed together (parallel sessions): a real scoring

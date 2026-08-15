@@ -1,7 +1,9 @@
 /**
  * US states reference — players are repped by a US state, Olympics-delegation
- * style. Two-letter USPS codes → full names. Used by the Flag component and the
- * player-setup state picker.
+ * style. Two-letter USPS codes → full names. Used by the player-setup state
+ * picker and chartColors.ts's flag-inspired hue preferences (the visual state
+ * "flag" chip itself was dropped from the UI — photos are the primary avatar
+ * identifier now).
  */
 
 export const US_STATES: Readonly<Record<string, string>> = {

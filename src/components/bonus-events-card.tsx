@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { PartyPopper } from "lucide-react";
+import { useState, type ChangeEvent } from "react";
+import { Pencil, PartyPopper, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PlayerName } from "@/components/player-name";
+import { cn } from "@/lib/utils";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { createBonusEvent } from "@/lib/data/mutations";
+import { createBonusEvent, removeBonusEvent, updateBonusEvent } from "@/lib/data/mutations";
 import { BONUS_EVENT_POINTS } from "@/lib/bonus/bonusEvent";
 import type { BonusEventRow, PlayerRow } from "@/lib/data/database.types";
 
@@ -27,8 +28,9 @@ const SELECT_CLASS =
  * spontaneous, not pre-planned, deliberately outside the core scoring/
  * betting system (no odds, no multiplier, no elimination-math effect), so
  * this lives as its own card rather than inside the tabbed planned-event
- * list on this page. Flat winner-take-all, awarded on the spot: name it,
- * pick the winner, done.
+ * list on this page. Award points on the spot: name it, pick the player,
+ * done — points can also be negative (a deduction), same flat mechanism,
+ * for something like a groom-assessed penalty.
  */
 export function BonusEventsCard({
   players,
@@ -40,7 +42,7 @@ export function BonusEventsCard({
   groomUnlocked: boolean;
 }) {
   const [name, setName] = useState("");
-  const [winnerId, setWinnerId] = useState("");
+  const [playerId, setPlayerId] = useState("");
   const [points, setPoints] = useState(String(BONUS_EVENT_POINTS));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,17 +51,17 @@ export function BonusEventsCard({
 
   async function handleAward() {
     const pts = Math.round(Number(points));
-    if (!name.trim() || !winnerId || !Number.isFinite(pts) || pts <= 0) return;
+    if (!name.trim() || !playerId || !Number.isFinite(pts) || pts === 0) return;
     setBusy(true);
     setError(null);
     try {
       await createBonusEvent(getSupabaseBrowserClient(), {
         name: name.trim(),
-        winner_player_id: winnerId,
+        winner_player_id: playerId,
         points: pts,
       });
       setName("");
-      setWinnerId("");
+      setPlayerId("");
       setPoints(String(BONUS_EVENT_POINTS));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -76,8 +78,9 @@ export function BonusEventsCard({
           Bonus events
         </CardTitle>
         <CardDescription>
-          Spontaneous, on-the-fly extras — flat winner-take-all points, outside
-          the main scoring and betting system entirely.
+          Spontaneous, on-the-fly extras — flat points straight onto the medal
+          table, outside the main scoring and betting system entirely. Points
+          can be negative (a deduction).
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -94,11 +97,10 @@ export function BonusEventsCard({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="bonus-points">Points</Label>
+                <Label htmlFor="bonus-points">Points (negative to deduct)</Label>
                 <Input
                   id="bonus-points"
                   type="number"
-                  min={1}
                   step={1}
                   value={points}
                   onChange={(e) => setPoints(e.target.value)}
@@ -106,12 +108,12 @@ export function BonusEventsCard({
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="bonus-winner">Winner</Label>
+              <Label htmlFor="bonus-player">Player</Label>
               <select
-                id="bonus-winner"
+                id="bonus-player"
                 className={SELECT_CLASS}
-                value={winnerId}
-                onChange={(e) => setWinnerId(e.target.value)}
+                value={playerId}
+                onChange={(e) => setPlayerId(e.target.value)}
               >
                 <option value="">Pick a player…</option>
                 {players.map((p) => (
@@ -125,10 +127,10 @@ export function BonusEventsCard({
             <Button
               size="sm"
               onClick={handleAward}
-              disabled={busy || !name.trim() || !winnerId}
+              disabled={busy || !name.trim() || !playerId}
               className="w-fit"
             >
-              Award bonus
+              Award
             </Button>
           </div>
         ) : null}
@@ -137,29 +139,176 @@ export function BonusEventsCard({
           <p className="text-muted-foreground text-sm">No bonus events yet.</p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {bonusEvents.map((b) => {
-              const winner = b.winner_player_id ? playersById.get(b.winner_player_id) : undefined;
-              return (
-                <div
-                  key={b.id}
-                  className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
-                >
-                  <span className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-medium">{b.name}</span>
-                    {winner ? (
-                      <>
-                        <span className="text-muted-foreground">won by</span>
-                        <PlayerName name={winner.name} state={winner.state ?? "??"} size="sm" />
-                      </>
-                    ) : null}
-                  </span>
-                  <span className="text-muted-foreground tabular-nums">+{b.points}</span>
-                </div>
-              );
-            })}
+            {bonusEvents.map((b) => (
+              <BonusEventItem
+                key={b.id}
+                bonusEvent={b}
+                players={players}
+                playerName={
+                  b.winner_player_id ? (playersById.get(b.winner_player_id)?.name ?? null) : null
+                }
+                groomUnlocked={groomUnlocked}
+              />
+            ))}
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function BonusEventItem({
+  bonusEvent,
+  players,
+  playerName,
+  groomUnlocked,
+}: {
+  bonusEvent: BonusEventRow;
+  players: PlayerRow[];
+  playerName: string | null;
+  groomUnlocked: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState({
+    name: bonusEvent.name,
+    winner_player_id: bonusEvent.winner_player_id ?? "",
+    points: String(bonusEvent.points),
+  });
+
+  const player = bonusEvent.winner_player_id
+    ? players.find((p) => p.id === bonusEvent.winner_player_id)
+    : undefined;
+
+  function handlePointsChange(e: ChangeEvent<HTMLInputElement>) {
+    setDraft((d) => ({ ...d, points: e.target.value }));
+  }
+
+  async function save() {
+    const pts = Math.round(Number(draft.points));
+    if (!draft.name.trim() || !draft.winner_player_id || !Number.isFinite(pts) || pts === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await updateBonusEvent(getSupabaseBrowserClient(), bonusEvent.id, {
+        name: draft.name.trim(),
+        winner_player_id: draft.winner_player_id,
+        points: pts,
+      });
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    setBusy(true);
+    setError(null);
+    try {
+      await removeBonusEvent(getSupabaseBrowserClient(), bonusEvent.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-2 rounded-md border px-2 py-2 text-sm">
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            value={draft.name}
+            onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+            placeholder="What happened"
+          />
+          <Input type="number" step={1} value={draft.points} onChange={handlePointsChange} />
+        </div>
+        <select
+          className={SELECT_CLASS}
+          value={draft.winner_player_id}
+          onChange={(e) => setDraft((d) => ({ ...d, winner_player_id: e.target.value }))}
+        >
+          <option value="">Pick a player…</option>
+          {players.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        {error ? <p className="text-destructive text-xs">{error}</p> : null}
+        <div className="flex gap-2">
+          <Button size="sm" onClick={save} disabled={busy}>
+            Save
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
+            <X className="size-4" />
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1 rounded-md border px-2 py-1.5 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span className="font-medium">{bonusEvent.name}</span>
+          {player ? (
+            <>
+              <span className="text-muted-foreground">
+                {bonusEvent.points < 0 ? "deducted from" : "won by"}
+              </span>
+              <PlayerName name={player.name} size="sm" />
+            </>
+          ) : playerName ? (
+            <span className="text-muted-foreground">— {playerName}</span>
+          ) : null}
+        </span>
+        <span className="flex items-center gap-1">
+          <span
+            className={cn(
+              "tabular-nums",
+              bonusEvent.points < 0 ? "text-destructive" : "text-muted-foreground",
+            )}
+          >
+            {bonusEvent.points > 0 ? "+" : ""}
+            {bonusEvent.points}
+          </span>
+          {groomUnlocked ? (
+            confirmingRemove ? (
+              <>
+                <span className="text-muted-foreground text-xs">Remove?</span>
+                <Button size="sm" variant="destructive" onClick={remove} disabled={busy}>
+                  Yes
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setConfirmingRemove(false)}>
+                  No
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+                  <Pencil className="size-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  onClick={() => setConfirmingRemove(true)}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </>
+            )
+          ) : null}
+        </span>
+      </div>
+      {error ? <p className="text-destructive text-xs">{error}</p> : null}
+    </div>
   );
 }

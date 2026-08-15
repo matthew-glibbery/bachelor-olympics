@@ -54,9 +54,13 @@ BONUS events (below), which are a separate, deliberately isolated concept.
 - **Stump**: standard placement scoring, no special handling.
 - **On-the-fly bonus events** (added spontaneously during the weekend, not
   pre-planned): these are **out of the main scoring and betting system
-  entirely**. Flat winner-take-all bonus (default 50 points), no odds, no
+  entirely**. Flat points straight onto one player (default 50), no odds, no
   multiplier interaction, no effect on elimination math. Keep this as its own
   isolated code path — don't let it touch the core event/scoring model.
+  Points can also be **negative** — the same mechanism doubles as a flat
+  point deduction (e.g. a groom-assessed penalty), not a separate concept.
+  Editable/deletable after the fact (groom tools), same as everything else
+  the groom manages.
 
 ## Scoring
 

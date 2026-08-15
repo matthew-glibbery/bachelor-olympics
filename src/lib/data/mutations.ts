@@ -61,6 +61,7 @@ export interface PlayerPatch {
   character_portrait_url?: string | null;
   character_select_video_url?: string | null;
   character_fullbody_video_url?: string | null;
+  character_confirm_video_url?: string | null;
   character_victory_video_url?: string | null;
 }
 
@@ -593,6 +594,37 @@ export async function createBonusEvent(
     .single();
   if (error) throw new Error(`createBonusEvent: ${error.message}`);
   return data as BonusEventRow;
+}
+
+export interface BonusEventPatch {
+  name?: string;
+  winner_player_id?: string;
+  points?: number;
+}
+
+/** Edit an already-awarded bonus event in place — same shape as creating one. */
+export async function updateBonusEvent(
+  client: SupabaseClient,
+  bonusEventId: string,
+  patch: BonusEventPatch,
+): Promise<BonusEventRow> {
+  const { data, error } = await client
+    .from("bonus_events")
+    .update(patch)
+    .eq("id", bonusEventId)
+    .select()
+    .single();
+  if (error) throw new Error(`updateBonusEvent: ${error.message}`);
+  return data as BonusEventRow;
+}
+
+/** Remove a bonus event entirely — its points stop counting immediately. */
+export async function removeBonusEvent(
+  client: SupabaseClient,
+  bonusEventId: string,
+): Promise<void> {
+  const { error } = await client.from("bonus_events").delete().eq("id", bonusEventId);
+  if (error) throw new Error(`removeBonusEvent: ${error.message}`);
 }
 
 /**

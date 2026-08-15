@@ -6,7 +6,6 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { CharacterBust } from "@/components/character-bust";
-import { Flag } from "@/components/flag";
 import { Button } from "@/components/ui/button";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -32,6 +31,9 @@ export default function SelectPage() {
   }, [connect]);
 
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  // Set once "Let's go" is hit, if the chosen player has a confirm clip —
+  // plays full-bleed before actually routing into the app.
+  const [confirmingPlayerId, setConfirmingPlayerId] = useState<string | null>(null);
 
   useEffect(() => {
     if (focusedId && players.some((p) => p.id === focusedId)) return;
@@ -50,6 +52,7 @@ export default function SelectPage() {
 
   const focused = players.find((p) => p.id === focusedId) ?? null;
   const focusedIndex = focused ? players.findIndex((p) => p.id === focused.id) : -1;
+  const confirmingPlayer = players.find((p) => p.id === confirmingPlayerId) ?? null;
 
   function step(delta: number) {
     if (players.length === 0) return;
@@ -60,7 +63,11 @@ export default function SelectPage() {
   function confirm() {
     if (!focused) return;
     selectPlayer(focused.id);
-    router.push("/");
+    if (focused.character_confirm_video_url) {
+      setConfirmingPlayerId(focused.id);
+    } else {
+      router.push("/");
+    }
   }
 
   useEffect(() => {
@@ -73,6 +80,15 @@ export default function SelectPage() {
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedIndex, players, focused]);
+
+  if (confirmingPlayer) {
+    return (
+      <ConfirmClip
+        videoUrl={confirmingPlayer.character_confirm_video_url!}
+        onDone={() => router.push("/")}
+      />
+    );
+  }
 
   return (
     <main className="bg-foreground flex min-h-screen w-full flex-col items-center gap-8 overflow-hidden px-4 pt-8 pb-10">
@@ -133,7 +149,6 @@ export default function SelectPage() {
                   className="bg-card flex items-center gap-2 rounded-xl border-4 px-6 py-2.5"
                   style={{ borderColor: colorByPlayer[focused.id] }}
                 >
-                  <Flag state={focused.state ?? "??"} size="lg" />
                   <span className="text-card-foreground text-2xl font-black tracking-tight uppercase">
                     {focused.name}
                   </span>
@@ -153,6 +168,40 @@ export default function SelectPage() {
         </>
       )}
     </main>
+  );
+}
+
+/**
+ * Full-bleed "you're playing as ___" clip (character_confirm_video_url),
+ * plays once right after hitting "Let's go" — routes into the app when it
+ * ends, or immediately on tap/keypress (skippable, same as the boot
+ * screen's "press start" isn't meant to trap anyone).
+ */
+function ConfirmClip({ videoUrl, onDone }: { videoUrl: string; onDone: () => void }) {
+  useEffect(() => {
+    function onKey() {
+      onDone();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onDone]);
+
+  return (
+    <button
+      type="button"
+      onClick={onDone}
+      aria-label="Skip"
+      className="bg-foreground fixed inset-0 z-50 flex h-dvh w-dvw cursor-pointer items-center justify-center overflow-hidden"
+    >
+      <video
+        src={videoUrl}
+        autoPlay
+        muted
+        playsInline
+        onEnded={onDone}
+        className="h-full w-full object-cover"
+      />
+    </button>
   );
 }
 
