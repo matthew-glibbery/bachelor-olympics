@@ -2,6 +2,7 @@
  * Score aggregation (PRODUCT_SPEC.md → Multipliers, Live standings).
  *
  *   final event score = placement/absolute points × that event's multiplier
+ *                        × (1 + catch-up bonus, if any)
  *
  * Player totals expose both the raw points earned and the multiplier-adjusted
  * total, because the live "medal table" shows both.
@@ -13,13 +14,21 @@ export interface EventScoreLine {
   playerId: string;
   /** Raw placement/absolute points before the multiplier. */
   points: number;
-  /** The player's multiplier for this event (0.5–1.5). */
+  /** The player's own multiplier for this event (0.5–1.5) — unaffected by
+   * any catch-up bonus, so this always reflects what they actually set. */
   multiplier: number;
+  /** Automatic catch-up bonus fraction (e.g. 0.3 for +30%), default 0 — see
+   * src/lib/scoring/catchUp.ts. Stacks with `multiplier`, doesn't replace it. */
+  catchUpBonus?: number;
 }
 
-/** The final, multiplier-adjusted score for a single event line. */
-export function finalEventScore(points: number, multiplier: number): number {
-  return points * multiplier;
+/** The final, multiplier- and catch-up-adjusted score for a single event line. */
+export function finalEventScore(
+  points: number,
+  multiplier: number,
+  catchUpBonus = 0,
+): number {
+  return points * multiplier * (1 + catchUpBonus);
 }
 
 export interface PlayerTotal {
@@ -42,7 +51,7 @@ export function playerTotals(lines: EventScoreLine[]): Map<string, PlayerTotal> 
       totals.get(line.playerId) ??
       ({ playerId: line.playerId, raw: 0, adjusted: 0 } satisfies PlayerTotal);
     existing.raw += line.points;
-    existing.adjusted += finalEventScore(line.points, line.multiplier);
+    existing.adjusted += finalEventScore(line.points, line.multiplier, line.catchUpBonus ?? 0);
     totals.set(line.playerId, existing);
   }
   return totals;

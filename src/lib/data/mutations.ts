@@ -58,6 +58,10 @@ export interface PlayerPatch {
   state?: string;
   is_groom?: boolean;
   photo_url?: string | null;
+  character_portrait_url?: string | null;
+  character_select_video_url?: string | null;
+  character_fullbody_video_url?: string | null;
+  character_victory_video_url?: string | null;
 }
 
 export async function updatePlayer(
@@ -518,19 +522,23 @@ export async function settleOverallBetsIfWeekendOver(client: SupabaseClient): Pr
     { data: results, error: resultsError },
     { data: multipliers, error: multipliersError },
     { data: bonusEvents, error: bonusError },
+    { data: players, error: playersError },
   ] = await Promise.all([
     client.from("event_results").select("*"),
     client.from("multipliers").select("*"),
     client.from("bonus_events").select("*"),
+    client.from("players").select("id"),
   ]);
   if (resultsError) throw new Error(`settleOverallBets (read results): ${resultsError.message}`);
   if (multipliersError) throw new Error(`settleOverallBets (read multipliers): ${multipliersError.message}`);
   if (bonusError) throw new Error(`settleOverallBets (read bonus events): ${bonusError.message}`);
+  if (playersError) throw new Error(`settleOverallBets (read players): ${playersError.message}`);
 
   const scoreLines = deriveScoreLines(
     events as EventRow[],
     (results ?? []) as EventResultRow[],
     (multipliers ?? []) as MultiplierRow[],
+    ((players ?? []) as { id: string }[]).map((p) => p.id),
   );
   const bonusAwards = ((bonusEvents ?? []) as BonusEventRow[])
     .filter((b) => b.winner_player_id)
@@ -610,4 +618,13 @@ export async function setTheme(client: SupabaseClient, themeId: string): Promise
     .update({ theme_id: themeId })
     .eq("id", 1);
   if (error) throw new Error(`setTheme: ${error.message}`);
+}
+
+/** Set the shared boot-screen video (docs/VISUAL_SPEC.md) — one asset for the whole app. */
+export async function setBootVideo(client: SupabaseClient, url: string | null): Promise<void> {
+  const { error } = await client
+    .from("app_settings")
+    .update({ boot_video_url: url })
+    .eq("id", 1);
+  if (error) throw new Error(`setBootVideo: ${error.message}`);
 }

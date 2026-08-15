@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent } from "react";
 import Image from "next/image";
-import { ImageUp, Pencil, Play, RotateCcw, X } from "lucide-react";
+import { Flame, ImageUp, Pencil, Play, RotateCcw, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlayerName } from "@/components/player-name";
+import { VictoryReplayButton } from "@/components/victory-replay-button";
 import { RankedResultsEditor } from "@/components/ranked-results-editor";
 import { EventOddsTable } from "@/components/event-odds-table";
 import { EventBetsList } from "@/components/event-bets-list";
@@ -46,6 +47,15 @@ const STATUS_LABEL: Record<EventRow["status"], string> = {
   cancelled: "Cancelled",
 };
 
+/** "+30%" style badge next to a trailing player's name — see EventCardProps.catchUpBonuses. */
+function CatchUpBadge({ bonus }: { bonus: number }) {
+  return (
+    <Badge variant="outline" className="text-primary border-primary/40 gap-1">
+      <Flame className="size-3" />+{Math.round(bonus * 100)}%
+    </Badge>
+  );
+}
+
 interface EventCardProps {
   event: EventRow;
   players: PlayerRow[];
@@ -53,6 +63,12 @@ interface EventCardProps {
   ranking: RankingEntry[];
   bets: PerEventBetRow[];
   groomUnlocked: boolean;
+  /** playerId -> catch-up bonus fraction (e.g. 0.3 for +30%) for THIS event
+   * only — either already applied (resolved/scoring) or a live preview of
+   * what will apply once it resolves (still planned). See
+   * PRODUCT_SPEC.md → Multipliers → Catch-up bonus. Null if this isn't the
+   * one event catch-up currently touches. */
+  catchUpBonuses: Map<string, number> | null;
 }
 
 export function EventCard({
@@ -62,6 +78,7 @@ export function EventCard({
   ranking,
   bets,
   groomUnlocked,
+  catchUpBonuses,
 }: EventCardProps) {
   const isPlacement = event.scoring_mode === "placement";
   const playerIds = players.map((p) => p.id);
@@ -238,6 +255,24 @@ export function EventCard({
               </Badge>
             </CardTitle>
             {event.notes ? <CardDescription>{event.notes}</CardDescription> : null}
+            {event.status === "resolved" ? (
+              <VictoryReplayButton event={event} results={results} players={players} />
+            ) : null}
+            {event.status === "planned" && catchUpBonuses && catchUpBonuses.size > 0 ? (
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-muted-foreground">Catch-up bonus this event:</span>
+                {[...catchUpBonuses.entries()].map(([playerId, bonus]) => {
+                  const p = playerById.get(playerId);
+                  if (!p) return null;
+                  return (
+                    <span key={playerId} className="inline-flex items-center gap-1">
+                      <PlayerName name={p.name} state={p.state ?? "??"} size="sm" />
+                      <CatchUpBadge bonus={bonus} />
+                    </span>
+                  );
+                })}
+              </div>
+            ) : null}
             {groomUnlocked ? (
               <Label className="text-muted-foreground inline-flex w-fit cursor-pointer items-center gap-1.5 text-xs">
                 <ImageUp className="size-3.5" />
@@ -380,7 +415,12 @@ export function EventCard({
                         value == null && "text-muted-foreground",
                       )}
                     >
-                      <PlayerName name={p.name} state={p.state ?? "??"} size="sm" />
+                      <span className="inline-flex items-center gap-1.5">
+                        <PlayerName name={p.name} state={p.state ?? "??"} size="sm" />
+                        {catchUpBonuses?.has(p.id) ? (
+                          <CatchUpBadge bonus={catchUpBonuses.get(p.id)!} />
+                        ) : null}
+                      </span>
                       <span className="tabular-nums">{value ?? "—"}</span>
                     </span>
                   );

@@ -15,6 +15,12 @@ export interface PlayerRow {
   state: string | null; // 2-letter US state code
   is_groom: boolean;
   photo_url: string | null;
+  /** N64-style character media (docs/VISUAL_SPEC.md) — distinct from
+   * `photo_url`, which is the real photo used elsewhere in the app. */
+  character_portrait_url: string | null;
+  character_select_video_url: string | null;
+  character_fullbody_video_url: string | null;
+  character_victory_video_url: string | null;
   created_at: string;
 }
 
@@ -104,4 +110,6 @@ export interface PowerMoveRow {
 export interface AppSettingsRow {
   id: 1;
   theme_id: string;
+  /** Single global start-screen video (docs/VISUAL_SPEC.md), not per-player. */
+  boot_video_url: string | null;
 }

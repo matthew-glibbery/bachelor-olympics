@@ -21,6 +21,7 @@ import { ManageEventsCard } from "@/components/manage-events-card";
 import { ThemePicker } from "@/components/theme-picker";
 import { EventOddsEditor } from "@/components/event-odds-editor";
 import { PowerMoveCard } from "@/components/power-move-card";
+import { BootVideoUploader } from "@/components/boot-video-uploader";
 import { AppNav } from "@/components/app-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -222,6 +223,21 @@ export default function SetupPage() {
           </CardHeader>
           <CardContent>
             <ThemePicker activeThemeId={appSettings?.theme_id ?? DEFAULT_THEME_ID} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {groomUnlocked ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Boot video</CardTitle>
+            <CardDescription>
+              Plays once on the N64-style start screen, before character
+              select. One shared clip for the whole app.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BootVideoUploader currentUrl={appSettings?.boot_video_url ?? null} />
           </CardContent>
         </Card>
       ) : null}

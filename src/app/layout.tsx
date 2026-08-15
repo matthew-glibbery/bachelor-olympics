@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeApplier } from "@/components/theme-applier";
+import { IdentityGate } from "@/components/identity-gate";
 
 export const metadata: Metadata = {
-  title: "Bachelor Olympics",
+  title: "Bachelor Party",
   description: "Eight events. Eight competitors. One medal table.",
 };
 
@@ -16,7 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <ThemeApplier />
-        {children}
+        <IdentityGate>{children}</IdentityGate>
       </body>
     </html>
   );

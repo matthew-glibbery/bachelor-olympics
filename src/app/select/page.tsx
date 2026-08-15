@@ -104,37 +104,17 @@ export default function SelectPage() {
         <>
           {/* Roster strip */}
           <div className="flex w-full max-w-3xl flex-wrap items-start justify-center gap-3 sm:gap-4">
-            {players.map((p) => {
-              const active = p.id === focusedId;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setFocusedId(p.id)}
-                  className="flex flex-col items-center gap-1.5"
-                >
-                  <CharacterBust
-                    name={p.name}
-                    photoUrl={p.photo_url}
-                    color={colorByPlayer[p.id]!}
-                    size="sm"
-                    idle={false}
-                    className={cn(
-                      "border-2 transition-transform",
-                      active ? "scale-110" : "opacity-60 hover:opacity-90",
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "max-w-16 truncate text-[10px] font-semibold tracking-wide uppercase",
-                      active ? "text-background" : "text-background/50",
-                    )}
-                  >
-                    {p.name}
-                  </span>
-                </button>
-              );
-            })}
+            {players.map((p) => (
+              <RosterBust
+                key={p.id}
+                name={p.name}
+                photoUrl={p.photo_url}
+                videoUrl={p.character_select_video_url}
+                color={colorByPlayer[p.id]!}
+                active={p.id === focusedId}
+                onSelect={() => setFocusedId(p.id)}
+              />
+            ))}
           </div>
 
           {/* Centered focused character */}
@@ -144,6 +124,7 @@ export default function SelectPage() {
                 <CharacterBust
                   key={focused.id}
                   name={focused.name}
+                  videoUrl={focused.character_fullbody_video_url}
                   photoUrl={focused.photo_url}
                   color={colorByPlayer[focused.id]!}
                   size="xl"
@@ -172,5 +153,58 @@ export default function SelectPage() {
         </>
       )}
     </main>
+  );
+}
+
+/** One roster-strip entry — plays its `character_select_video_url` clip in
+ * place on hover/tap or while focused, per docs/VISUAL_SPEC.md; otherwise
+ * shows the plain photo/silhouette bust. */
+function RosterBust({
+  name,
+  photoUrl,
+  videoUrl,
+  color,
+  active,
+  onSelect,
+}: {
+  name: string;
+  photoUrl: string | null;
+  videoUrl: string | null;
+  color: string;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const [hovering, setHovering] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      onFocus={() => setHovering(true)}
+      onBlur={() => setHovering(false)}
+      className="flex flex-col items-center gap-1.5"
+    >
+      <CharacterBust
+        name={name}
+        videoUrl={active || hovering ? videoUrl : null}
+        photoUrl={photoUrl}
+        color={color}
+        size="sm"
+        idle={false}
+        className={cn(
+          "border-2 transition-transform",
+          active ? "scale-110" : "opacity-60 hover:opacity-90",
+        )}
+      />
+      <span
+        className={cn(
+          "max-w-16 truncate text-[10px] font-semibold tracking-wide uppercase",
+          active ? "text-background" : "text-background/50",
+        )}
+      >
+        {name}
+      </span>
+    </button>
   );
 }

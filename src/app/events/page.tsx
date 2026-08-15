@@ -8,6 +8,7 @@ import { EventCard } from "@/components/event-card";
 import { BonusEventsCard } from "@/components/bonus-events-card";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
+import { deriveScoreLines, upcomingCatchUp } from "@/lib/scoring/fromRows";
 
 export default function EventsPage() {
   const {
@@ -17,6 +18,7 @@ export default function EventsPage() {
     eventRankings,
     perEventBets,
     bonusEvents,
+    multipliers,
     connect,
     loading,
     error,
@@ -28,6 +30,24 @@ export default function EventsPage() {
     hydrate();
     connect();
   }, [hydrate, connect]);
+
+  const playerIds = players.map((p) => p.id);
+
+  // Catch-up bonus per event (PRODUCT_SPEC.md → Multipliers → Catch-up
+  // bonus): actual bonuses baked into already-resolved events' score lines,
+  // plus a live preview of what the next planned event will award once it
+  // resolves — both keyed by event id -> playerId -> bonus fraction.
+  const catchUpByEvent = new Map<string, Map<string, number>>();
+  for (const line of deriveScoreLines(events, eventResults, multipliers, playerIds)) {
+    if (!line.catchUpBonus) continue;
+    const forEvent = catchUpByEvent.get(line.eventId) ?? new Map<string, number>();
+    forEvent.set(line.playerId, line.catchUpBonus);
+    catchUpByEvent.set(line.eventId, forEvent);
+  }
+  const preview = upcomingCatchUp(events, eventResults, multipliers, playerIds);
+  if (preview && preview.bonuses.size > 0) {
+    catchUpByEvent.set(preview.eventId, preview.bonuses);
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
@@ -65,6 +85,7 @@ export default function EventsPage() {
                     .map((r) => ({ playerId: r.player_id, rank: r.rank }))}
                   bets={perEventBets.filter((b) => b.event_id === event.id)}
                   groomUnlocked={groomUnlocked}
+                  catchUpBonuses={catchUpByEvent.get(event.id) ?? null}
                 />
               ))}
             </div>

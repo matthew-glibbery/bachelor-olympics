@@ -58,14 +58,27 @@ export function cumulativeSeries(
 
   const moments: AwardMoment[] = [];
 
+  // One pass over every resolved event, in the order they actually
+  // resolved — the catch-up bonus (fromRows.ts) depends on that same
+  // chronological history, so it can't be computed one event at a time in
+  // isolation the way it could before catch-up existed.
+  const allLines = deriveScoreLines(events, results, multipliers, playerIds);
+  const linesByEvent = new Map<string, typeof allLines>();
+  for (const line of allLines) {
+    const forEvent = linesByEvent.get(line.eventId) ?? [];
+    forEvent.push(line);
+    linesByEvent.set(line.eventId, forEvent);
+  }
+
   for (const event of events) {
     if (event.status !== "resolved") continue;
-    const lines = deriveScoreLines([event], results, multipliers);
+    const lines = linesByEvent.get(event.id) ?? [];
     const awarded = new Map<string, number>();
     for (const line of lines) {
       awarded.set(
         line.playerId,
-        (awarded.get(line.playerId) ?? 0) + finalEventScore(line.points, line.multiplier),
+        (awarded.get(line.playerId) ?? 0) +
+          finalEventScore(line.points, line.multiplier, line.catchUpBonus),
       );
     }
     moments.push({
