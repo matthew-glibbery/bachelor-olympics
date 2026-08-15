@@ -80,6 +80,7 @@ export default function EventsPage() {
                   event={event}
                   players={players}
                   results={eventResults.filter((r) => r.event_id === event.id)}
+                  multipliers={multipliers.filter((m) => m.event_id === event.id)}
                   ranking={eventRankings
                     .filter((r) => r.event_id === event.id)
                     .map((r) => ({ playerId: r.player_id, rank: r.rank }))}

@@ -32,13 +32,19 @@ import {
 } from "@/lib/data/mutations";
 import { uploadPhoto } from "@/lib/supabase/storage";
 import { orderFromResults, positionsFromOrder } from "@/lib/scoring/rankedOrder";
+import { scorePlacement, type PlacementEntry } from "@/lib/scoring/placement";
+import { scoreAbsolute, type AbsoluteEntry } from "@/lib/scoring/absolute";
+import { finalEventScore } from "@/lib/scoring/total";
 import type { RankingEntry } from "@/lib/odds/ranking";
 import type {
   EventResultRow,
   EventRow,
+  MultiplierRow,
   PerEventBetRow,
   PlayerRow,
 } from "@/lib/data/database.types";
+
+const MULTIPLIER_DEFAULT = 1.0;
 
 const STATUS_LABEL: Record<EventRow["status"], string> = {
   planned: "Not started",
@@ -60,6 +66,9 @@ interface EventCardProps {
   event: EventRow;
   players: PlayerRow[];
   results: EventResultRow[];
+  /** This event's own multiplier rows only (pre-filtered by the caller,
+   * same convention as `results`/`ranking`/`bets`). */
+  multipliers: MultiplierRow[];
   ranking: RankingEntry[];
   bets: PerEventBetRow[];
   groomUnlocked: boolean;
@@ -75,6 +84,7 @@ export function EventCard({
   event,
   players,
   results,
+  multipliers,
   ranking,
   bets,
   groomUnlocked,
@@ -98,6 +108,24 @@ export function EventCard({
     if (isPlacement) return va - vb;
     return event.lower_is_better ? va - vb : vb - va;
   });
+  // Scored points per player for THIS event (before multiplier/catch-up) —
+  // the same placement/absolute formula the store uses once resolved, computed
+  // straight from `results` so it's also available live while still "scoring"
+  // (not officially resolved yet, so it isn't in the store's derived score lines).
+  const pointsByPlayer = isPlacement
+    ? scorePlacement(
+        results
+          .filter((r) => r.position != null)
+          .map((r): PlacementEntry => ({ playerId: r.player_id, position: r.position as number })),
+      )
+    : scoreAbsolute(
+        results
+          .filter((r) => r.raw != null)
+          .map((r): AbsoluteEntry => ({ playerId: r.player_id, raw: r.raw as number })),
+        { lowerIsBetter: event.lower_is_better },
+      );
+  const multiplierFor = (playerId: string): number =>
+    multipliers.find((m) => m.player_id === playerId)?.value ?? MULTIPLIER_DEFAULT;
   // Betting closes once the event leaves "planned" — bets stay a secret
   // until then (src/app/bets/page.tsx handles placement while planned).
   const bettingClosed = event.status !== "planned";
@@ -270,9 +298,6 @@ export function EventCard({
               </Badge>
             </CardTitle>
             {event.notes ? <CardDescription>{event.notes}</CardDescription> : null}
-            {event.status === "resolved" ? (
-              <VictoryReplayButton event={event} results={results} players={players} />
-            ) : null}
             {event.status === "planned" && catchUpBonuses && catchUpBonuses.size > 0 ? (
               <div className="flex flex-col gap-1 text-xs">
                 <span className="text-muted-foreground">Catch-up bonus this event:</span>
@@ -420,28 +445,48 @@ export function EventCard({
                 </div>
               </div>
             ) : event.status !== "planned" ? (
-              <div className="flex flex-col gap-1 border-t pt-3 text-sm">
-                {finishingOrder.map((p) => {
-                  const r = results.find((x) => x.player_id === p.id);
-                  const value = isPlacement ? r?.position : r?.raw;
-                  return (
-                    <span
-                      key={p.id}
-                      className={cn(
-                        "flex items-center justify-between gap-2",
-                        value == null && "text-muted-foreground",
-                      )}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <PlayerName name={p.name} state={p.state ?? "??"} size="sm" />
-                        {catchUpBonuses?.has(p.id) ? (
-                          <CatchUpBadge bonus={catchUpBonuses.get(p.id)!} />
-                        ) : null}
-                      </span>
-                      <span className="tabular-nums">{value ?? "—"}</span>
-                    </span>
-                  );
-                })}
+              <div className="border-t pt-3">
+                <div className="grid grid-cols-[1.5rem_1fr_auto_auto_auto] items-center gap-x-3 gap-y-1.5 text-sm">
+                  <span className="text-muted-foreground text-xs">#</span>
+                  <span className="text-muted-foreground text-xs">Player</span>
+                  <span className="text-muted-foreground text-right text-xs">Pts</span>
+                  <span className="text-muted-foreground text-right text-xs">×</span>
+                  <span className="text-muted-foreground text-right text-xs">Total</span>
+                  {finishingOrder.map((p, i) => {
+                    const r = results.find((x) => x.player_id === p.id);
+                    const hasResult = (isPlacement ? r?.position : r?.raw) != null;
+                    const points = pointsByPlayer.get(p.id);
+                    const multiplier = multiplierFor(p.id);
+                    const catchUpBonus = catchUpBonuses?.get(p.id) ?? 0;
+                    const total = points != null ? finalEventScore(points, multiplier, catchUpBonus) : null;
+                    return (
+                      <div
+                        key={p.id}
+                        className={cn("contents", !hasResult && "text-muted-foreground")}
+                      >
+                        <span className="tabular-nums">{hasResult ? i + 1 : "—"}</span>
+                        <span className="inline-flex min-w-0 items-center gap-1.5">
+                          <PlayerName name={p.name} size="sm" />
+                          {catchUpBonuses?.has(p.id) ? <CatchUpBadge bonus={catchUpBonus} /> : null}
+                        </span>
+                        <span className="text-right tabular-nums">
+                          {points != null ? Math.round(points) : "—"}
+                        </span>
+                        <span className="text-right tabular-nums">
+                          {multiplier.toFixed(1)}×
+                        </span>
+                        <span className="text-right font-medium tabular-nums">
+                          {total != null ? Math.round(total) : "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {event.status === "resolved" ? (
+                  <div className="pt-3">
+                    <VictoryReplayButton event={event} results={results} players={players} />
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </TabsContent>

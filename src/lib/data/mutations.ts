@@ -58,7 +58,6 @@ export interface PlayerPatch {
   state?: string;
   is_groom?: boolean;
   photo_url?: string | null;
-  character_portrait_url?: string | null;
   character_select_video_url?: string | null;
   character_fullbody_video_url?: string | null;
   character_confirm_video_url?: string | null;
