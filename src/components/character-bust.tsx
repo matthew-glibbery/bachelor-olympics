@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import { UserRound } from "lucide-react";
 
@@ -11,6 +14,12 @@ import { cn } from "@/lib/utils";
  * (globals.css) so the screen feels alive even before any interaction —
  * matching the spec's "breathing loop" note. The idle-bob is skipped when a
  * real video is playing (`videoUrl`) — the clip itself carries the motion.
+ *
+ * The video element is always mounted once `videoUrl` exists and cross-fades
+ * in/out over the photo via `playing` (opacity + play/pause on a ref)
+ * instead of being conditionally mounted — swapping DOM nodes on every
+ * hover was the cause of a white flash each way (a fresh `<video>` paints
+ * blank before its first frame decodes).
  *
  * **Swap seam**: `videoUrl` (character_select_video_url /
  * character_fullbody_video_url, uploaded per player in groom tools) takes
@@ -28,6 +37,10 @@ export interface CharacterBustProps {
   color: string;
   size?: "sm" | "lg" | "xl";
   idle?: boolean;
+  /** Whether the video (if any) should be visible/playing right now — e.g.
+   * only while hovered/focused for a roster bust. Defaults to true (always
+   * play) for a bust that only ever has one state, like the center stage. */
+  playing?: boolean;
   className?: string;
 }
 
@@ -44,14 +57,25 @@ export function CharacterBust({
   color,
   size = "xl",
   idle = true,
+  playing = true,
   className,
 }: CharacterBustProps) {
   const px = SIZE_PX[size];
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const showVideo = Boolean(videoUrl) && playing;
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (showVideo) v.play().catch(() => {});
+    else v.pause();
+  }, [showVideo]);
+
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-[2rem] border-4 bg-card",
-        idle && !videoUrl && "animate-[idle-bob_3.6s_ease-in-out_infinite]",
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-[2rem] border-4 bg-card",
+        idle && !showVideo && "animate-[idle-bob_3.6s_ease-in-out_infinite]",
         className,
       )}
       style={{
@@ -61,17 +85,7 @@ export function CharacterBust({
         boxShadow: `0 0 0 6px color-mix(in oklch, ${color} 20%, transparent), 0 12px 28px -8px color-mix(in oklch, ${color} 60%, transparent)`,
       }}
     >
-      {videoUrl ? (
-        <video
-          key={videoUrl}
-          src={videoUrl}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="size-full rounded-[1.6rem] object-cover"
-        />
-      ) : photoUrl ? (
+      {photoUrl ? (
         <Image
           src={photoUrl}
           alt=""
@@ -82,6 +96,20 @@ export function CharacterBust({
       ) : (
         <UserRound style={{ color }} className="size-2/3" strokeWidth={1.5} />
       )}
+      {videoUrl ? (
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          loop
+          muted
+          playsInline
+          poster={photoUrl ?? undefined}
+          className={cn(
+            "absolute inset-0 size-full rounded-[1.6rem] object-cover transition-opacity duration-300",
+            showVideo ? "opacity-100" : "opacity-0",
+          )}
+        />
+      ) : null}
       <span className="sr-only">{name}</span>
     </div>
   );

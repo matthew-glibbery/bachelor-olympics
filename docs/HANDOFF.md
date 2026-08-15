@@ -2,6 +2,73 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-15 — Results columns, hover-flash fix, full-screen replay, dropped portrait field
+
+Follow-up batch after PR #15's own real-use feedback. 150 tests (unchanged
+— UI/data-layer only), lint/typecheck/build all green, dev-server smoke
+test of `/`, `/events`, `/setup`, `/select`, `/start` (clean compiles,
+200s). **New migration 0013** (drops `character_portrait_url`) — not yet
+confirmed run against the live project, alongside 0012 from last session.
+
+- **Event results now show # / player / points / multiplier / total**, in
+  that column order, as a genuine CSS grid (`display: contents` per row
+  feeding the parent's tracks — same technique `progress-chart.tsx`'s
+  tooltip already uses) instead of the old single "raw value" column.
+  Points are computed straight from `results` via the same
+  `scorePlacement`/`scoreAbsolute` pure functions the store uses once
+  resolved — this also makes it work live while an event is still
+  `"scoring"` (drafted but not finalized), not just after. `EventCard`
+  gained a required `multipliers` prop (this event's rows only, same
+  pre-filter convention as `results`/`ranking`/`bets`) to compute the
+  multiplier and total columns.
+- **"Replay" moved to the bottom of the results list**, was up in the card
+  header next to the title.
+- **Victory replay is now full-screen, no chrome**: `VictoryReplayButton`
+  rewritten as a controlled Radix dialog (`open`/`onOpenChange` state
+  instead of `DialogTrigger`) so it can auto-close via the video's
+  `onEnded`. `DialogContent` overridden to cover the full viewport
+  (`inset-0`/`h-dvh`/`w-dvw`, `rounded-none border-0 bg-black`,
+  `showCloseButton={false}`), title kept but `sr-only` for a11y. Radix's
+  existing fade/zoom in-out transition on `DialogContent` covers the
+  "fade to black" ask without extra work.
+- **Fixed the hover white-flash on `/select`'s roster busts**:
+  `CharacterBust` previously conditionally *mounted* either an `<img>` or a
+  fresh `<video>` depending on hover state — a brand-new `<video>` paints
+  blank until its first frame decodes, twice (once entering hover, once
+  leaving). Rewritten to always mount the video once a URL exists and
+  cross-fade opacity + play/pause via a ref instead, with the photo/
+  silhouette as a permanent base layer underneath and `poster={photoUrl}`
+  as a further belt-and-suspenders fallback. New `playing` prop replaces
+  passing `videoUrl={null}` to "hide" it.
+- **`character_portrait_url` removed** (migration 0013) — turned out to be
+  genuinely dead: nothing in the app ever read it, the roster strip uses
+  `photo_url` directly and the hover clip is `character_select_video_url`.
+  Confirmed via grep before dropping it, not just inferred.
+- **Player media uploads moved back inside the edit/expanded row**
+  (previous session had made them always-visible on the collapsed row;
+  that wasn't actually the ask, reverted) and changed to a vertical list
+  instead of wrapped side-by-side.
+- **"Manage players" list is now always alphabetical** (`setup/page.tsx`,
+  sorted by name at render) — previously followed whatever order
+  `select *` happened to return, which could visibly reorder after an
+  edit since there's no `ORDER BY`.
+- **`/select`'s heading is now "Choose your character"** (was "Choose your
+  competitor").
+- **Not independently screenshot-verified** — same standing limitation as
+  every prior session (no browser driver in this environment). The
+  hover-flash fix and the full-screen replay dialog in particular are
+  exactly the kind of thing worth an actual look on a real phone before
+  calling them done — this environment can confirm the mechanism is right
+  (ref-based play/pause, opacity transition, no remounts) but not that it
+  visually reads as intended.
+- **Explicitly deferred, not built**: N64-style stat bars (speed/strength/
+  coordination/etc.) next to the selected character on `/select`, derived
+  from the groom's per-event rankings and balanced so nobody's
+  overpowered. Real design work needed first (which events feed which
+  stat, the normalization/balancing formula, bar visual treatment) — user
+  explicitly offered to move this to a fresh session rather than have it
+  guessed at inline; a plan was proposed, not yet approved or built.
+
 ## 2026-08-15 — Real-use feedback: photos-not-flags, finishing order, bonus edit/deduct, 5th clip
 
 Follow-up batch after the previous session's PR (#14) landed and got a real

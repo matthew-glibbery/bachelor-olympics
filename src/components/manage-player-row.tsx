@@ -64,7 +64,6 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
 
   function handleCharacterAsset(
     field:
-      | "character_portrait_url"
       | "character_select_video_url"
       | "character_fullbody_video_url"
       | "character_confirm_video_url"
@@ -93,13 +92,6 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
   }
 
   const CHARACTER_ASSETS = [
-    {
-      field: "character_portrait_url" as const,
-      kind: "image" as const,
-      label: "portrait",
-      accept: "image/*",
-      set: player.character_portrait_url,
-    },
     {
       field: "character_select_video_url" as const,
       kind: "video" as const,
@@ -132,8 +124,8 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
 
   function mediaUploads() {
     return (
-      <div className="flex flex-wrap gap-3">
-        <Label className="text-muted-foreground inline-flex cursor-pointer items-center gap-1.5 text-xs">
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-muted-foreground inline-flex w-fit cursor-pointer items-center gap-1.5 text-xs">
           <Upload className="size-3.5" />
           {player.photo_url ? "Replace photo" : "Upload photo"}
           <input type="file" accept="image/*" className="hidden" onChange={handlePhoto} disabled={busy} />
@@ -141,7 +133,7 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
         {CHARACTER_ASSETS.map(({ field, kind, label, accept, set }) => (
           <Label
             key={field}
-            className="text-muted-foreground inline-flex cursor-pointer items-center gap-1.5 text-xs"
+            className="text-muted-foreground inline-flex w-fit cursor-pointer items-center gap-1.5 text-xs"
           >
             <Upload className="size-3.5" />
             {set ? `Replace ${label}` : `Upload ${label}`}
@@ -207,7 +199,6 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
             )}
           </div>
         </div>
-        {mediaUploads()}
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
       </div>
     );
