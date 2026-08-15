@@ -3,24 +3,28 @@ import Image from "next/image";
 import { UserRound } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Flag, type FlagSize } from "@/components/flag";
 
 /**
- * A player's name with their state flag beside it — the standard way a
- * competitor is shown anywhere in the app (medal table, betting screens, score
- * entry). Keeps flag + name spacing consistent in one place.
+ * A player's name with their photo avatar beside it — the standard way a
+ * competitor is shown anywhere in the app (medal table, betting screens,
+ * score entry). The photo is the primary visual identifier; state flags
+ * were dropped from the UI (the `state` prop is still accepted so call
+ * sites don't need to change, kept only as accessible metadata).
  */
 
-const AVATAR_PX: Record<FlagSize, number> = { sm: 20, md: 24, lg: 28 };
+export type PlayerNameSize = "sm" | "md" | "lg";
+
+const AVATAR_PX: Record<PlayerNameSize, number> = { sm: 20, md: 24, lg: 28 };
 
 export interface PlayerNameProps extends React.ComponentProps<"span"> {
   name: string;
-  state: string;
+  /** No longer rendered as a visual flag — kept for the accessible label only. */
+  state?: string;
   /** Optional nickname, shown muted after the name. */
   nickname?: string | null;
   /** Optional uploaded photo URL — shown as a small circular avatar. */
   photoUrl?: string | null;
-  size?: FlagSize;
+  size?: PlayerNameSize;
 }
 
 export function PlayerName({
@@ -52,11 +56,11 @@ export function PlayerName({
           <UserRound className="size-3" />
         </span>
       )}
-      <Flag state={state} size={size} />
       <span className="font-medium">{name}</span>
       {nickname ? (
         <span className="text-muted-foreground text-sm">“{nickname}”</span>
       ) : null}
+      {state ? <span className="sr-only">{`, repping ${state}`}</span> : null}
     </span>
   );
 }

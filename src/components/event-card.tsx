@@ -83,6 +83,21 @@ export function EventCard({
   const isPlacement = event.scoring_mode === "placement";
   const playerIds = players.map((p) => p.id);
   const playerById = new Map(players.map((p) => [p.id, p]));
+  // Once results exist, show players in the order they actually finished —
+  // position ascending for placement events, raw value ordered by
+  // lower_is_better for absolute ones — not roster order. Players with no
+  // result yet trail at the end.
+  const finishingOrder = [...players].sort((a, b) => {
+    const ra = results.find((r) => r.player_id === a.id);
+    const rb = results.find((r) => r.player_id === b.id);
+    const va = isPlacement ? ra?.position : ra?.raw;
+    const vb = isPlacement ? rb?.position : rb?.raw;
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (isPlacement) return va - vb;
+    return event.lower_is_better ? va - vb : vb - va;
+  });
   // Betting closes once the event leaves "planned" — bets stay a secret
   // until then (src/app/bets/page.tsx handles placement while planned).
   const bettingClosed = event.status !== "planned";
@@ -259,18 +274,20 @@ export function EventCard({
               <VictoryReplayButton event={event} results={results} players={players} />
             ) : null}
             {event.status === "planned" && catchUpBonuses && catchUpBonuses.size > 0 ? (
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <div className="flex flex-col gap-1 text-xs">
                 <span className="text-muted-foreground">Catch-up bonus this event:</span>
-                {[...catchUpBonuses.entries()].map(([playerId, bonus]) => {
-                  const p = playerById.get(playerId);
-                  if (!p) return null;
-                  return (
-                    <span key={playerId} className="inline-flex items-center gap-1">
-                      <PlayerName name={p.name} state={p.state ?? "??"} size="sm" />
-                      <CatchUpBadge bonus={bonus} />
-                    </span>
-                  );
-                })}
+                <div className="flex flex-col gap-1">
+                  {[...catchUpBonuses.entries()].map(([playerId, bonus]) => {
+                    const p = playerById.get(playerId);
+                    if (!p) return null;
+                    return (
+                      <span key={playerId} className="flex items-center justify-between gap-2">
+                        <PlayerName name={p.name} size="sm" />
+                        <CatchUpBadge bonus={bonus} />
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             ) : null}
             {groomUnlocked ? (
@@ -404,7 +421,7 @@ export function EventCard({
               </div>
             ) : event.status !== "planned" ? (
               <div className="flex flex-col gap-1 border-t pt-3 text-sm">
-                {players.map((p) => {
+                {finishingOrder.map((p) => {
                   const r = results.find((x) => x.player_id === p.id);
                   const value = isPlacement ? r?.position : r?.raw;
                   return (
