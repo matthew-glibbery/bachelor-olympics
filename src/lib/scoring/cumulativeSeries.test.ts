@@ -59,10 +59,13 @@ describe("cumulativeSeries", () => {
       { player_id: "p1", event_id: "e1", value: 1.5, locked: true },
     ];
     const series = cumulativeSeries(events, results, multipliers, ["p1", "p2"]);
-    // e1: p1 = 100 * 1.5 = 150, p2 = 72 * 1.0 = 72
+    // e1: p1 = 100 * 1.5 = 150, p2 = 72 * 1.0 = 72 (no catch-up yet — e1 is
+    // the very first resolved event, so there's no "before" standing).
     expect(series[1]!.totals).toEqual({ p1: 150, p2: 72 });
-    // e2: p1 += 72*1.0 = 222, p2 += 100*1.0 = 172
-    expect(series[2]!.totals).toEqual({ p1: 222, p2: 172 });
+    // e2: p1 += 72*1.0 = 222 (was already ahead after e1, no catch-up).
+    // p2 was last after e1 (only 2 players), so gets the +30% catch-up:
+    // p2 += 100 * 1.0 * 1.3 = 130 -> 72 + 130 = 202.
+    expect(series[2]!.totals).toEqual({ p1: 222, p2: 202 });
   });
 
   it("puts events in the real order they resolved, not their planned sort order", () => {

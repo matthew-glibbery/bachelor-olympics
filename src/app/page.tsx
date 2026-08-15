@@ -44,7 +44,12 @@ export default function Home() {
     state: p.state ?? "??",
     photoUrl: p.photo_url,
   }));
-  const scoreLines = deriveScoreLines(events, eventResults, multipliers);
+  const scoreLines = deriveScoreLines(
+    events,
+    eventResults,
+    multipliers,
+    players.map((p) => p.id),
+  );
   const bonusAwards = [
     ...bonusEvents
       .filter((b) => b.winner_player_id)
@@ -66,7 +71,7 @@ export default function Home() {
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
       <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Bachelor Olympics</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Bachelor Party</h1>
           <p className="text-muted-foreground text-sm">
             Eight events. Eight competitors. One medal table.
           </p>

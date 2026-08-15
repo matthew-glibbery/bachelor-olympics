@@ -111,6 +111,42 @@ starts.
   starts being scored. Before that, they can freely re-adjust it, subject to
   the budget constraint across whatever events are still unlocked.
 
+### Catch-up bonus
+
+An automatic bonus for whoever's trailing, on top of the multiplier sliders
+above — separate from the budget/reserve system, not something a player
+allocates.
+
+- Based on the multiplier-adjusted standings (the same total the medal
+  table shows) as they stood right before the event — i.e. after whichever
+  event most recently resolved.
+- Applies to **the very next event only**, not every remaining event.
+- Tiered by how far behind: last place +30%, 2nd-last +20%, 3rd-last +10%.
+  Kept as a tiered list, not hardcoded to "8/7/6," so it survives a change
+  in player count — with fewer players, the lower tiers simply don't apply
+  (e.g. with only 2 players, only last place gets a bonus; the runner-up
+  isn't "2nd-last" in any meaningful sense, they're just not first).
+- **Stacks multiplicatively with the player's own event-multiplier slider**,
+  it doesn't replace it: `final = points × their multiplier × (1 +
+  catch-up%)`. A 7th-place player who'd already set a 1.2 multiplier on the
+  next event effectively plays it at 1.2 × 1.2 = 1.44.
+- **Ties**: a tie for last (or 2nd-/3rd-last) shares the average of the
+  tiers its group spans — same "sum across the tied positions and split
+  evenly" philosophy as placement-scoring ties, just applied to a rate
+  instead of a points pool (e.g. two players tied for last get (30%+20%)/2
+  = 25% each, not 30% each).
+- No bonus at all before the first event has resolved — there's no
+  meaningful "who's behind" yet.
+- Shown on the affected event's card: as an applied badge once results are
+  in, and as a live preview on the upcoming event before it starts, so
+  players know going in.
+- Implementation: `src/lib/scoring/catchUp.ts` (the tier/tie math, pure and
+  unit-tested) + `src/lib/scoring/fromRows.ts` (walks resolved events in the
+  order they actually happened, not `sort_order`, computing each one's
+  bonus from the running standings before it — the same "actual award
+  order" principle cumulativeSeries.ts already uses for the progress
+  chart).
+
 ## Per-event multiplier betting
 
 Separate from the multiplier sliders themselves, players can wager a portion

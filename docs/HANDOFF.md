@@ -2,6 +2,88 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-15 — Catch-up bonus, victory replay, character-media pipeline, "Bachelor Party"
+
+Two unrelated threads landed together (parallel sessions): a real scoring
+feature, and reconciling a same-day naming collision on the boot/select
+screens with the previous session's placeholder build. 150 tests (10 net
+new), lint/typecheck/test/build all green, dev-server smoke test of `/`,
+`/start`, `/select` (clean compiles, 200s). **New migration 0011 — user
+confirmed it's already been run against the live project.**
+
+- **Catch-up bonus** (`docs/PRODUCT_SPEC.md` → Multipliers → Catch-up
+  bonus, new): whoever's last/2nd-last/3rd-last in the standings gets an
+  automatic +30%/+20%/+10% on their event multiplier for the next event
+  only, stacked multiplicatively on top of their own slider (doesn't
+  replace it). `src/lib/scoring/catchUp.ts` (new, pure tier/tie math —
+  genuine ties share the average of the tiers they span, same philosophy as
+  placement-scoring ties) + `src/lib/scoring/fromRows.ts` (rewritten to walk
+  resolved events in the order they actually happened, not `sort_order`,
+  computing each event's bonus from the running standings right before it —
+  same principle `cumulativeSeries.ts` already used for award-order). No
+  new migration needed — fully derived, self-corrects on reset/reorder/
+  cancel. Shown on `EventCard`: a 🔥+N% badge as a live preview on the
+  upcoming event, and applied on already-resolved ones. `deriveScoreLines`
+  gained a required `playerIds` param (every call site updated); one
+  pre-existing `cumulativeSeries.test.ts` case updated for the new numbers
+  (only 2 players in that fixture, so catch-up now applies from event 2).
+- **Victory replay**: `src/lib/scoring/eventWinner.ts` (new, pure — winner
+  id(s) for a resolved event, placement/absolute/ties) +
+  `VictoryReplayButton` (new) on a resolved `EventCard` plays the winning
+  player's `character_victory_video_url` in a dialog. Hand-wrote
+  `src/components/ui/dialog.tsx` (shadcn's standard shape,
+  `@radix-ui/react-dialog` was already a dependency) since `npx shadcn add`
+  couldn't reach the registry from this sandboxed environment.
+- **Character-media DB layer** (migration 0011): `character_portrait_url` /
+  `character_select_video_url` / `character_fullbody_video_url` /
+  `character_victory_video_url` on `players`, `boot_video_url` on
+  `app_settings`, new `videos` Storage bucket (same trusted-friends RLS
+  model as `photos`, kept separate since video files are much larger).
+  Upload UI: four new fields per player in Setup → Manage players
+  (`manage-player-row.tsx`), plus a "Boot video" card
+  (`boot-video-uploader.tsx`).
+- **Reconciled with `a662b7d`'s placeholder `/start` + `/select` +
+  `CharacterBust`**, merged to `main` the same day from a different session
+  — genuinely independent, overlapping work (their opt-in routes + CSS
+  idle-bob placeholder vs. this session's app-wide forced gate + real-video
+  plan). Resolved by keeping their nicer placeholder screens and layering
+  this session's pieces on top rather than replacing them:
+  - **`CharacterBust`** gained an optional `videoUrl` prop (character clip)
+    that takes priority over `photoUrl`, skips the idle-bob animation (the
+    clip carries its own motion) — documented as the real swap seam instead
+    of the originally-planned "just swap `photoUrl`" note.
+  - **`/select`** now passes `character_select_video_url` into the roster
+    strip (`RosterBust`, new — plays the clip in place on hover/tap/focus,
+    per the spec's ask) and `character_fullbody_video_url` into the
+    centered focused-character render.
+  - **`/start`**: `GAME_TITLE` renamed `STAG64` → **"Bachelor Party"** (the
+    user's actual decision, replacing the placeholder — same one-line
+    constant the previous session set up for exactly this), dropped the
+    now-redundant "Bachelor Olympics" caption above it, and it now plays
+    `app_settings.boot_video_url` full-bleed behind the logo when the groom
+    has uploaded one (falls back to the existing gradient treatment).
+  - **`IdentityGate`** (new, `src/components/identity-gate.tsx`, wraps
+    `layout.tsx`): the piece their session's own open question flagged as
+    undecided ("how do people actually get here... not worth deciding on
+    placeholder art") — now decided, per explicit user direction. Redirects
+    to `/start` on any route (except `/start`/`/select` themselves) whenever
+    this device has no selected player, bypassing itself automatically on a
+    brand-new empty roster (so the groom can still reach Setup to add the
+    first player) or a connection error. `/setup`'s original plain "Who are
+    you?" picker still exists as a fallback/switch-player affordance, just
+    unreachable in practice once gated — harmless dead code, not removed.
+  - App title/metadata (`layout.tsx`) and homepage `<h1>` (`page.tsx`) also
+    updated to "Bachelor Party."
+- **Not independently screenshot-verified** — same standing limitation as
+  every prior session (no browser driver in this environment); this
+  session's `/start`→`/select`→gate round-trip in particular is worth an
+  actual click-through once deployed, especially the redirect-loop edge
+  cases (empty roster, clearing your identity mid-session via "Not you?").
+- **Still open** (from the user's original ask, not built this session): a
+  *third*, distinct "just confirmed" video that plays once on hitting
+  "Let's go" on `/select`, separate from the fullbody idle clip — would need
+  a 5th character-media column if wanted; flagged rather than scoped in.
+
 ## 2026-08-12 — Boot/character-select screens (docs/visual_spec.md, placeholder art)
 
 User added `docs/visual_spec.md` (N64-style character-select direction, real

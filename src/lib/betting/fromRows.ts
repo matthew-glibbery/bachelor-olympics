@@ -30,7 +30,7 @@ export function eliminationField(
   results: EventResultRow[],
   multipliers: MultiplierRow[],
 ): EliminationInput[] {
-  const totals = playerTotals(deriveScoreLines(events, results, multipliers));
+  const totals = playerTotals(deriveScoreLines(events, results, multipliers, playerIds));
   const remainingEvents = events.filter(
     (e) => e.status !== "resolved" && e.status !== "cancelled",
   ).length;

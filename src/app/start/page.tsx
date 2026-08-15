@@ -3,13 +3,14 @@
 import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+import { useGameStore } from "@/store/gameStore";
+
 /**
- * Working title for the boot logo (docs/visual_spec.md). The real name is
- * still an open decision there — "STAG64" was floated as a direction in the
- * register of a real N64 title, not settled. Change this one constant once
- * a name is picked; nothing else in the app references it.
+ * App name (docs/VISUAL_SPEC.md → Open decisions) — decided: "Bachelor
+ * Party." Kept as one named constant so a future rename stays a one-line
+ * change; nothing else in the app references it.
  */
-const GAME_TITLE = "STAG64";
+const GAME_TITLE = "Bachelor Party";
 
 /**
  * N64 cartridge-boot style title screen (docs/visual_spec.md "Start
@@ -17,15 +18,28 @@ const GAME_TITLE = "STAG64";
  * a "press start" prompt rather than a button. `bg-foreground`/`text-*`
  * tokens (not hardcoded colors) so this screen's "dark stage" automatically
  * follows whichever app theme is active — see src/lib/themes.ts.
+ *
+ * If the groom has uploaded a real boot video (`app_settings.boot_video_url`,
+ * Setup → Groom tools → Boot video), it plays full-bleed behind the logo,
+ * muted/autoplay/once, holding its last frame — same "press start" overlay
+ * either way. Falls back to the plain gradient-and-text treatment below
+ * when none is set yet.
  */
 export default function StartPage() {
   const router = useRouter();
+  const { appSettings, connect } = useGameStore();
   const enter = useCallback(() => router.push("/select"), [router]);
+
+  useEffect(() => {
+    connect();
+  }, [connect]);
 
   useEffect(() => {
     window.addEventListener("keydown", enter);
     return () => window.removeEventListener("keydown", enter);
   }, [enter]);
+
+  const bootVideoUrl = appSettings?.boot_video_url ?? null;
 
   return (
     <button
@@ -33,6 +47,16 @@ export default function StartPage() {
       onClick={enter}
       className="bg-foreground relative flex min-h-screen w-full cursor-pointer flex-col items-center justify-center gap-10 overflow-hidden px-6 text-center"
     >
+      {bootVideoUrl ? (
+        <video
+          src={bootVideoUrl}
+          autoPlay
+          muted
+          playsInline
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : null}
+
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -43,9 +67,6 @@ export default function StartPage() {
       />
 
       <div className="relative flex flex-col items-center gap-3">
-        <p className="text-background/60 text-xs font-semibold tracking-[0.3em] uppercase">
-          Bachelor Olympics
-        </p>
         <h1
           className="text-background text-6xl font-black tracking-tighter uppercase italic sm:text-8xl"
           style={{

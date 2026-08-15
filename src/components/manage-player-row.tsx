@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { PlayerName } from "@/components/player-name";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { removePlayer, updatePlayer } from "@/lib/data/mutations";
-import { uploadPhoto } from "@/lib/supabase/storage";
+import { uploadPhoto, uploadVideo } from "@/lib/supabase/storage";
 import { stateOptions } from "@/lib/states";
 import type { PlayerRow } from "@/lib/data/database.types";
 
@@ -60,6 +60,35 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleCharacterAsset(
+    field:
+      | "character_portrait_url"
+      | "character_select_video_url"
+      | "character_fullbody_video_url"
+      | "character_victory_video_url",
+    kind: "image" | "video",
+  ) {
+    return async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      setBusy(true);
+      setError(null);
+      try {
+        const client = getSupabaseBrowserClient();
+        const url =
+          kind === "image"
+            ? await uploadPhoto(client, "players", player.id, file)
+            : await uploadVideo(client, "players", player.id, file);
+        await updatePlayer(client, player.id, { [field]: url });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setBusy(false);
+      }
+    };
   }
 
   async function remove() {
@@ -125,6 +154,58 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
           {player.photo_url ? "Replace photo" : "Upload photo"}
           <input type="file" accept="image/*" className="hidden" onChange={handlePhoto} disabled={busy} />
         </Label>
+      </div>
+
+      {/* N64-style character media (docs/VISUAL_SPEC.md) — optional, separate
+          from the real photo above. */}
+      <div className="flex flex-wrap gap-3">
+        {(
+          [
+            {
+              field: "character_portrait_url",
+              kind: "image",
+              label: "portrait",
+              accept: "image/*",
+              set: player.character_portrait_url,
+            },
+            {
+              field: "character_select_video_url",
+              kind: "video",
+              label: "select clip",
+              accept: "video/*",
+              set: player.character_select_video_url,
+            },
+            {
+              field: "character_fullbody_video_url",
+              kind: "video",
+              label: "fullbody clip",
+              accept: "video/*",
+              set: player.character_fullbody_video_url,
+            },
+            {
+              field: "character_victory_video_url",
+              kind: "video",
+              label: "victory clip",
+              accept: "video/*",
+              set: player.character_victory_video_url,
+            },
+          ] as const
+        ).map(({ field, kind, label, accept, set }) => (
+          <Label
+            key={field}
+            className="text-muted-foreground inline-flex cursor-pointer items-center gap-1.5 text-xs"
+          >
+            <Upload className="size-3.5" />
+            {set ? `Replace ${label}` : `Upload ${label}`}
+            <input
+              type="file"
+              accept={accept}
+              className="hidden"
+              onChange={handleCharacterAsset(field, kind)}
+              disabled={busy}
+            />
+          </Label>
+        ))}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
