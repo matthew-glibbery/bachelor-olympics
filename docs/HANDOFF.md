@@ -2,6 +2,63 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-17 (cont'd, part 3) — Theme picker removed, full N64 identity everywhere
+
+Same day, third pass. The previous two entries below explicitly scoped down
+to a bevel-headline-only treatment, reasoning that overriding the Card/Table
+look everywhere would compete with the real, groom-facing 8-theme picker.
+The user reviewed that PR's preview and explicitly overrode that call: go
+full N64 everywhere, theme picker can go, reuse existing shadcn components,
+drive it all through tokens. Entered plan mode for this one given the size
+(deletes a feature, touches most of the app) — three Explore agents mapped
+the theme-picker removal surface, the shadcn-primitive/token architecture,
+and the remaining page components before writing a word of code; the actual
+diff ended up almost exactly matching that plan.
+
+Full detail is in the commit message on `ea315a2` — the short version:
+
+- Deleted `src/lib/themes.ts` + `theme-applier.tsx`/`theme-picker.tsx` and
+  their call sites. Confirmed safe to just drop `ThemeApplier`'s mount in
+  `layout.tsx` entirely: its only other job (calling `connect()`) was
+  already redundant with `IdentityGate`'s own independent `connect()` call,
+  guarded against double-firing. `theme_id` stays an unused column in
+  Supabase — no migration, this is a live table with a real event coming up.
+- `globals.css`'s `:root` block IS the identity now — promoted from the
+  file's own previously-dead `.dark` block (already close to what
+  `chartColors.ts`'s validated dark-mode player palette was tuned against)
+  rather than invented from scratch, then punched up `--primary`/`--accent`
+  since they now carry real UI-chrome duty. New `--bevel-light`/
+  `--bevel-dark` tokens + a `.bevel-raised` utility, applied inside exactly
+  two files (`button.tsx`'s four "plate" variants, `card.tsx`) — every Card
+  and Button in the app inherited the look automatically from there. New
+  `Plate` component for freestanding non-Card surfaces.
+- `progress-chart.tsx` was the one file needing genuinely new values, not
+  just new tokens — recharts/SVG props need literal colors. Recomputed via
+  a real oklch→srgb conversion (not eyeballed), status-color contrast
+  re-checked against the new dark tooltip surface, `assignPlayerColors`
+  flipped to `"dark"` mode (activating an already-validated palette that
+  just wasn't switched on before).
+- Caught and fixed a real inversion bug before it shipped: `/start`/`/select`
+  used `bg-foreground`/`text-background` as a hack to force a dark stage
+  regardless of which light-mode theme was active. Once `:root` itself went
+  dark by default, that hack would have silently inverted (light text on
+  light background) — flipped every occurrence to the new-normal
+  `bg-background`/`text-foreground`.
+- 144 tests (was 150 — `themes.test.ts` deleted with the code it tested, no
+  other change), lint/typecheck/build all green.
+- **Verified against realistic seeded data**, not just "it compiles" — same
+  Playwright-fixture-intercepting-Supabase-REST approach as the previous
+  session, all 7 routes, mobile (440px) and desktop (1280px) width, every
+  screenshot actually looked at. Confirms the dark stage, the bevel effect,
+  the chart's dark palette, the leaderboard, and the nav's active-tab glow
+  all render correctly together, not just individually.
+- Still true: no verification against the real live Supabase project or the
+  real deployed app — this proves the code composes correctly against
+  representative data, not that it matches production right now.
+- Small known rough edge, not introduced this session: "Leaderboard" still
+  clips slightly on the mobile nav even in normal case (pre-existing
+  `max-w-16` column, same as the old "Medal Table" label).
+
 ## 2026-08-17 (cont'd) — Bevel heading extended to every screen, verified against seeded local data
 
 Follow-up on the same day's session below, after the user chose "skip real
