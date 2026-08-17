@@ -2,6 +2,60 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-17 (cont'd) — Bevel heading extended to every screen, verified against seeded local data
+
+Follow-up on the same day's session below, after the user chose "skip real
+data, reskin locally with representative fixtures" over sharing live
+Supabase credentials or Vercel access. Two things made this worth doing
+carefully rather than guessing:
+
+1. **The established N64 idiom is lighter-touch than it first looks.**
+   `/start`/`/select` are a dark "boot stage" (`bg-foreground`) plus one
+   `text-shadow` bevel trick on the title, sitting on top of a real,
+   groom-facing 8-theme picker (`src/lib/themes.ts` — Classic, Olympic,
+   Doom 64, etc.) that every other screen deliberately respects. Reskinning
+   `/events`/`/bets`/`/setup`'s Card/Table backgrounds to the dark stage
+   would have meant overriding that picker for the core screens — a bigger
+   product call than "extend the N64 look," and not one to make
+   unilaterally. What actually shipped: a new `PageHeading` component
+   (`src/components/page-heading.tsx`) reusing the exact same bevel trick,
+   sized for an in-page title instead of a full boot screen, applied to
+   every core screen's `<h1>` (`/`, `/events`, `/multipliers`, `/bets`,
+   `/setup`) — plus uppercase nav labels on `AppNav`'s desktop pill row. The
+   underlying Card/Table/Button treatment is untouched, so the theme picker
+   still does its job everywhere.
+2. **Verified against real seeded data, not just "it compiles."** Docker
+   couldn't pull fresh Supabase images (same corporate TLS interception as
+   npm, but at the Docker-daemon/VM trust-store level — `NODE_EXTRA_CA_CERTS`
+   doesn't reach that, and patching Colima's root store felt disproportionate
+   for a verification step) — so a full local Supabase stack wasn't viable
+   this session. Instead: a small Playwright fixture layer
+   (`~/.claude/jobs/.../pw/fixtures.mjs`, not part of this repo) intercepts
+   the `rest/v1/*` calls the browser Supabase client makes and returns
+   representative fake rows matching `database.types.ts` — 8 players, all 9
+   events in a mix of resolved/scoring/planned states, results, multipliers
+   with a real budget reserve, event rankings, overall bets, a per-event
+   bet, and a bonus event. This caught two real things before they'd have
+   shipped un-verified:
+   - `/multipliers`'s own `<h1>` was missed in the sweep — still the old
+     plain heading. Fixed.
+   - Uppercase nav labels looked fine in isolation but visibly truncated
+     "Leaderboard"/"Multipliers" on the mobile floating bar once real text
+     was actually rendered at that width — reverted to normal case there,
+     kept only on the desktop pill row where there's room. "Leaderboard"
+     still clips slightly even in normal case (same pre-existing `max-w-16`
+     column "Medal Table" already sat inside) — a small, pre-existing rough
+     edge, not something this session introduced; worth a follow-up if it
+     bothers anyone in practice.
+   Also caught: `bonus-events-card.tsx`'s description still said "onto the
+   medal table" — missed in the previous rename pass since it's card copy,
+   not a heading.
+- 150 tests (unchanged), lint/typecheck/build all green.
+- **Still true from before**: no live verification against the real
+  Supabase project or the actual deployed app — the fixture layer proves the
+  UI and domain logic compose correctly with realistic data, not that it
+  matches what's actually live right now.
+
 ## 2026-08-17 — Leaderboard rename, /start cleanup, reconciling a parallel Claude Code session
 
 A different Claude Code session (this repo's local clone, no git remote) had
