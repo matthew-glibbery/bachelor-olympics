@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Coins, Percent } from "lucide-react";
 
 import { AppNav } from "@/components/app-nav";
+import { PageHeading } from "@/components/page-heading";
 import { PlayerName } from "@/components/player-name";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -214,7 +215,7 @@ export default function BetsPage() {
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
       <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Bets</h1>
+          <PageHeading>Bets</PageHeading>
           <p className="text-muted-foreground text-sm">
             Overall picks and per-event wagers, with the odds right next to
             where you place them.

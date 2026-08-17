@@ -23,6 +23,7 @@ import { EventOddsEditor } from "@/components/event-odds-editor";
 import { PowerMoveCard } from "@/components/power-move-card";
 import { BootVideoUploader } from "@/components/boot-video-uploader";
 import { AppNav } from "@/components/app-nav";
+import { PageHeading } from "@/components/page-heading";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -76,7 +77,7 @@ export default function SetupPage() {
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
       <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Player Settings</h1>
+          <PageHeading>Player Settings</PageHeading>
           <p className="text-muted-foreground text-sm">
             Pick which competitor this device is acting as, or add a player.
           </p>
