@@ -2,6 +2,64 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-17 — Leaderboard rename, /start cleanup, reconciling a parallel Claude Code session
+
+A different Claude Code session (this repo's local clone, no git remote) had
+spent a chat building an N64-styled UI from scratch against `docs/PRODUCT_SPEC.md`
+and an early `docs/VISUAL_SPEC.md`, unaware this repo already existed on
+GitHub with 17 merged PRs of real, Supabase-backed functionality (betting,
+groom tools, the progress chart, `/start`+`/select` from PR #13/#14) — a
+disconnected copy in `~/Downloads/bachelor-olympics 2` diverged after commit
+`acdf783`. Once the user pointed at real differences, that work was set
+aside as exploratory (not merged, not referenced here) and this session
+picked up cold on the real clone (`~/dev/bachelor-olympics`) instead. Noting
+this in case the disconnected copy resurfaces in a future session — it isn't
+canonical and shouldn't be treated as a spec.
+
+150 tests (unchanged), lint/typecheck/build all green, dev-server smoke test
+of all 7 routes against placeholder Supabase credentials (no crashes; the
+data-dependent pages just hang on "connecting," which is a placeholder-URL
+artifact, not a real bug — a fake-but-well-formed hostname makes the client
+hang rather than fail fast, unlike a real network error, which
+`IdentityGate`/`gameStore` already handle by bypassing the gate).
+
+- **"Medal Table" → "Leaderboard"** in every user-facing string: nav label
+  (`app-nav.tsx`), home page heading + tagline (`page.tsx`), and `layout.tsx`
+  metadata description. `PRODUCT_SPEC.md`'s Theming bullet updated to record
+  the reversal (previously specified "medal table," explicitly not
+  "leaderboard" — now the other way). **Deliberately left the `MedalTable`
+  component/file/type names alone** — internal identifiers, not product
+  copy; a rename is a pure refactor with no user-facing effect, and doing it
+  in the same pass risked a needless collision with any concurrent work on
+  this file. Worth doing as its own small PR if a clean rename is wanted.
+- **`/start` cleanup**: dropped the "tap anywhere, or press any key"
+  instructional line — explicit direction to keep this screen to just the
+  logo and Press Start, no controller/input hints. Added a background-image
+  layer reading `public/start-background.jpg`, sitting below the existing
+  `boot_video_url`/gradient fallbacks in specificity — the user is supplying
+  a designed title-card background as a follow-up artifact; dropping the
+  file at that exact path will make it appear with zero further code
+  changes. No file exists there yet (a missing CSS `background-image`
+  degrades silently, unlike a missing `<img src>`), so this is safe to land
+  ahead of the actual asset.
+- **Verified, not changed**: `src/lib/multipliers/budget.ts` already allows
+  proceeding with a nonzero, unallocated multiplier balance (PR #5's "budget
+  reserve" — only rejects going negative) — this already matches what was
+  asked for, no code change needed.
+- **Not yet done, blocked on access**: the user also asked to see the
+  betting screens, more of the app's navigation, and the groom controls, and
+  to compare against "the current online version"'s graph. This session
+  found the live Vercel production deployment via the GitHub Deployments API
+  but it sits behind Vercel's SSO/deployment-protection gate — not reachable
+  without either the project's real Supabase anon key + URL (safe to share
+  per `.env.example`'s own comment) or a way past the Vercel gate. Asked the
+  user for one of those rather than guessing at how to extend the N64
+  treatment to `/events`, `/bets`, `/setup`, and `AppNav` — those screens are
+  all fully built and functional already (see PRs #1–#10), just still on the
+  plain shadcn/tweakcn theme rather than the N64 bevel treatment `/start`
+  and `/select` (PR #13/#14) got. Whether that extension is actually wanted,
+  and against what real data, is the open question for next session.
+
 ## 2026-08-15 — Results columns, hover-flash fix, full-screen replay, dropped portrait field
 
 Follow-up batch after PR #15's own real-use feedback. 150 tests (unchanged
