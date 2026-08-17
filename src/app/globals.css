@@ -12,50 +12,45 @@
   look" is still just "edit a value here," no picker, no per-theme JSON to
   keep in sync.
 
-  These values started from this file's old `.dark` block (a complete,
-  already-coherent dark palette that nothing ever actually applied, since no
-  dark-mode toggle was ever wired up) rather than being invented from
-  scratch — --background/--card/--muted-foreground in particular are kept
-  close to those original values on purpose, because src/lib/chartColors.ts's
-  dark-mode player-line palette (DARK_HEX) was already validated by the
-  dataviz skill against a --card right around this value. --primary/--accent
-  are punched up from the old .dark block's fairly desaturated originals,
-  since those need to carry actual "trophy gold" / chunky-UI-chrome duty now,
-  not just serve as an unused dark-mode fallback.
+  Blue/purple "arcade cabinet" palette — carried over as-is from the N64
+  game-feel prototype (docs/VISUAL_SPEC.md), not the warmer amber palette
+  PR #18 first landed. Gold (--primary) and cyan (--accent) stay as
+  deliberate accent pops against the cool background, the way the game
+  logo/cursor-highlight always assumed.
 */
 :root {
   --radius: 0.375rem;
-  --background: oklch(0.2 0.01 55);
-  --foreground: oklch(0.95 0.005 75);
-  --card: oklch(0.24 0.012 55);
-  --card-foreground: oklch(0.95 0.005 75);
-  --popover: oklch(0.24 0.012 55);
-  --popover-foreground: oklch(0.95 0.005 75);
-  --primary: oklch(0.78 0.16 85);
-  --primary-foreground: oklch(0.2 0.05 60);
-  --secondary: oklch(0.3 0.012 55);
-  --secondary-foreground: oklch(0.95 0.005 75);
-  --muted: oklch(0.3 0.012 55);
-  --muted-foreground: oklch(0.68 0.01 65);
-  --accent: oklch(0.74 0.15 195);
-  --accent-foreground: oklch(0.16 0.04 230);
-  --destructive: oklch(0.65 0.2 25);
-  --border: oklch(1 0 0 / 14%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.78 0.16 85);
-  --chart-1: oklch(0.78 0.16 85);
-  --chart-2: oklch(0.74 0.15 195);
-  --chart-3: oklch(0.72 0.12 90);
-  --chart-4: oklch(0.65 0.13 300);
-  --chart-5: oklch(0.68 0.15 15);
-  --sidebar: oklch(0.22 0.012 55);
-  --sidebar-foreground: oklch(0.95 0.005 75);
-  --sidebar-primary: oklch(0.78 0.16 85);
-  --sidebar-primary-foreground: oklch(0.2 0.05 60);
-  --sidebar-accent: oklch(0.74 0.15 195);
-  --sidebar-accent-foreground: oklch(0.16 0.04 230);
-  --sidebar-border: oklch(1 0 0 / 14%);
-  --sidebar-ring: oklch(0.78 0.16 85);
+  --background: oklch(0.16 0.06 275);
+  --foreground: oklch(0.97 0.02 95);
+  --card: oklch(0.24 0.07 272);
+  --card-foreground: oklch(0.97 0.02 95);
+  --popover: oklch(0.22 0.07 272);
+  --popover-foreground: oklch(0.97 0.02 95);
+  --primary: oklch(0.8 0.17 82);
+  --primary-foreground: oklch(0.2 0.06 60);
+  --secondary: oklch(0.34 0.09 268);
+  --secondary-foreground: oklch(0.96 0.02 95);
+  --muted: oklch(0.3 0.06 270);
+  --muted-foreground: oklch(0.74 0.04 265);
+  --accent: oklch(0.75 0.16 220);
+  --accent-foreground: oklch(0.16 0.06 275);
+  --destructive: oklch(0.6 0.24 27);
+  --border: oklch(0.45 0.1 268);
+  --input: oklch(0.3 0.07 270);
+  --ring: oklch(0.85 0.19 95);
+  --chart-1: oklch(0.8 0.17 82);
+  --chart-2: oklch(0.75 0.16 220);
+  --chart-3: oklch(0.6 0.24 27);
+  --chart-4: oklch(0.7 0.19 145);
+  --chart-5: oklch(0.65 0.22 320);
+  --sidebar: oklch(0.2 0.07 273);
+  --sidebar-foreground: oklch(0.97 0.02 95);
+  --sidebar-primary: oklch(0.8 0.17 82);
+  --sidebar-primary-foreground: oklch(0.2 0.06 60);
+  --sidebar-accent: oklch(0.34 0.09 268);
+  --sidebar-accent-foreground: oklch(0.96 0.02 95);
+  --sidebar-border: oklch(0.45 0.1 268);
+  --sidebar-ring: oklch(0.85 0.19 95);
 
   /*
     The bevel effect — the single most era-defining detail. Every plate,
@@ -64,24 +59,24 @@
     single-color borders/box-shadows can't do this on their own; the
     .bevel-raised utility below is what actually applies it.
   */
-  --bevel-light: oklch(0.92 0.03 85);
-  --bevel-dark: oklch(0.12 0.02 60);
+  --bevel-light: oklch(0.78 0.09 268);
+  --bevel-dark: oklch(0.14 0.05 274);
 
   /*
     ── Console game-feel layer ──────────────────────────────────────────
-    The menu-driven screens (/start, /select — see docs/VISUAL_SPEC.md)
-    need a couple of things Card/Button don't: a "cursor is here" gold
-    highlight, a CRT filter over the whole app, and extruded logo type.
-    Derived from the tokens above rather than a second palette, so this
-    stays one identity, not two competing ones.
+    The menu-driven screens (/start, /select, /multipliers — see
+    docs/VISUAL_SPEC.md) need a couple of things Card/Button don't: a
+    "cursor is here" gold highlight, a CRT vignette, and extruded logo
+    type. Derived from the tokens above rather than a second palette, so
+    this stays one identity, not two competing ones.
   */
   --glow: var(--primary);
-  --crt-scanline: oklch(0 0 0 / 22%);
-  --crt-vignette: oklch(0.1 0.02 60 / 65%);
+  --crt-vignette: oklch(0.08 0.04 277 / 65%);
 
   --font-display: "Arial Black", "Arial Bold", "Helvetica Neue", Helvetica,
     Arial, sans-serif;
   --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-score: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 @theme inline {
@@ -126,6 +121,7 @@
 
   --font-display: var(--font-display);
   --font-ui: var(--font-ui);
+  --font-score: var(--font-score);
 }
 
 @layer base {
@@ -202,22 +198,9 @@
       5px 5px 6px oklch(0 0 0 / 45%);
   }
 
-  /* CRT: scanlines + vignette, painted over the whole app (layout.tsx),
-     never interactive. */
-  .crt-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    pointer-events: none;
-    background-image: repeating-linear-gradient(
-      to bottom,
-      var(--crt-scanline) 0px,
-      var(--crt-scanline) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-  }
-
+  /* CRT vignette, painted over the whole app (layout.tsx), never
+     interactive. (The scanline pass was dropped — it read as literal
+     lines across the screen rather than a screen-filter texture.) */
   .crt-vignette {
     position: fixed;
     inset: 0;
@@ -356,7 +339,7 @@
     opacity: 1;
     transform: none;
   }
-  .crt-overlay {
+  .crt-vignette {
     display: none;
   }
 }
