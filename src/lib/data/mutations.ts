@@ -642,15 +642,6 @@ export async function spendPowerMove(client: SupabaseClient, note: string): Prom
   if (error) throw new Error(`spendPowerMove: ${error.message}`);
 }
 
-/** Set the shared app theme — applies live to every device via Realtime. */
-export async function setTheme(client: SupabaseClient, themeId: string): Promise<void> {
-  const { error } = await client
-    .from("app_settings")
-    .update({ theme_id: themeId })
-    .eq("id", 1);
-  if (error) throw new Error(`setTheme: ${error.message}`);
-}
-
 /** Set the shared boot-screen video (docs/VISUAL_SPEC.md) — one asset for the whole app. */
 export async function setBootVideo(client: SupabaseClient, url: string | null): Promise<void> {
   const { error } = await client

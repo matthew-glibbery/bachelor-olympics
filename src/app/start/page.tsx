@@ -26,11 +26,10 @@ const BOOT_BACKGROUND_IMAGE = "/start-background.jpg";
 /**
  * N64 cartridge-boot style title screen (docs/visual_spec.md "Start
  * screen"), not a conventional web landing page — just the logo and a "press
- * start" prompt rather than a button or any instructional copy. `bg-foreground`
- * /`text-*` tokens (not hardcoded colors) so this screen's "dark stage"
- * automatically follows whichever app theme is active — see
- * src/lib/themes.ts — for whichever of the two fallback layers below is
- * actually showing.
+ * start" prompt rather than a button or any instructional copy. Plain
+ * `bg-background`/`text-foreground` tokens (the whole app is one fixed dark
+ * identity now, see globals.css) for whichever of the three fallback layers
+ * below is actually showing.
  *
  * Three background layers, most to least specific:
  *   1. `app_settings.boot_video_url` — a real groom-uploaded video (Setup →
@@ -58,7 +57,7 @@ export default function StartPage() {
     <button
       type="button"
       onClick={enter}
-      className="bg-foreground relative flex min-h-screen w-full cursor-pointer flex-col items-center justify-center gap-10 overflow-hidden px-6 text-center"
+      className="bg-background relative flex min-h-screen w-full cursor-pointer flex-col items-center justify-center gap-10 overflow-hidden px-6 text-center"
       style={{
         backgroundImage: `url(${BOOT_BACKGROUND_IMAGE})`,
         backgroundSize: "cover",
@@ -86,7 +85,7 @@ export default function StartPage() {
 
       <div className="relative flex flex-col items-center gap-3">
         <h1
-          className="text-background text-6xl font-black tracking-tighter uppercase italic sm:text-8xl"
+          className="text-foreground text-6xl font-black tracking-tighter uppercase italic sm:text-8xl"
           style={{
             textShadow:
               "4px 4px 0 var(--primary), 8px 8px 0 var(--accent), 0 2px 24px color-mix(in oklch, var(--primary) 50%, transparent)",

@@ -93,7 +93,7 @@ export async function fetchPowerMove(client: SupabaseClient): Promise<PowerMoveR
   return data as PowerMoveRow;
 }
 
-/** The single shared app_settings row (currently just the active theme). */
+/** The single shared app_settings row (currently just the boot video). */
 export async function fetchAppSettings(
   client: SupabaseClient,
 ): Promise<AppSettingsRow> {

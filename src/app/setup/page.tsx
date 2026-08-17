@@ -18,7 +18,6 @@ import { PlayerName } from "@/components/player-name";
 import { ManagePlayerRow } from "@/components/manage-player-row";
 import { AddPlayerRow } from "@/components/add-player-row";
 import { ManageEventsCard } from "@/components/manage-events-card";
-import { ThemePicker } from "@/components/theme-picker";
 import { EventOddsEditor } from "@/components/event-odds-editor";
 import { PowerMoveCard } from "@/components/power-move-card";
 import { BootVideoUploader } from "@/components/boot-video-uploader";
@@ -28,7 +27,6 @@ import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { resetWeekend } from "@/lib/data/mutations";
-import { DEFAULT_THEME_ID } from "@/lib/themes";
 
 export default function SetupPage() {
   const { players, events, eventRankings, appSettings, powerMove, connect, ready } = useGameStore();
@@ -212,20 +210,6 @@ export default function SetupPage() {
           </CardHeader>
           <CardContent>
             <EventOddsEditor players={players} events={events} eventRankings={eventRankings} />
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {groomUnlocked ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>App theme</CardTitle>
-            <CardDescription>
-              Picks the look for everyone, live — tweakcn presets.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ThemePicker activeThemeId={appSettings?.theme_id ?? DEFAULT_THEME_ID} />
           </CardContent>
         </Card>
       ) : null}

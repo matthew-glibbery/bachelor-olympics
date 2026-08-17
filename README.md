@@ -1,13 +1,12 @@
-# Bachelor Olympics
+# Bachelor Party
 
-Eight events, eight competitors, adjustable multipliers, and a live medal table.
+Eight events, eight competitors, adjustable multipliers, and a live leaderboard.
 
 ## Stack
 
 - **Next.js** (App Router, TypeScript)
 - **Tailwind CSS v4**
-- **shadcn/ui** primitives (`src/components/ui`), themed via CSS variables in `src/app/globals.css`
-- **[tweakcn](https://tweakcn.com)** for visual theme editing — design a theme there and paste the exported `:root` / `.dark` blocks into `globals.css`
+- **shadcn/ui** primitives (`src/components/ui`), themed via CSS variables in `src/app/globals.css` — a single fixed N64-style dark identity, not a switchable theme (there used to be a groom-facing theme picker; removed in favor of one deliberate look everywhere)
 - **lucide-react** for icons
 - **zustand** for lightweight client state (multiplier sliders, live standings)
 
@@ -28,12 +27,13 @@ npx shadcn@latest add <component-name>
 
 This reads `components.json` and drops new primitives into `src/components/ui`.
 
-## Updating the theme
+## Editing the look
 
-1. Go to [tweakcn.com](https://tweakcn.com) and design/tweak a theme.
-2. Copy the generated CSS.
-3. Paste it over the `:root { ... }` and `.dark { ... }` blocks in `src/app/globals.css`.
-4. Leave the `@theme inline { ... }` block below it alone — it maps the variables to Tailwind utilities and doesn't change between themes.
+Every color, radius, and the bevel effect is a CSS custom property in the
+`:root` block of `src/app/globals.css` — change a value there and it updates
+everywhere (there's no theme picker or per-theme JSON to keep in sync). Leave
+the `@theme inline { ... }` block below it alone — it just maps those
+variables to Tailwind utility classes.
 
 ## Working together
 

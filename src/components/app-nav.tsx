@@ -62,7 +62,11 @@ export function AppNav() {
               "flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-medium transition-colors",
               "sm:flex-none sm:flex-row sm:items-center sm:gap-1.5 sm:rounded-md sm:border sm:px-3 sm:py-1.5 sm:text-sm sm:tracking-wide sm:uppercase",
               active
-                ? "bg-primary/10 text-primary sm:bg-primary sm:text-primary-foreground sm:border-transparent"
+                ? // A small glow on the active mobile tab (real shadow-*
+                  // utilities, so sm:shadow-none correctly cancels it at the
+                  // desktop pill row, where the solid bg-primary fill is
+                  // already enough weight on its own).
+                  "bg-primary/10 text-primary shadow-[0_0_0_1px_var(--primary),0_0_10px_-2px_var(--primary)] sm:bg-primary sm:text-primary-foreground sm:border-transparent sm:shadow-none"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground sm:border-transparent",
             )}
           >
