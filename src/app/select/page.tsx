@@ -1,25 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { CharacterBust } from "@/components/character-bust";
-import { Button } from "@/components/ui/button";
+import { ButtonLegend } from "@/components/n64/button-legend";
+import { CharacterRender } from "@/components/n64/character-render";
+import { Nameplate } from "@/components/n64/nameplate";
+import { Starfield } from "@/components/n64/starfield";
+import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { cn } from "@/lib/utils";
 
 /**
- * Character-select screen (docs/visual_spec.md) — Mario Kart 64-style: a
- * roster strip of every player up top, a big centered idling render of
- * whoever's focused, their name plate below, and a confirm step that's the
- * real `selectPlayer` mechanism (src/store/sessionStore.ts) underneath the
- * game-boot skin, not a fake mock — this IS how you tell the app which
- * competitor this device is, just re-skinned. Same dark-stage token trick as
- * /start (bg-background — the whole app is one fixed dark identity now).
+ * Character-select screen (docs/VISUAL_SPEC.md) — the Mario Kart 64
+ * arrangement: the whole roster visible at once as busts along the top, one
+ * big render centre stage, name plate under it. Driven by a menu cursor
+ * (D-pad/gamepad/keyboard via useMenuNav, src/hooks/) rather than a pointer
+ * landing on arbitrary pixels — mouse/touch still work everywhere, they
+ * just move the same cursor.
+ *
+ * Confirming is the real `selectPlayer` mechanism (src/store/sessionStore.ts)
+ * underneath the game-boot skin, not a fake mock — this IS how you tell the
+ * app which competitor this device is, just re-skinned.
  */
 export default function SelectPage() {
   const router = useRouter();
@@ -30,152 +36,202 @@ export default function SelectPage() {
     connect();
   }, [connect]);
 
-  const [focusedId, setFocusedId] = useState<string | null>(null);
   // Set once "Let's go" is hit, if the chosen player has a confirm clip —
   // plays full-bleed before actually routing into the app.
   const [confirmingPlayerId, setConfirmingPlayerId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (focusedId && players.some((p) => p.id === focusedId)) return;
-    setFocusedId(selectedPlayerId ?? players[0]?.id ?? null);
-    // Only re-run when the roster itself changes, not on every focus change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Stable per-player color and jersey number, independent of roster
+  // display order (chartColors.ts: color follows the entity, never its
+  // on-screen rank).
+  const stable = useMemo(() => [...players].sort((a, b) => a.id.localeCompare(b.id)), [players]);
+  const colorByPlayer = useMemo(
+    () => assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark"),
+    [stable],
+  );
+  const numberByPlayer = useMemo(() => {
+    const map: Record<string, number> = {};
+    stable.forEach((p, i) => (map[p.id] = i + 1));
+    return map;
+  }, [stable]);
+
+  const initialIndex = useMemo(() => {
+    const i = players.findIndex((p) => p.id === selectedPlayerId);
+    return i >= 0 ? i : 0;
   }, [players, selectedPlayerId]);
 
-  const colorByPlayer = useMemo(() => {
-    const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
-    return assignPlayerColors(
-      stable.map((p) => ({ id: p.id, state: p.state ?? "" })),
-      "dark",
-    );
-  }, [players]);
+  const onConfirm = useCallback(
+    (i: number) => {
+      const player = players[i];
+      if (!player) return;
+      selectPlayer(player.id);
+      if (player.character_confirm_video_url) {
+        setConfirmingPlayerId(player.id);
+      } else {
+        router.push("/");
+      }
+    },
+    [players, selectPlayer, router],
+  );
 
-  const focused = players.find((p) => p.id === focusedId) ?? null;
-  const focusedIndex = focused ? players.findIndex((p) => p.id === focused.id) : -1;
+  const onBack = useCallback(() => router.push("/start"), [router]);
+
   const confirmingPlayer = players.find((p) => p.id === confirmingPlayerId) ?? null;
 
-  function step(delta: number) {
-    if (players.length === 0) return;
-    const next = (((focusedIndex + delta) % players.length) + players.length) % players.length;
-    setFocusedId(players[next]!.id);
-  }
+  const { index, getItemProps } = useMenuNav({
+    count: players.length,
+    columns: 1,
+    initialIndex,
+    onConfirm,
+    onBack,
+    enabled: players.length > 0 && !confirmingPlayer,
+  });
 
-  function confirm() {
-    if (!focused) return;
-    selectPlayer(focused.id);
-    if (focused.character_confirm_video_url) {
-      setConfirmingPlayerId(focused.id);
-    } else {
-      router.push("/");
-    }
-  }
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowLeft") step(-1);
-      else if (e.key === "ArrowRight") step(1);
-      else if (e.key === "Enter" || e.key === " ") confirm();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusedIndex, players, focused]);
+  const focused = players[index] ?? null;
 
   if (confirmingPlayer) {
     return (
-      <ConfirmClip
-        videoUrl={confirmingPlayer.character_confirm_video_url!}
-        onDone={() => router.push("/")}
-      />
+      <ConfirmClip videoUrl={confirmingPlayer.character_confirm_video_url!} onDone={() => router.push("/")} />
     );
   }
 
   return (
-    <main className="bg-background flex min-h-screen w-full flex-col items-center gap-8 overflow-hidden px-4 pt-8 pb-10">
-      <div className="flex w-full max-w-2xl items-center justify-between">
-        <Link
-          href="/start"
-          className="text-foreground/50 hover:text-foreground/80 inline-flex items-center gap-1 text-xs font-medium tracking-wide uppercase transition-colors"
-        >
-          <ArrowLeft className="size-3.5" />
-          Back
-        </Link>
-        <p className="text-foreground/50 text-xs font-semibold tracking-[0.3em] uppercase">
-          Choose your character
-        </p>
-        <span className="w-10" aria-hidden />
+    <main className="relative flex min-h-dvh flex-col overflow-hidden">
+      <Starfield className="opacity-60" />
+
+      <div className="relative flex min-h-dvh flex-col gap-4 px-4 py-6 sm:px-8">
+        <div className="flex items-center justify-between">
+          <Link
+            href="/start"
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium tracking-wide uppercase transition-colors"
+          >
+            <ArrowLeft className="size-3.5" />
+            Back
+          </Link>
+          <h1 className="text-extruded text-lg sm:text-2xl">Select Your Competitor</h1>
+          <span className="w-10" aria-hidden />
+        </div>
+
+        {!ready ? (
+          <p className="text-muted-foreground mt-20 text-center text-sm">Loading roster…</p>
+        ) : players.length === 0 ? (
+          <p className="text-muted-foreground mx-auto mt-20 max-w-xs text-center text-sm">
+            No competitors yet —{" "}
+            <Link href="/setup" className="text-foreground underline">
+              add players in Setup
+            </Link>{" "}
+            to get started.
+          </p>
+        ) : (
+          <>
+            {/* Roster strip. */}
+            <ul className="mx-auto grid w-full max-w-4xl grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
+              {players.map((p, i) => {
+                const isActive = i === index;
+                const color = colorByPlayer[p.id]!;
+                return (
+                  // min-w-0: grid items default to min-width:auto, and the
+                  // truncated name below is whitespace-nowrap, so without
+                  // this the longest name sets the column's floor and the
+                  // strip overflows the viewport on a phone.
+                  <li key={p.id} className="min-w-0">
+                    <button
+                      type="button"
+                      {...getItemProps(i)}
+                      aria-pressed={isActive}
+                      className={cn(
+                        "group w-full min-w-0 rounded-md p-1 transition-transform duration-75 focus:outline-none",
+                        "bevel-raised bg-card",
+                        isActive && "is-cursor -translate-y-1",
+                      )}
+                    >
+                      <span
+                        className="block aspect-square w-full overflow-hidden rounded-sm"
+                        style={{
+                          background: `linear-gradient(180deg, color-mix(in oklab, ${color} 35%, transparent), transparent)`,
+                        }}
+                      >
+                        <CharacterRender
+                          name={p.name}
+                          nickname={p.nickname}
+                          photoUrl={p.photo_url}
+                          videoUrl={p.character_select_video_url}
+                          playing={isActive}
+                          color={color}
+                          pose="bust"
+                        />
+                      </span>
+                      <span
+                        className={cn(
+                          "font-display mt-1 block truncate text-[10px] tracking-wider uppercase",
+                          isActive ? "text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {p.name}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Centre stage. */}
+            <div className="flex flex-1 flex-col items-center justify-center gap-4">
+              {focused ? (
+                <>
+                  <div className="relative h-56 w-full max-w-sm sm:h-80">
+                    {/* Spotlight pooling under the character. */}
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        background: `radial-gradient(ellipse at 50% 92%, color-mix(in oklab, ${colorByPlayer[focused.id]} 45%, transparent) 0%, transparent 65%)`,
+                      }}
+                      aria-hidden
+                    />
+                    {/* Keyed on player id so the pop-in replays on every swap. */}
+                    <div key={focused.id} className="anim-pop-in relative h-full w-full">
+                      <CharacterRender
+                        name={focused.name}
+                        nickname={focused.nickname}
+                        photoUrl={focused.photo_url}
+                        videoUrl={focused.character_fullbody_video_url}
+                        color={colorByPlayer[focused.id]!}
+                        number={numberByPlayer[focused.id]}
+                        pose="full"
+                        idle
+                      />
+                    </div>
+                  </div>
+
+                  <Nameplate
+                    key={focused.id}
+                    name={focused.name}
+                    nickname={focused.nickname}
+                    color={colorByPlayer[focused.id]!}
+                    className="anim-pop-in"
+                  />
+                </>
+              ) : null}
+            </div>
+
+            <ButtonLegend
+              className="pb-2"
+              entries={[
+                { button: "↔", action: "Choose" },
+                { button: "A", action: "Confirm", tone: "a" },
+                { button: "B", action: "Back", tone: "b" },
+              ]}
+            />
+          </>
+        )}
       </div>
-
-      {!ready ? (
-        <p className="text-foreground/60 mt-20 text-sm">Loading roster…</p>
-      ) : players.length === 0 ? (
-        <p className="text-foreground/60 mt-20 max-w-xs text-center text-sm">
-          No competitors yet —{" "}
-          <Link href="/setup" className="text-foreground underline">
-            add players in Setup
-          </Link>{" "}
-          to get started.
-        </p>
-      ) : (
-        <>
-          {/* Roster strip */}
-          <div className="flex w-full max-w-3xl flex-wrap items-start justify-center gap-3 sm:gap-4">
-            {players.map((p) => (
-              <RosterBust
-                key={p.id}
-                name={p.name}
-                photoUrl={p.photo_url}
-                videoUrl={p.character_select_video_url}
-                color={colorByPlayer[p.id]!}
-                active={p.id === focusedId}
-                onSelect={() => setFocusedId(p.id)}
-              />
-            ))}
-          </div>
-
-          {/* Centered focused character */}
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 py-4">
-            {focused ? (
-              <>
-                <CharacterBust
-                  key={focused.id}
-                  name={focused.name}
-                  videoUrl={focused.character_fullbody_video_url}
-                  photoUrl={focused.photo_url}
-                  color={colorByPlayer[focused.id]!}
-                  size="xl"
-                />
-                <div
-                  className="bg-card flex items-center gap-2 rounded-xl border-4 px-6 py-2.5"
-                  style={{ borderColor: colorByPlayer[focused.id] }}
-                >
-                  <span className="text-card-foreground text-2xl font-black tracking-tight uppercase">
-                    {focused.name}
-                  </span>
-                  {focused.nickname ? (
-                    <span className="text-muted-foreground text-base font-medium">
-                      &ldquo;{focused.nickname}&rdquo;
-                    </span>
-                  ) : null}
-                </div>
-              </>
-            ) : null}
-          </div>
-
-          <Button size="lg" onClick={confirm} className="w-full max-w-xs text-base font-bold">
-            Let&apos;s go
-          </Button>
-        </>
-      )}
     </main>
   );
 }
 
 /**
  * Full-bleed "you're playing as ___" clip (character_confirm_video_url),
- * plays once right after hitting "Let's go" — routes into the app when it
- * ends, or immediately on tap/keypress (skippable, same as the boot
- * screen's "press start" isn't meant to trap anyone).
+ * plays once right after hitting confirm — routes into the app when it
+ * ends, or immediately on tap/keypress (skippable, doesn't trap anyone).
  */
 function ConfirmClip({ videoUrl, onDone }: { videoUrl: string; onDone: () => void }) {
   useEffect(() => {
@@ -201,60 +257,6 @@ function ConfirmClip({ videoUrl, onDone }: { videoUrl: string; onDone: () => voi
         onEnded={onDone}
         className="h-full w-full object-cover"
       />
-    </button>
-  );
-}
-
-/** One roster-strip entry — plays its `character_select_video_url` clip in
- * place on hover/tap or while focused, per docs/VISUAL_SPEC.md; otherwise
- * shows the plain photo/silhouette bust. */
-function RosterBust({
-  name,
-  photoUrl,
-  videoUrl,
-  color,
-  active,
-  onSelect,
-}: {
-  name: string;
-  photoUrl: string | null;
-  videoUrl: string | null;
-  color: string;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  const [hovering, setHovering] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
-      onFocus={() => setHovering(true)}
-      onBlur={() => setHovering(false)}
-      className="flex flex-col items-center gap-1.5"
-    >
-      <CharacterBust
-        name={name}
-        videoUrl={videoUrl}
-        playing={active || hovering}
-        photoUrl={photoUrl}
-        color={color}
-        size="sm"
-        idle={false}
-        className={cn(
-          "border-2 transition-transform",
-          active ? "scale-110" : "opacity-60 hover:opacity-90",
-        )}
-      />
-      <span
-        className={cn(
-          "max-w-16 truncate text-[10px] font-semibold tracking-wide uppercase",
-          active ? "text-foreground" : "text-foreground/50",
-        )}
-      >
-        {name}
-      </span>
     </button>
   );
 }

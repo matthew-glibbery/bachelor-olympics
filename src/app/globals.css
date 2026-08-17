@@ -66,6 +66,22 @@
   */
   --bevel-light: oklch(0.92 0.03 85);
   --bevel-dark: oklch(0.12 0.02 60);
+
+  /*
+    ── Console game-feel layer ──────────────────────────────────────────
+    The menu-driven screens (/start, /select — see docs/VISUAL_SPEC.md)
+    need a couple of things Card/Button don't: a "cursor is here" gold
+    highlight, a CRT filter over the whole app, and extruded logo type.
+    Derived from the tokens above rather than a second palette, so this
+    stays one identity, not two competing ones.
+  */
+  --glow: var(--primary);
+  --crt-scanline: oklch(0 0 0 / 22%);
+  --crt-vignette: oklch(0.1 0.02 60 / 65%);
+
+  --font-display: "Arial Black", "Arial Bold", "Helvetica Neue", Helvetica,
+    Arial, sans-serif;
+  --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 @theme inline {
@@ -102,10 +118,14 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-bevel-light: var(--bevel-light);
   --color-bevel-dark: var(--bevel-dark);
+  --color-glow: var(--glow);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  --font-display: var(--font-display);
+  --font-ui: var(--font-ui);
 }
 
 @layer base {
@@ -114,6 +134,15 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-ui);
+    /* A console UI doesn't rubber-band or text-select. */
+    overscroll-behavior: none;
+  }
+  /* The menu-nav cursor (src/hooks/use-menu-nav.ts) draws its own
+     highlight via .is-cursor; the browser's default focus ring would
+     double up on every roster/menu item. */
+  [data-n64-item]:focus-visible {
+    outline: none;
   }
 }
 
@@ -143,6 +172,63 @@
       inset -2px -2px 0 0 var(--bevel-light),
       inset 2px 2px 0 0 var(--bevel-dark);
   }
+
+  /* Gold "cursor is here" state for a menu item under useMenuNav (roster
+     strip, and any future menu screen) — .bevel-raised plus a glowing ring,
+     since a plain hover state doesn't read on a screen driven by a D-pad
+     rather than a pointer. */
+  .is-cursor {
+    box-shadow:
+      inset 2px 2px 0 0 var(--bevel-light),
+      inset -2px -2px 0 0 var(--bevel-dark),
+      0 3px 0 0 var(--bevel-dark),
+      0 0 0 3px var(--glow),
+      0 0 18px 2px color-mix(in oklch, var(--glow) 55%, transparent);
+  }
+
+  /* Chunky extruded lettering for the title screen (game-logo.tsx renders
+     the actual logo as SVG; this is for any surrounding headline type that
+     needs to match it). Stacked shadows fake the extrusion. */
+  .text-extruded {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--foreground);
+    text-shadow:
+      1px 1px 0 var(--bevel-dark),
+      2px 2px 0 var(--bevel-dark),
+      3px 3px 0 var(--bevel-dark),
+      4px 4px 0 var(--bevel-dark),
+      5px 5px 6px oklch(0 0 0 / 45%);
+  }
+
+  /* CRT: scanlines + vignette, painted over the whole app (layout.tsx),
+     never interactive. */
+  .crt-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--crt-scanline) 0px,
+      var(--crt-scanline) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+
+  .crt-vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at center,
+      transparent 55%,
+      var(--crt-vignette) 100%
+    );
+  }
 }
 
 /* Subtle "breathing" loop for the character-select bust (src/components/
@@ -155,5 +241,122 @@
   }
   50% {
     transform: translateY(-5px) scale(1.015);
+  }
+}
+
+/*
+  Motion for the console-menu screens (/start, /select). Decorative only —
+  the reduced-motion block below turns all of it off, and no screen depends
+  on an animation having run to become usable or readable.
+*/
+@keyframes n64-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes n64-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-1.2%) scaleY(1.012);
+  }
+}
+
+@keyframes n64-weight-shift {
+  0%,
+  100% {
+    transform: translateX(-0.6%) rotate(-0.5deg);
+  }
+  50% {
+    transform: translateX(0.6%) rotate(0.5deg);
+  }
+}
+
+@keyframes n64-logo-settle {
+  0% {
+    transform: scale(2.4) rotate(-12deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.94) rotate(2deg);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(1.03) rotate(-1deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes n64-pop-in {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes n64-star-drift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+.anim-blink {
+  animation: n64-blink 1.05s steps(1, end) infinite;
+}
+.anim-breathe {
+  animation: n64-breathe 3.4s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+.anim-weight-shift {
+  animation: n64-weight-shift 6.1s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+.anim-logo-settle {
+  animation: n64-logo-settle 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-pop-in {
+  animation: n64-pop-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-star-drift {
+  animation: n64-star-drift 38s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-blink,
+  .anim-breathe,
+  .anim-weight-shift,
+  .anim-logo-settle,
+  .anim-pop-in,
+  .anim-star-drift {
+    animation: none;
+  }
+  .anim-logo-settle,
+  .anim-pop-in {
+    opacity: 1;
+    transform: none;
+  }
+  .crt-overlay {
+    display: none;
   }
 }
