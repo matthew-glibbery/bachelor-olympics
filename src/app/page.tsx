@@ -73,7 +73,7 @@ export default function Home() {
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold tracking-tight">Bachelor Party</h1>
           <p className="text-muted-foreground text-sm">
-            Eight events. Eight competitors. One medal table.
+            Eight events. Eight competitors. One leaderboard.
           </p>
         </div>
         <AppNav />
@@ -105,7 +105,7 @@ export default function Home() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Medal className="text-chart-3 size-5" />
-            Medal Table
+            Leaderboard
           </CardTitle>
           <CardDescription>
             Live standings — raw event points and multiplier-adjusted totals,

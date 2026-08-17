@@ -9,7 +9,7 @@ import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 
 const STATIC_LINKS = [
-  { href: "/", label: "Medal Table", icon: Medal },
+  { href: "/", label: "Leaderboard", icon: Medal },
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/multipliers", label: "Multipliers", icon: Sliders },
   { href: "/bets", label: "Bets", icon: Coins },

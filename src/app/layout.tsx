@@ -5,7 +5,7 @@ import { IdentityGate } from "@/components/identity-gate";
 
 export const metadata: Metadata = {
   title: "Bachelor Party",
-  description: "Eight events. Eight competitors. One medal table.",
+  description: "Eight events. Eight competitors. One leaderboard.",
 };
 
 export default function RootLayout({

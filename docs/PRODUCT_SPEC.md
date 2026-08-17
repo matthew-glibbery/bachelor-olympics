@@ -267,10 +267,12 @@ If a pre-planned event gets cancelled (weather, logistics, whatever):
   (a button the groom can hit once), not something that needs elaborate
   rules — the fun is in the surprise and timing, not the mechanic.
 - **Theming**: opening ceremony with player intros/nicknames, a real medal
-  podium for top 3 at the end, and "medal table" as the label for the
-  standings screen instead of "leaderboard." These are presentation-layer
-  choices, not scoring logic — keep them out of the scoring code, they
-  belong in copy/UI only.
+  podium for top 3 at the end, and "leaderboard" as the label for the
+  standings screen. (Reversed from an earlier decision recorded here as
+  "medal table," not "leaderboard" — noted for anyone who finds the old label
+  in an older commit or comment.) These are presentation-layer choices, not
+  scoring logic — keep them out of the scoring code, they belong in copy/UI
+  only.
 
 ## Explicitly out of scope
 
