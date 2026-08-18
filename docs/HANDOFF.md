@@ -2,6 +2,51 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-18 (2) — Odds tab polish: replay placement, bet edit/cancel, separation
+
+Follow-up feedback on the just-merged "per-event betting on the Odds tab"
+work (#23). 147 tests (unchanged — UI wiring only), lint/typecheck/build
+all green, dev-server smoke test of `/`, `/events`, `/bets` (clean
+compiles, 200s).
+
+- **"Replay" moved out of the Results tab body and into the tab-row
+  itself**, right-aligned next to Results/Odds/Bets
+  (`src/components/event-card.tsx`): `TabsList` and `VictoryReplayButton`
+  now share a `flex justify-between` row as siblings inside `<Tabs>`, gated
+  on `event.status === "resolved"` same as before (the button itself
+  already no-ops if there's no winner clip uploaded). Previously it sat
+  below the results table, inside the Results tab's own content.
+- **Per-event bets can now be edited or cancelled from the Odds tab**
+  (`src/components/event-odds-betting.tsx`) — this functionality already
+  existed on `/bets` (added in #21, same day as the original per-event
+  betting build) but the Odds tab's copy of the wager form was written
+  independently in #23 and never picked it up. Ported the same pattern:
+  "Edit" pre-fills the pick/target/wager form from the existing bet and
+  submits via `updatePerEventBet`; "Cancel" calls `cancelPerEventBet`
+  outright. The max-wager calculation adds the bet's own current wager back
+  before capping the edit, same reasoning as `/bets` — replacing a wager
+  isn't spending on top of what's already escrowed. Both only show while
+  the event is still `"planned"`, matching betting's normal close-on-start
+  rule.
+- **Confirmed the "don't let me wager more than I have" cap was already
+  correct** (`bettingReserve`'s `available` was floored at zero in #21,
+  and the Wager/Save-changes button was already disabled once the typed
+  amount exceeds `maxWager`) — no bug found here, but re-verified end to
+  end while touching this file since the user flagged it as a concern.
+- **Real visual separation between the odds list and the bet form**: the
+  bet section (both the locked "Your bet" display and the open wager form)
+  now lives in its own `bevel-sunken` panel with a small uppercase label
+  ("Your bet" / "Place a bet"), distinct from the plain bordered rows of
+  the odds list above it — previously it was just another item in the same
+  flex column with no visual boundary.
+- **Not independently screenshot-verified** — no browser driver in this
+  environment, standing limitation. Worth a real look at: whether the
+  Replay button reads right visually sitting next to the beveled tab
+  buttons (different button style, done deliberately — see component), and
+  whether the new sunken bet panel's contrast holds up against the card
+  background in both light conditions this game is likely played under
+  (a phone screen, possibly outdoors).
+
 ## 2026-08-18 — Per-event betting moved onto the Odds tab itself
 
 User ask: put the actual win/place wager form directly on each event's Odds
