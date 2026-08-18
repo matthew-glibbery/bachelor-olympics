@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlayerName } from "@/components/player-name";
 import { VictoryReplayButton } from "@/components/victory-replay-button";
 import { RankedResultsEditor } from "@/components/ranked-results-editor";
-import { EventOddsTable } from "@/components/event-odds-table";
+import { EventOddsBetting } from "@/components/event-odds-betting";
 import { EventBetsList } from "@/components/event-bets-list";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -29,6 +29,7 @@ import { scorePlacement, type PlacementEntry } from "@/lib/scoring/placement";
 import { scoreAbsolute, type AbsoluteEntry } from "@/lib/scoring/absolute";
 import { finalEventScore } from "@/lib/scoring/total";
 import type { RankingEntry } from "@/lib/odds/ranking";
+import type { BettingReserve } from "@/lib/betting/reserve";
 import type {
   EventResultRow,
   EventRow,
@@ -71,6 +72,13 @@ interface EventCardProps {
    * PRODUCT_SPEC.md → Multipliers → Catch-up bonus. Null if this isn't the
    * one event catch-up currently touches. */
   catchUpBonuses: Map<string, number> | null;
+  /** Session player, for the Odds tab's per-event betting form. Null if
+   * nobody's selected yet on this device. */
+  currentPlayerId: string | null;
+  /** currentPlayerId's unallocated multiplier reserve — what's available to
+   * wager on this (or any other) event right now. Null alongside
+   * currentPlayerId. */
+  reserve: BettingReserve | null;
 }
 
 export function EventCard({
@@ -82,6 +90,8 @@ export function EventCard({
   bets,
   groomUnlocked,
   catchUpBonuses,
+  currentPlayerId,
+  reserve,
 }: EventCardProps) {
   const isPlacement = event.scoring_mode === "placement";
   const playerIds = players.map((p) => p.id);
@@ -122,6 +132,7 @@ export function EventCard({
   // Betting closes once the event leaves "planned" — bets stay a secret
   // until then (src/app/bets/page.tsx handles placement while planned).
   const bettingClosed = event.status !== "planned";
+  const myBet = bets.find((b) => b.player_id === currentPlayerId);
 
   const [editing, setEditing] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -507,7 +518,14 @@ export function EventCard({
         </TabsContent>
 
         <TabsContent value="odds" className="pt-3">
-          <EventOddsTable ranking={ranking} players={playerById} />
+          <EventOddsBetting
+            event={event}
+            ranking={ranking}
+            players={playerById}
+            currentPlayerId={currentPlayerId}
+            myBet={myBet}
+            reserve={reserve}
+          />
         </TabsContent>
 
         {bettingClosed ? (
