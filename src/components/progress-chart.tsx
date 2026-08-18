@@ -37,9 +37,10 @@ import type { PlayerRow } from "@/lib/data/database.types";
 // classes, so these are a manual mirror rather than a live read — the app
 // now has exactly one fixed (dark) identity, so unlike before there's no
 // second light-mode variant these could silently drift out of sync with.
-const GRID = "#3a3633"; // --border
-const AXIS_TEXT = "#9d9792"; // --muted-foreground
-const SURFACE = "#241e1a"; // --card / --popover
+// Recomputed for the blue/purple palette (globals.css :root, oklch → hex).
+const GRID = "#3d528d"; // --border
+const AXIS_TEXT = "#9fabc5"; // --muted-foreground
+const SURFACE = "#141b40"; // --card / --popover
 
 // Reserved status colors for the tooltip's rank-change/points-gained
 // indicators — deliberately NOT the categorical palette's own green/red
