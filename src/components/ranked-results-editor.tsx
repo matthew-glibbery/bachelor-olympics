@@ -57,7 +57,7 @@ export function RankedResultsEditor({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={order} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-1.5">
+        <div className="bevel-sunken flex flex-col gap-1.5 rounded-md p-2">
           {order.map((playerId, i) => {
             const player = players.get(playerId);
             if (!player) return null;
@@ -103,7 +103,7 @@ function RankedRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "bg-card flex items-center gap-2 rounded-md border px-2 py-1.5",
+        "bevel-raised bg-card flex items-center gap-2 rounded-md px-2 py-1.5",
         isDragging && "opacity-60",
       )}
     >

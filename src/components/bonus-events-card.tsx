@@ -6,13 +6,6 @@ import { Pencil, PartyPopper, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { PlayerName } from "@/components/player-name";
 import { cn } from "@/lib/utils";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -71,19 +64,19 @@ export function BonusEventsCard({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <PartyPopper className="text-primary size-5" />
+    <div className="bevel-raised bg-card flex flex-col gap-4 rounded-md p-4">
+      <div className="flex flex-col gap-1">
+        <p className="font-display flex items-center gap-2 text-sm tracking-wide uppercase">
+          <PartyPopper className="text-primary size-4" />
           Bonus events
-        </CardTitle>
-        <CardDescription>
+        </p>
+        <p className="text-muted-foreground text-sm">
           Spontaneous, on-the-fly extras — flat points straight onto the
           leaderboard, outside the main scoring and betting system entirely.
           Points can be negative (a deduction).
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+        </p>
+      </div>
+      <div className="flex flex-col gap-4">
         {groomUnlocked ? (
           <div className="flex flex-col gap-2 border-b pb-4">
             <div className="grid grid-cols-2 gap-2">
@@ -152,8 +145,8 @@ export function BonusEventsCard({
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

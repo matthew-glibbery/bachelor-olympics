@@ -194,7 +194,11 @@ export default function Home() {
                     return (
                       <tr
                         key={player.id}
-                        className={cn("border-bevel-dark/40 border-b last:border-b-0", isYou && "bg-card/60")}
+                        className={cn(
+                          "border-bevel-dark/40 border-b last:border-b-0",
+                          i % 2 === 1 && "bg-black/15",
+                          isYou && "bg-card/70",
+                        )}
                       >
                         <td className="px-3 py-2">
                           <span

@@ -23,7 +23,7 @@ export function EventOddsTable({
   const order = [...ranking].sort((a, b) => a.rank - b.rank);
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="bevel-sunken flex flex-col gap-1.5 rounded-md p-2">
       {order.map(({ playerId }) => {
         const player = players.get(playerId);
         const mult = payouts.get(playerId);
@@ -31,7 +31,7 @@ export function EventOddsTable({
         return (
           <div
             key={playerId}
-            className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
+            className="bevel-raised bg-card flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm"
           >
             <PlayerName
               name={player.name}
@@ -39,7 +39,7 @@ export function EventOddsTable({
               size="sm"
               photoUrl={player.photo_url}
             />
-            <div className="flex gap-3 text-right tabular-nums">
+            <div className="font-score flex gap-3 text-right tabular-nums">
               <span>win {mult.win.toFixed(1)}x</span>
               <span>place {mult.top3.toFixed(1)}x</span>
             </div>
