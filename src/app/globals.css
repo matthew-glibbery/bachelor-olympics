@@ -12,50 +12,45 @@
   look" is still just "edit a value here," no picker, no per-theme JSON to
   keep in sync.
 
-  These values started from this file's old `.dark` block (a complete,
-  already-coherent dark palette that nothing ever actually applied, since no
-  dark-mode toggle was ever wired up) rather than being invented from
-  scratch — --background/--card/--muted-foreground in particular are kept
-  close to those original values on purpose, because src/lib/chartColors.ts's
-  dark-mode player-line palette (DARK_HEX) was already validated by the
-  dataviz skill against a --card right around this value. --primary/--accent
-  are punched up from the old .dark block's fairly desaturated originals,
-  since those need to carry actual "trophy gold" / chunky-UI-chrome duty now,
-  not just serve as an unused dark-mode fallback.
+  Blue/purple "arcade cabinet" palette — carried over as-is from the N64
+  game-feel prototype (docs/VISUAL_SPEC.md), not the warmer amber palette
+  PR #18 first landed. Gold (--primary) and cyan (--accent) stay as
+  deliberate accent pops against the cool background, the way the game
+  logo/cursor-highlight always assumed.
 */
 :root {
   --radius: 0.375rem;
-  --background: oklch(0.2 0.01 55);
-  --foreground: oklch(0.95 0.005 75);
-  --card: oklch(0.24 0.012 55);
-  --card-foreground: oklch(0.95 0.005 75);
-  --popover: oklch(0.24 0.012 55);
-  --popover-foreground: oklch(0.95 0.005 75);
-  --primary: oklch(0.78 0.16 85);
-  --primary-foreground: oklch(0.2 0.05 60);
-  --secondary: oklch(0.3 0.012 55);
-  --secondary-foreground: oklch(0.95 0.005 75);
-  --muted: oklch(0.3 0.012 55);
-  --muted-foreground: oklch(0.68 0.01 65);
-  --accent: oklch(0.74 0.15 195);
-  --accent-foreground: oklch(0.16 0.04 230);
-  --destructive: oklch(0.65 0.2 25);
-  --border: oklch(1 0 0 / 14%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.78 0.16 85);
-  --chart-1: oklch(0.78 0.16 85);
-  --chart-2: oklch(0.74 0.15 195);
-  --chart-3: oklch(0.72 0.12 90);
-  --chart-4: oklch(0.65 0.13 300);
-  --chart-5: oklch(0.68 0.15 15);
-  --sidebar: oklch(0.22 0.012 55);
-  --sidebar-foreground: oklch(0.95 0.005 75);
-  --sidebar-primary: oklch(0.78 0.16 85);
-  --sidebar-primary-foreground: oklch(0.2 0.05 60);
-  --sidebar-accent: oklch(0.74 0.15 195);
-  --sidebar-accent-foreground: oklch(0.16 0.04 230);
-  --sidebar-border: oklch(1 0 0 / 14%);
-  --sidebar-ring: oklch(0.78 0.16 85);
+  --background: oklch(0.16 0.06 275);
+  --foreground: oklch(0.97 0.02 95);
+  --card: oklch(0.24 0.07 272);
+  --card-foreground: oklch(0.97 0.02 95);
+  --popover: oklch(0.22 0.07 272);
+  --popover-foreground: oklch(0.97 0.02 95);
+  --primary: oklch(0.8 0.17 82);
+  --primary-foreground: oklch(0.2 0.06 60);
+  --secondary: oklch(0.34 0.09 268);
+  --secondary-foreground: oklch(0.96 0.02 95);
+  --muted: oklch(0.3 0.06 270);
+  --muted-foreground: oklch(0.74 0.04 265);
+  --accent: oklch(0.75 0.16 220);
+  --accent-foreground: oklch(0.16 0.06 275);
+  --destructive: oklch(0.6 0.24 27);
+  --border: oklch(0.45 0.1 268);
+  --input: oklch(0.3 0.07 270);
+  --ring: oklch(0.85 0.19 95);
+  --chart-1: oklch(0.8 0.17 82);
+  --chart-2: oklch(0.75 0.16 220);
+  --chart-3: oklch(0.6 0.24 27);
+  --chart-4: oklch(0.7 0.19 145);
+  --chart-5: oklch(0.65 0.22 320);
+  --sidebar: oklch(0.2 0.07 273);
+  --sidebar-foreground: oklch(0.97 0.02 95);
+  --sidebar-primary: oklch(0.8 0.17 82);
+  --sidebar-primary-foreground: oklch(0.2 0.06 60);
+  --sidebar-accent: oklch(0.34 0.09 268);
+  --sidebar-accent-foreground: oklch(0.96 0.02 95);
+  --sidebar-border: oklch(0.45 0.1 268);
+  --sidebar-ring: oklch(0.85 0.19 95);
 
   /*
     The bevel effect — the single most era-defining detail. Every plate,
@@ -64,8 +59,30 @@
     single-color borders/box-shadows can't do this on their own; the
     .bevel-raised utility below is what actually applies it.
   */
-  --bevel-light: oklch(0.92 0.03 85);
-  --bevel-dark: oklch(0.12 0.02 60);
+  --bevel-light: oklch(0.78 0.09 268);
+  --bevel-dark: oklch(0.14 0.05 274);
+
+  /*
+    ── Console game-feel layer ──────────────────────────────────────────
+    The menu-driven screens (/start, /select, /multipliers — see
+    docs/VISUAL_SPEC.md) need a couple of things Card/Button don't: a
+    "cursor is here" gold highlight, a CRT vignette, and extruded logo
+    type. Derived from the tokens above rather than a second palette, so
+    this stays one identity, not two competing ones.
+  */
+  --glow: var(--primary);
+  --crt-vignette: oklch(0.08 0.04 277 / 65%);
+
+  /* Podium colors for the leaderboard (src/app/page.tsx) — universal
+     gold/silver/bronze, deliberately not derived from the base palette. */
+  --medal-gold: oklch(0.84 0.16 88);
+  --medal-silver: oklch(0.82 0.02 250);
+  --medal-bronze: oklch(0.65 0.13 55);
+
+  --font-display: "Arial Black", "Arial Bold", "Helvetica Neue", Helvetica,
+    Arial, sans-serif;
+  --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-score: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 @theme inline {
@@ -102,10 +119,15 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-bevel-light: var(--bevel-light);
   --color-bevel-dark: var(--bevel-dark);
+  --color-glow: var(--glow);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  --font-display: var(--font-display);
+  --font-ui: var(--font-ui);
+  --font-score: var(--font-score);
 }
 
 @layer base {
@@ -114,6 +136,15 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-ui);
+    /* A console UI doesn't rubber-band or text-select. */
+    overscroll-behavior: none;
+  }
+  /* The menu-nav cursor (src/hooks/use-menu-nav.ts) draws its own
+     highlight via .is-cursor; the browser's default focus ring would
+     double up on every roster/menu item. */
+  [data-n64-item]:focus-visible {
+    outline: none;
   }
 }
 
@@ -143,6 +174,56 @@
       inset -2px -2px 0 0 var(--bevel-light),
       inset 2px 2px 0 0 var(--bevel-dark);
   }
+
+  /* Gold "cursor is here" state for a menu item under useMenuNav (roster
+     strip, and any future menu screen) — .bevel-raised plus a glowing ring,
+     since a plain hover state doesn't read on a screen driven by a D-pad
+     rather than a pointer. */
+  .is-cursor {
+    box-shadow:
+      inset 2px 2px 0 0 var(--bevel-light),
+      inset -2px -2px 0 0 var(--bevel-dark),
+      0 3px 0 0 var(--bevel-dark),
+      0 0 0 3px var(--glow),
+      0 0 18px 2px color-mix(in oklch, var(--glow) 55%, transparent);
+  }
+
+  /* Chunky extruded lettering for the title screen (game-logo.tsx renders
+     the actual logo as SVG; this is for any surrounding headline type that
+     needs to match it). Stacked shadows fake the extrusion. */
+  .text-extruded {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--foreground);
+    text-shadow:
+      1px 1px 0 var(--bevel-dark),
+      2px 2px 0 var(--bevel-dark),
+      3px 3px 0 var(--bevel-dark),
+      4px 4px 0 var(--bevel-dark),
+      5px 5px 6px oklch(0 0 0 / 45%);
+  }
+
+  /* Gold variant of .text-extruded, for a heading that should read as the
+     trophy/prestige color rather than plain chrome (the leaderboard title). */
+  .text-extruded-gold {
+    color: var(--primary);
+  }
+
+  /* CRT vignette, painted over the whole app (layout.tsx), never
+     interactive. (The scanline pass was dropped — it read as literal
+     lines across the screen rather than a screen-filter texture.) */
+  .crt-vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at center,
+      transparent 55%,
+      var(--crt-vignette) 100%
+    );
+  }
 }
 
 /* Subtle "breathing" loop for the character-select bust (src/components/
@@ -155,5 +236,122 @@
   }
   50% {
     transform: translateY(-5px) scale(1.015);
+  }
+}
+
+/*
+  Motion for the console-menu screens (/start, /select). Decorative only —
+  the reduced-motion block below turns all of it off, and no screen depends
+  on an animation having run to become usable or readable.
+*/
+@keyframes n64-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes n64-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-1.2%) scaleY(1.012);
+  }
+}
+
+@keyframes n64-weight-shift {
+  0%,
+  100% {
+    transform: translateX(-0.6%) rotate(-0.5deg);
+  }
+  50% {
+    transform: translateX(0.6%) rotate(0.5deg);
+  }
+}
+
+@keyframes n64-logo-settle {
+  0% {
+    transform: scale(2.4) rotate(-12deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.94) rotate(2deg);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(1.03) rotate(-1deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes n64-pop-in {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes n64-star-drift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+.anim-blink {
+  animation: n64-blink 1.05s steps(1, end) infinite;
+}
+.anim-breathe {
+  animation: n64-breathe 3.4s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+.anim-weight-shift {
+  animation: n64-weight-shift 6.1s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+.anim-logo-settle {
+  animation: n64-logo-settle 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-pop-in {
+  animation: n64-pop-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-star-drift {
+  animation: n64-star-drift 38s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-blink,
+  .anim-breathe,
+  .anim-weight-shift,
+  .anim-logo-settle,
+  .anim-pop-in,
+  .anim-star-drift {
+    animation: none;
+  }
+  .anim-logo-settle,
+  .anim-pop-in {
+    opacity: 1;
+    transform: none;
+  }
+  .crt-vignette {
+    display: none;
   }
 }

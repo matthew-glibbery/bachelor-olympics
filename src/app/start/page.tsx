@@ -1,68 +1,78 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { GameLogo } from "@/components/n64/game-logo";
+import { Starfield } from "@/components/n64/starfield";
+import { useGameInput } from "@/hooks/use-game-input";
+import { GAME_COPYRIGHT, GAME_TAGLINE } from "@/lib/branding";
+import { playSfx, unlockAudio } from "@/lib/sfx";
 import { useGameStore } from "@/store/gameStore";
 
-/**
- * App name (docs/VISUAL_SPEC.md → Open decisions) — decided: "Bachelor
- * Party." Kept as one named constant so a future rename stays a one-line
- * change; nothing else in the app references it.
- */
-const GAME_TITLE = "Bachelor Party";
+/** Beat at which PRESS START appears — after the logo has settled. */
+const PROMPT_DELAY_MS = 1500;
 
 /**
- * Static background artwork for the boot screen, e.g. a designed title-card
- * image (as opposed to `app_settings.boot_video_url` below, which is a real
- * uploaded-by-the-groom feature). Drop the file at this exact path —
- * `public/start-background.jpg` — and it appears automatically; nothing else
- * needs to change. Referencing a path with no file there yet is safe: a
- * missing CSS `background-image` just doesn't render, no broken-image icon,
- * so this degrades to the plain gradient below until the file exists.
- */
-const BOOT_BACKGROUND_IMAGE = "/start-background.jpg";
-
-/**
- * N64 cartridge-boot style title screen (docs/visual_spec.md "Start
- * screen"), not a conventional web landing page — just the logo and a "press
- * start" prompt rather than a button or any instructional copy. Plain
- * `bg-background`/`text-foreground` tokens (the whole app is one fixed dark
- * identity now, see globals.css) for whichever of the three fallback layers
- * below is actually showing.
+ * N64 cartridge-boot title screen (docs/VISUAL_SPEC.md "Start screen") — a
+ * logo slams in, the tagline fades up, PRESS START starts blinking, and
+ * *any* input gets you in (keyboard, gamepad, tap, click), because there
+ * wasn't a button to aim at in 1998, there was a cartridge.
  *
- * Three background layers, most to least specific:
+ * This is also where audio gets unlocked: browsers only allow an
+ * AudioContext to start from a real user gesture, and PRESS START is the
+ * one gesture this flow guarantees, so the era-correct entry point and the
+ * technical constraint want exactly the same thing.
+ *
+ * Background layers, most to least specific:
  *   1. `app_settings.boot_video_url` — a real groom-uploaded video (Setup →
  *      Groom tools → Boot video), plays full-bleed behind the logo.
- *   2. `BOOT_BACKGROUND_IMAGE` — a static design asset, once one exists.
- *   3. The plain radial-gradient treatment, as a fallback that always works.
+ *   2. The starfield (src/components/n64/starfield.tsx) — always renders,
+ *      so the screen never depends on an uploaded asset to look finished.
  */
 export default function StartPage() {
   const router = useRouter();
   const { appSettings, connect } = useGameStore();
-  const enter = useCallback(() => router.push("/select"), [router]);
+  const [promptVisible, setPromptVisible] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     connect();
   }, [connect]);
 
   useEffect(() => {
-    window.addEventListener("keydown", enter);
-    return () => window.removeEventListener("keydown", enter);
-  }, [enter]);
+    const t = window.setTimeout(() => setPromptVisible(true), PROMPT_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const start = useCallback(() => {
+    if (starting) return;
+    setStarting(true);
+    unlockAudio();
+    playSfx("start");
+    // Let the fanfare land before the screen changes — cutting it off
+    // mid-arpeggio is the kind of detail that makes a thing feel cheap.
+    window.setTimeout(() => router.push("/select"), 480);
+  }, [starting, router]);
+
+  // Before the prompt shows, input skips the intro rather than starting the
+  // game — mashing through a boot sequence shouldn't cost you a screen.
+  const skipOrStart = useCallback(() => {
+    if (!promptVisible) {
+      setPromptVisible(true);
+      return;
+    }
+    start();
+  }, [promptVisible, start]);
+
+  useGameInput({ onStart: skipOrStart, onConfirm: skipOrStart });
 
   const bootVideoUrl = appSettings?.boot_video_url ?? null;
 
   return (
-    <button
-      type="button"
-      onClick={enter}
-      className="bg-background relative flex min-h-screen w-full cursor-pointer flex-col items-center justify-center gap-10 overflow-hidden px-6 text-center"
-      style={{
-        backgroundImage: `url(${BOOT_BACKGROUND_IMAGE})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
+    <main
+      onClick={skipOrStart}
+      className="relative flex min-h-dvh cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
     >
       {bootVideoUrl ? (
         <video
@@ -72,32 +82,61 @@ export default function StartPage() {
           playsInline
           className="absolute inset-0 h-full w-full object-cover"
         />
-      ) : null}
+      ) : (
+        <Starfield />
+      )}
 
+      {/* Horizon glow, so the logo sits on something rather than floating. */}
       <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
         style={{
           background:
-            "radial-gradient(60% 45% at 50% 42%, color-mix(in oklch, var(--primary) 35%, transparent), transparent 70%)",
+            "radial-gradient(ellipse at 50% 100%, color-mix(in oklch, var(--primary) 30%, transparent) 0%, transparent 70%)",
         }}
+        aria-hidden
       />
 
-      <div className="relative flex flex-col items-center gap-3">
-        <h1
-          className="text-foreground text-6xl font-black tracking-tighter uppercase italic sm:text-8xl"
-          style={{
-            textShadow:
-              "4px 4px 0 var(--primary), 8px 8px 0 var(--accent), 0 2px 24px color-mix(in oklch, var(--primary) 50%, transparent)",
-          }}
+      <div className="relative flex w-full max-w-3xl flex-col items-center gap-8">
+        <div className="anim-logo-settle w-full">
+          <GameLogo />
+        </div>
+
+        <p
+          className="font-display text-primary/90 text-center text-[11px] tracking-[0.3em] uppercase sm:text-sm"
+          style={{ animation: "n64-pop-in 0.5s ease-out 1.1s both" }}
         >
-          {GAME_TITLE}
-        </h1>
+          {GAME_TAGLINE}
+        </p>
+
+        {/* A real button for keyboard and screen-reader users, styled as
+            the blinking prompt rather than as a control. */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            skipOrStart();
+          }}
+          className="focus-visible:is-cursor mt-6 rounded-sm px-4 py-2 focus-visible:outline-none"
+        >
+          <span
+            className={
+              starting ? "text-extruded text-2xl sm:text-3xl" : "anim-blink text-extruded text-2xl sm:text-3xl"
+            }
+            style={{ visibility: promptVisible ? "visible" : "hidden" }}
+          >
+            Press Start
+          </span>
+        </button>
       </div>
 
-      <p className="text-accent relative animate-pulse text-lg font-bold tracking-[0.2em] uppercase sm:text-xl">
-        Press Start
-      </p>
-    </button>
+      <footer className="absolute inset-x-0 bottom-6 flex flex-col items-center gap-1 px-6">
+        <p className="font-display text-muted-foreground text-center text-[9px] tracking-[0.2em] uppercase">
+          {GAME_COPYRIGHT}
+        </p>
+        <p className="font-display text-muted-foreground/70 text-center text-[9px] tracking-[0.2em] uppercase">
+          Keyboard · Gamepad · Touch
+        </p>
+      </footer>
+    </main>
   );
 }
