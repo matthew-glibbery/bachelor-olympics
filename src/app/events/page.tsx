@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, PartyPopper } from "lucide-react";
 import Image from "next/image";
 
 import { AppNav } from "@/components/app-nav";
@@ -25,6 +25,18 @@ import { cn } from "@/lib/utils";
  * reskinned in place — same groom-tool logic as before: start scoring,
  * enter/edit results, cancel/reset, photo upload, odds, bets, victory
  * replay), just showing one event at a time instead of all of them stacked.
+ *
+ * Bonus events (BonusEventsCard) get one more tile at the end of the strip
+ * rather than a permanently-visible card below everything — they're
+ * spontaneous and outside core scoring, but the *screen grammar* here is
+ * "one strip, one focused thing," and a card that's always on screen
+ * regardless of the cursor breaks that. Its content only shows when that
+ * tile is the one selected.
+ *
+ * Selection is click/tap/D-pad only, not hover (`selectOnHover: false`) —
+ * this is a content-heavy admin list where someone's mouse legitimately
+ * passes back and forth over the strip while reading, unlike /select's
+ * roster where "look at a portrait, it lights up" is the point.
  */
 export default function EventsPage() {
   const {
@@ -65,8 +77,20 @@ export default function EventsPage() {
     catchUpByEvent.set(preview.eventId, preview.bonuses);
   }
 
-  const { index, getItemProps } = useMenuNav({ count: events.length, columns: 1 });
-  const focused = events[index] ?? null;
+  // The bonus-events tile is one more strip entry, appended after the real
+  // events — only offered once there's a roster to award points to, same
+  // guard BonusEventsCard itself used to have.
+  const showBonusTile = players.length > 0;
+  const bonusIndex = events.length;
+  const itemCount = events.length + (showBonusTile ? 1 : 0);
+
+  const { index, getItemProps } = useMenuNav({
+    count: itemCount,
+    columns: 1,
+    selectOnHover: false,
+  });
+  const focused = index < events.length ? (events[index] ?? null) : null;
+  const bonusSelected = showBonusTile && index === bonusIndex;
 
   return (
     <main className="relative min-h-dvh px-4 py-6 pb-28 sm:px-8 sm:pb-6">
@@ -132,12 +156,41 @@ export default function EventsPage() {
                   </li>
                 );
               })}
+
+              {showBonusTile ? (
+                <li className="min-w-0">
+                  <button
+                    type="button"
+                    {...getItemProps(bonusIndex)}
+                    aria-pressed={bonusSelected}
+                    className={cn(
+                      "bevel-raised bg-card group w-full min-w-0 rounded-md p-1 transition-transform duration-75 focus:outline-none",
+                      bonusSelected && "is-cursor -translate-y-1",
+                    )}
+                  >
+                    <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-sm bg-black/20">
+                      <PartyPopper className="text-primary size-6" />
+                    </span>
+                    <span
+                      className={cn(
+                        "font-display mt-1 block truncate text-[10px] tracking-wider uppercase",
+                        bonusSelected ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      Bonus
+                    </span>
+                  </button>
+                </li>
+              ) : null}
             </ul>
 
-            <ButtonLegend entries={[{ button: "↔", action: "Pick event" }]} />
+            <ButtonLegend entries={[{ button: "↔", action: "Pick" }]} />
 
-            {/* Focused event's full detail. */}
-            {focused ? (
+            {/* Focused tile's full detail — the real event's card, or the
+                bonus-events card, never both at once. */}
+            {bonusSelected ? (
+              <BonusEventsCard players={players} bonusEvents={bonusEvents} groomUnlocked={groomUnlocked} />
+            ) : focused ? (
               <EventCard
                 key={focused.id}
                 event={focused}
@@ -151,10 +204,6 @@ export default function EventsPage() {
                 groomUnlocked={groomUnlocked}
                 catchUpBonuses={catchUpByEvent.get(focused.id) ?? null}
               />
-            ) : null}
-
-            {players.length > 0 ? (
-              <BonusEventsCard players={players} bonusEvents={bonusEvents} groomUnlocked={groomUnlocked} />
             ) : null}
           </>
         )}

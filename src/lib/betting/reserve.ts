@@ -43,8 +43,15 @@ export function bettingReserve(
     .filter((b) => b.status !== "open")
     .reduce((sum, b) => sum + ((b.payout ?? 0) - b.wager), 0);
 
-  return {
-    available: budgetTotal(eventCount) - allocatedToEvents - tiedUp + netFromResolved,
-    tiedUp,
-  };
+  // Floored at zero: this is "free to wager right now," and negative money
+  // isn't a state a player can act on. If the ledger genuinely goes
+  // negative (e.g. multiplier allocations and open-bet escrow disagreeing
+  // about the same budget), that's a bug to fix at the source, not a
+  // number to show someone mid-party.
+  const available = Math.max(
+    0,
+    budgetTotal(eventCount) - allocatedToEvents - tiedUp + netFromResolved,
+  );
+
+  return { available, tiedUp };
 }

@@ -29,6 +29,12 @@ export type MenuNavOptions = {
   /** Indices the cursor refuses to land on (locked events, absent players). */
   disabledIndices?: readonly number[];
   enabled?: boolean;
+  /** Whether moving the mouse over an item also moves the cursor there, the
+   * way a real hover state would. Default true, matching the console-menu
+   * feel most screens want. Set false for a strip where hovering while
+   * scanning shouldn't change the selection out from under you (e.g. a
+   * content-heavy admin list) — there, only a click or the D-pad moves it. */
+  selectOnHover?: boolean;
 };
 
 export type MenuItemProps = {
@@ -50,6 +56,7 @@ export function useMenuNav({
   onBack,
   disabledIndices,
   enabled = true,
+  selectOnHover = true,
 }: MenuNavOptions) {
   const [index, setIndexRaw] = useState(initialIndex);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
@@ -180,7 +187,7 @@ export function useMenuNav({
       "data-active": i === index ? "" : undefined,
       tabIndex: i === index ? 0 : -1,
       onPointerEnter: () => {
-        if (!isDisabled(i)) setIndex(i);
+        if (selectOnHover && !isDisabled(i)) setIndex(i);
       },
       onClick: () => {
         if (isDisabled(i)) {
@@ -193,7 +200,7 @@ export function useMenuNav({
       },
       onFocus: () => setIndex(i, { silent: true }),
     }),
-    [index, isDisabled, setIndex, onConfirm]
+    [index, isDisabled, setIndex, onConfirm, selectOnHover]
   );
 
   return { index, setIndex, getItemProps, isDisabled };
