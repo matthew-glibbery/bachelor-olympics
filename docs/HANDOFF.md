@@ -2,6 +2,57 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-18 — Per-event betting moved onto the Odds tab itself
+
+User ask: put the actual win/place wager form directly on each event's Odds
+tab on `/events`, not just the read-only payout table that lived there
+before — players in that event's own rank order (1 at top), win/place odds
+per player, buttons to pick someone to win or place, a wager input, and a
+live calculated payout. 147 tests (unchanged — pure wiring over already-
+tested odds/reserve math, no new domain logic), lint/typecheck/build all
+green, dev-server smoke test of `/`, `/events`, `/bets`, `/setup` (clean
+compiles, 200s, run on port 3001 since a local 3000 was already occupied).
+
+- **New `src/components/event-odds-betting.tsx`**, replaces the old
+  read-only `event-odds-table.tsx` (deleted — its only importer was
+  `EventCard`, now switched over). Same rank-ordered payout list as before
+  (`payoutMultipliers` from `src/lib/odds/ranking.ts`), plus: a "Win" and a
+  "Place" button per row (not a dropdown, per the explicit ask) that select
+  that player as the pick and highlight the row; a wager `Input` capped at
+  the session player's unallocated multiplier reserve; and a live payout
+  preview (`wager × perEventPayoutMultiplier(...)`). Submits via the
+  existing `placePerEventBet` mutation — same call `/bets/page.tsx` already
+  made, no new data-layer code. If the player already has an open bet on
+  this event it shows locked ("Your bet: ... — Awaiting result") instead of
+  the form; if betting's closed (event left "planned") or nobody's picked a
+  session player yet, the buttons/form just don't render, odds still show.
+- **`EventCard`** (`src/components/event-card.tsx`) gained two new required
+  props, `currentPlayerId` and `reserve` (type `BettingReserve` from
+  `src/lib/betting/reserve.ts`), threaded down to the new component. `myBet`
+  is derived locally from the existing `bets` prop
+  (`bets.find(b => b.player_id === currentPlayerId)`) — that prop already
+  carried every bet on this event regardless of player, same "secrecy is
+  UI-side only" model the Bets tab already relied on, so no new fetch was
+  needed.
+- **`/events`** (`src/app/events/page.tsx`) now reads `selectedPlayerId`
+  from `useSessionStore` and computes that player's `bettingReserve` the
+  same way `/bets/page.tsx` does (summed multiplier allocation across all
+  events, minus tied-up/lost, plus net from resolved bets) — duplicated
+  rather than shared, matching how both pages already independently derive
+  things from the same store.
+- **Deliberately left `/bets`' own "Per-event bets" card untouched** — asked
+  the user directly whether to remove the now-duplicate UI there or keep
+  both, and they said keep both for now while comparing the two placements,
+  but confirmed they'll ultimately want it in one place only. **Worth
+  revisiting**: once a placement is chosen, trim the other one out rather
+  than maintaining two UIs over the same mutation indefinitely.
+- **Not independently screenshot-verified** — no browser driver in this
+  environment, standing limitation. The button-based win/place picker in
+  particular (row highlighting, whether the wager form reads clearly under
+  a rank-ordered list on a narrow phone screen) is worth a real look before
+  treating the visual side as settled — the mechanism (state wiring, mutation
+  calls, reserve math) is what's confirmed here, not the on-screen feel.
+
 ## 2026-08-17/18 — N64 game-feel ported from a stray local scaffold, four PRs
 
 The user reported PR #18's deployed `/select` didn't match the much richer

@@ -12,6 +12,7 @@ import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { deriveScoreLines, upcomingCatchUp } from "@/lib/scoring/fromRows";
+import { bettingReserve } from "@/lib/betting/reserve";
 import { cn } from "@/lib/utils";
 
 /**
@@ -52,7 +53,7 @@ export default function EventsPage() {
     error,
     ready,
   } = useGameStore();
-  const { groomUnlocked, hydrate } = useSessionStore();
+  const { groomUnlocked, selectedPlayerId, hydrate } = useSessionStore();
 
   useEffect(() => {
     hydrate();
@@ -60,6 +61,20 @@ export default function EventsPage() {
   }, [hydrate, connect]);
 
   const playerIds = players.map((p) => p.id);
+
+  // Odds tab's per-event betting form needs the session player's unallocated
+  // multiplier reserve — same derivation as src/app/bets/page.tsx.
+  const reserve = selectedPlayerId
+    ? bettingReserve(
+        events.length,
+        multipliers
+          .filter((m) => m.player_id === selectedPlayerId)
+          .reduce((sum, m) => sum + m.value, 0),
+        perEventBets
+          .filter((b) => b.player_id === selectedPlayerId)
+          .map((b) => ({ wager: b.wager, status: b.status, payout: b.payout })),
+      )
+    : null;
 
   // Catch-up bonus per event (PRODUCT_SPEC.md → Multipliers → Catch-up
   // bonus): actual bonuses baked into already-resolved events' score lines,
@@ -203,6 +218,8 @@ export default function EventsPage() {
                 bets={perEventBets.filter((b) => b.event_id === focused.id)}
                 groomUnlocked={groomUnlocked}
                 catchUpBonuses={catchUpByEvent.get(focused.id) ?? null}
+                currentPlayerId={selectedPlayerId}
+                reserve={reserve}
               />
             ) : null}
           </>
