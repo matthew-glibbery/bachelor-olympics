@@ -337,28 +337,33 @@ export function EventCard({
       </div>
 
       <Tabs defaultValue="results">
-        <TabsList className="bevel-sunken h-auto w-fit gap-1 rounded-md bg-transparent p-1">
-          <TabsTrigger
-            value="results"
-            className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-          >
-            Results
-          </TabsTrigger>
-          <TabsTrigger
-            value="odds"
-            className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-          >
-            Odds
-          </TabsTrigger>
-          {bettingClosed ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList className="bevel-sunken h-auto w-fit gap-1 rounded-md bg-transparent p-1">
             <TabsTrigger
-              value="bets"
+              value="results"
               className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
-              Bets
+              Results
             </TabsTrigger>
+            <TabsTrigger
+              value="odds"
+              className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              Odds
+            </TabsTrigger>
+            {bettingClosed ? (
+              <TabsTrigger
+                value="bets"
+                className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                Bets
+              </TabsTrigger>
+            ) : null}
+          </TabsList>
+          {event.status === "resolved" ? (
+            <VictoryReplayButton event={event} results={results} players={players} />
           ) : null}
-        </TabsList>
+        </div>
 
         <TabsContent value="results" className="flex flex-col gap-3 pt-3">
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
@@ -466,53 +471,50 @@ export function EventCard({
               </div>
             </div>
           ) : event.status !== "planned" ? (
-            <div className="flex flex-col gap-3">
-              <div className="bevel-sunken overflow-x-auto rounded-md px-3 py-2">
-                <div className="grid min-w-[26rem] grid-cols-[1.5rem_1fr_auto_auto_auto] items-center gap-x-3 gap-y-1.5 text-sm">
-                  <span className="font-display text-muted-foreground text-[10px] uppercase">#</span>
-                  <span className="font-display text-muted-foreground text-[10px] uppercase">Player</span>
-                  <span className="font-display text-muted-foreground text-right text-[10px] uppercase">Pts</span>
-                  <span className="font-display text-muted-foreground text-right text-[10px] uppercase">×</span>
-                  <span className="font-display text-muted-foreground text-right text-[10px] uppercase">
-                    Total
-                  </span>
-                  {finishingOrder.map((p, i) => {
-                    const r = results.find((x) => x.player_id === p.id);
-                    const hasResult = (isPlacement ? r?.position : r?.raw) != null;
-                    const points = pointsByPlayer.get(p.id);
-                    const multiplier = multiplierFor(p.id);
-                    const catchUpBonus = catchUpBonuses?.get(p.id) ?? 0;
-                    const total = points != null ? finalEventScore(points, multiplier, catchUpBonus) : null;
-                    return (
-                      <div
-                        key={p.id}
-                        className={cn(
-                          "contents",
-                          !hasResult && "text-muted-foreground",
-                          "[&>*]:py-1",
-                          i % 2 === 1 && "[&>*]:bg-black/15",
-                        )}
-                      >
-                        <span className="font-score tabular-nums">{hasResult ? i + 1 : "—"}</span>
-                        <span className="inline-flex min-w-0 items-center gap-1.5">
-                          <PlayerName name={p.name} size="sm" />
-                          {catchUpBonuses?.has(p.id) ? <CatchUpBadge bonus={catchUpBonus} /> : null}
-                        </span>
-                        <span className="font-score text-right tabular-nums">
-                          {points != null ? Math.round(points) : "—"}
-                        </span>
-                        <span className="font-score text-right tabular-nums">
-                          {multiplier.toFixed(1)}×
-                        </span>
-                        <span className="font-score text-primary text-right font-medium tabular-nums">
-                          {total != null ? Math.round(total) : "—"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+            <div className="bevel-sunken overflow-x-auto rounded-md px-3 py-2">
+              <div className="grid min-w-[26rem] grid-cols-[1.5rem_1fr_auto_auto_auto] items-center gap-x-3 gap-y-1.5 text-sm">
+                <span className="font-display text-muted-foreground text-[10px] uppercase">#</span>
+                <span className="font-display text-muted-foreground text-[10px] uppercase">Player</span>
+                <span className="font-display text-muted-foreground text-right text-[10px] uppercase">Pts</span>
+                <span className="font-display text-muted-foreground text-right text-[10px] uppercase">×</span>
+                <span className="font-display text-muted-foreground text-right text-[10px] uppercase">
+                  Total
+                </span>
+                {finishingOrder.map((p, i) => {
+                  const r = results.find((x) => x.player_id === p.id);
+                  const hasResult = (isPlacement ? r?.position : r?.raw) != null;
+                  const points = pointsByPlayer.get(p.id);
+                  const multiplier = multiplierFor(p.id);
+                  const catchUpBonus = catchUpBonuses?.get(p.id) ?? 0;
+                  const total = points != null ? finalEventScore(points, multiplier, catchUpBonus) : null;
+                  return (
+                    <div
+                      key={p.id}
+                      className={cn(
+                        "contents",
+                        !hasResult && "text-muted-foreground",
+                        "[&>*]:py-1",
+                        i % 2 === 1 && "[&>*]:bg-black/15",
+                      )}
+                    >
+                      <span className="font-score tabular-nums">{hasResult ? i + 1 : "—"}</span>
+                      <span className="inline-flex min-w-0 items-center gap-1.5">
+                        <PlayerName name={p.name} size="sm" />
+                        {catchUpBonuses?.has(p.id) ? <CatchUpBadge bonus={catchUpBonus} /> : null}
+                      </span>
+                      <span className="font-score text-right tabular-nums">
+                        {points != null ? Math.round(points) : "—"}
+                      </span>
+                      <span className="font-score text-right tabular-nums">
+                        {multiplier.toFixed(1)}×
+                      </span>
+                      <span className="font-score text-primary text-right font-medium tabular-nums">
+                        {total != null ? Math.round(total) : "—"}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-              {event.status === "resolved" ? <VictoryReplayButton event={event} results={results} players={players} /> : null}
             </div>
           ) : null}
         </TabsContent>

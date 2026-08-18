@@ -8,7 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { placePerEventBet } from "@/lib/data/mutations";
+import {
+  cancelPerEventBet,
+  placePerEventBet,
+  updatePerEventBet,
+} from "@/lib/data/mutations";
 import type { BettingReserve } from "@/lib/betting/reserve";
 import {
   payoutMultipliers,
@@ -27,7 +31,9 @@ const TARGET_LABEL: Record<PerEventBetRow["target"], string> = {
  * order (1 at top) — and, while the event is still "planned," the wager
  * form to bet on any player's win/place outcome (PRODUCT_SPEC.md →
  * Per-event multiplier betting). Wagers draw from the player's unallocated
- * multiplier reserve, not this event's own multiplier. */
+ * multiplier reserve, not this event's own multiplier. Mirrors the
+ * edit/cancel pattern src/app/bets/page.tsx already has for the same
+ * per_event_bets row. */
 export function EventOddsBetting({
   event,
   ranking,
@@ -46,6 +52,7 @@ export function EventOddsBetting({
   const [pick, setPick] = useState<string | null>(null);
   const [target, setTarget] = useState<PerEventBetRow["target"]>("win");
   const [wager, setWager] = useState("");
+  const [editingBet, setEditingBet] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,27 +66,70 @@ export function EventOddsBetting({
 
   const payouts = payoutMultipliers(ranking);
   const order = [...ranking].sort((a, b) => a.rank - b.rank);
-  const bettingOpen = event.status === "planned" && !!currentPlayerId && !myBet;
-  const maxWager = reserve ? Math.max(0, reserve.available) : 0;
+  const isEditing = editingBet && myBet != null;
+  const showForm = event.status === "planned" && !!currentPlayerId && (!myBet || isEditing);
+  // Editing doesn't cost anything on top of the existing wager — it's
+  // replacing it, not adding to it — so add this bet's own current wager
+  // back to what's otherwise available before capping the new amount.
+  const maxWager = reserve
+    ? Math.max(0, reserve.available) + (isEditing && myBet ? myBet.wager : 0)
+    : 0;
   const odds = pick ? perEventPayoutMultiplier(ranking, pick, target) : null;
   const wagerNum = Number(wager);
   const hasValidWager = Number.isFinite(wagerNum) && wagerNum > 0;
   const payoutPreview = odds != null && hasValidWager ? wagerNum * odds : null;
+
+  function startEditing() {
+    if (!myBet) return;
+    setError(null);
+    setEditingBet(true);
+    setPick(myBet.pick_player_id);
+    setTarget(myBet.target);
+    setWager(String(myBet.wager));
+  }
+
+  function discardEditing() {
+    setEditingBet(false);
+    setPick(null);
+    setWager("");
+  }
 
   async function handleWager() {
     if (!currentPlayerId || !pick || !hasValidWager) return;
     setBusy(true);
     setError(null);
     try {
-      await placePerEventBet(getSupabaseBrowserClient(), {
-        player_id: currentPlayerId,
-        event_id: event.id,
-        pick_player_id: pick,
-        target,
-        wager: wagerNum,
-      });
+      if (isEditing && myBet) {
+        await updatePerEventBet(getSupabaseBrowserClient(), myBet.id, {
+          pick_player_id: pick,
+          target,
+          wager: wagerNum,
+        });
+        setEditingBet(false);
+      } else {
+        await placePerEventBet(getSupabaseBrowserClient(), {
+          player_id: currentPlayerId,
+          event_id: event.id,
+          pick_player_id: pick,
+          target,
+          wager: wagerNum,
+        });
+      }
       setPick(null);
       setWager("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCancelBet() {
+    if (!myBet) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await cancelPerEventBet(getSupabaseBrowserClient(), myBet.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -118,7 +168,7 @@ export function EventOddsBetting({
                 <span className="text-muted-foreground text-xs tabular-nums">
                   {mult.win.toFixed(1)}x
                 </span>
-                {bettingOpen ? (
+                {showForm ? (
                   <Button
                     size="sm"
                     variant={isPick && target === "win" ? "default" : "outline"}
@@ -133,7 +183,7 @@ export function EventOddsBetting({
                 <span className="text-muted-foreground text-xs tabular-nums">
                   {mult.top3.toFixed(1)}x
                 </span>
-                {bettingOpen ? (
+                {showForm ? (
                   <Button
                     size="sm"
                     variant={isPick && target === "place" ? "default" : "outline"}
@@ -151,55 +201,85 @@ export function EventOddsBetting({
         })}
       </div>
 
-      {myBet ? (
-        <div className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm">
-          <span className="flex flex-wrap items-center gap-1.5">
-            <span className="text-muted-foreground">Your bet:</span>
-            <PlayerName
-              name={players.get(myBet.pick_player_id)?.name ?? "?"}
-              state={players.get(myBet.pick_player_id)?.state ?? "??"}
-              size="sm"
-            />
-            <span className="text-muted-foreground">
-              to {TARGET_LABEL[myBet.target]} — wagered {myBet.wager.toFixed(1)}
-            </span>
+      {myBet || showForm ? (
+        <div className="bevel-sunken flex flex-col gap-2 rounded-md p-3">
+          <span className="font-display text-muted-foreground text-[10px] tracking-wide uppercase">
+            {myBet ? "Your bet" : "Place a bet"}
           </span>
-          <Badge variant="outline">Awaiting result</Badge>
-        </div>
-      ) : bettingOpen ? (
-        <div className="flex flex-col gap-2 border-t pt-3">
-          {error ? <p className="text-destructive text-sm">{error}</p> : null}
-          <div className="flex flex-wrap items-end gap-2">
-            <Input
-              type="number"
-              step={MULTIPLIER_STEP}
-              min={MULTIPLIER_STEP}
-              max={maxWager}
-              placeholder={`up to ${maxWager.toFixed(1)}`}
-              className="w-28"
-              value={wager}
-              onChange={(e) => setWager(e.target.value)}
-            />
-            <span className="text-muted-foreground text-xs">
-              {pick
-                ? payoutPreview != null
-                  ? `pays ${payoutPreview.toFixed(1)} if correct (${odds?.toFixed(1)}×)`
-                  : `${odds?.toFixed(1)}× if correct`
-                : "pick a player above to win or place"}
-            </span>
-            <Button
-              size="sm"
-              onClick={handleWager}
-              disabled={busy || !pick || !hasValidWager || wagerNum > maxWager}
-            >
-              Wager
-            </Button>
-          </div>
-          <span className="text-muted-foreground text-xs">
-            {reserve
-              ? `${reserve.available.toFixed(1)} available from your multiplier reserve (${reserve.tiedUp.toFixed(1)} tied up in open wagers).`
-              : null}
-          </span>
+
+          {myBet && !isEditing ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="flex flex-wrap items-center gap-1.5">
+                <PlayerName
+                  name={players.get(myBet.pick_player_id)?.name ?? "?"}
+                  state={players.get(myBet.pick_player_id)?.state ?? "??"}
+                  size="sm"
+                />
+                <span className="text-muted-foreground">
+                  to {TARGET_LABEL[myBet.target]} — wagered {myBet.wager.toFixed(1)}
+                </span>
+              </span>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">Awaiting result</Badge>
+                {event.status === "planned" ? (
+                  <>
+                    <Button size="sm" variant="outline" onClick={startEditing} disabled={busy}>
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={handleCancelBet}
+                      disabled={busy}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          ) : showForm ? (
+            <div className="flex flex-col gap-2">
+              {error ? <p className="text-destructive text-sm">{error}</p> : null}
+              <div className="flex flex-wrap items-end gap-2">
+                <Input
+                  type="number"
+                  step={MULTIPLIER_STEP}
+                  min={MULTIPLIER_STEP}
+                  max={maxWager}
+                  placeholder={`up to ${maxWager.toFixed(1)}`}
+                  className="w-28"
+                  value={wager}
+                  onChange={(e) => setWager(e.target.value)}
+                />
+                <span className="text-muted-foreground text-xs">
+                  {pick
+                    ? payoutPreview != null
+                      ? `pays ${payoutPreview.toFixed(1)} if correct (${odds?.toFixed(1)}×)`
+                      : `${odds?.toFixed(1)}× if correct`
+                    : "pick a player above to win or place"}
+                </span>
+                <Button
+                  size="sm"
+                  onClick={handleWager}
+                  disabled={busy || !pick || !hasValidWager || wagerNum > maxWager}
+                >
+                  {isEditing ? "Save changes" : "Wager"}
+                </Button>
+                {isEditing ? (
+                  <Button size="sm" variant="ghost" onClick={discardEditing} disabled={busy}>
+                    Discard
+                  </Button>
+                ) : null}
+              </div>
+              <span className="text-muted-foreground text-xs">
+                {reserve
+                  ? `${reserve.available.toFixed(1)} available from your multiplier reserve (${reserve.tiedUp.toFixed(1)} tied up in open wagers)${isEditing ? ", plus this bet's current wager while you're editing it" : ""}.`
+                  : null}
+              </span>
+            </div>
+          ) : null}
         </div>
       ) : !currentPlayerId && event.status === "planned" ? (
         <p className="text-muted-foreground text-sm">
