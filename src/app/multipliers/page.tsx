@@ -74,12 +74,21 @@ export default function MultipliersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlayerId, events.length]);
 
+  // Budget already escrowed in this player's open per-event bets — not
+  // free to reallocate to a multiplier while the bet is open (PRODUCT_SPEC.md
+  // → Per-event multiplier betting; see validateAllocations' own doc comment).
+  const tiedUpInBets = player
+    ? perEventBets
+        .filter((b) => b.player_id === player.id && b.status === "open")
+        .reduce((sum, b) => sum + b.wager, 0)
+    : 0;
+
   const allocations: MultiplierAllocation[] = events.map((e) => ({
     eventId: e.id,
     value: (e.status === "planned" ? draft[e.id] : committed[e.id]) ?? MULTIPLIER_DEFAULT,
     locked: e.status !== "planned",
   }));
-  const validation = validateAllocations(allocations, events.length);
+  const validation = validateAllocations(allocations, events.length, tiedUpInBets);
 
   const reserve = player
     ? bettingReserve(

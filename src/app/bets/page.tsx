@@ -21,9 +21,11 @@ import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
+  cancelPerEventBet,
   placeOverallBet,
   placePerEventBet,
   switchOverallBetPick,
+  updatePerEventBet,
 } from "@/lib/data/mutations";
 import { eliminationField } from "@/lib/betting/fromRows";
 import { isPickAlive, overallPayoutValue, type OverallBetType } from "@/lib/betting/overall";
@@ -36,7 +38,7 @@ import {
   type RankingEntry,
 } from "@/lib/odds/ranking";
 import { MULTIPLIER_STEP } from "@/lib/multipliers/budget";
-import type { OverallBetRow } from "@/lib/data/database.types";
+import type { OverallBetRow, PerEventBetRow } from "@/lib/data/database.types";
 
 const SELECT_CLASS =
   "border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
@@ -173,6 +175,12 @@ export default function BetsPage() {
   const [pickDraft, setPickDraft] = useState<Record<string, string>>({});
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
   const [perEventError, setPerEventError] = useState<string | null>(null);
+  // The bet currently being edited (PRODUCT_SPEC.md doesn't forbid it, and
+  // there's no reason to make someone cancel-then-replace by hand) — null
+  // means every event's per-event section shows its normal place/awaiting
+  // state. Only ever one at a time; picking a different bet to edit or
+  // saving/discarding clears it.
+  const [editingBetId, setEditingBetId] = useState<string | null>(null);
 
   const reserve = player
     ? bettingReserve(
@@ -204,6 +212,55 @@ export default function BetsPage() {
       });
       setWagerDraft((d) => ({ ...d, [eventId]: "" }));
       setPickDraft((d) => ({ ...d, [eventId]: "" }));
+    } catch (err) {
+      setPerEventError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyEventId(null);
+    }
+  }
+
+  function startEditingPerEvent(eventId: string, bet: PerEventBetRow) {
+    setPerEventError(null);
+    setEditingBetId(bet.id);
+    setWagerDraft((d) => ({ ...d, [eventId]: String(bet.wager) }));
+    setPickDraft((d) => ({ ...d, [eventId]: bet.pick_player_id }));
+    setTargetDraft((d) => ({ ...d, [eventId]: bet.target }));
+  }
+
+  function discardPerEventEdit(eventId: string) {
+    setEditingBetId(null);
+    setWagerDraft((d) => ({ ...d, [eventId]: "" }));
+    setPickDraft((d) => ({ ...d, [eventId]: "" }));
+  }
+
+  async function handleUpdatePerEvent(eventId: string, betId: string) {
+    const raw = wagerDraft[eventId];
+    const wager = raw ? Number(raw) : NaN;
+    const pickPlayerId = pickDraft[eventId];
+    if (!Number.isFinite(wager) || wager <= 0 || !pickPlayerId) return;
+    setBusyEventId(eventId);
+    setPerEventError(null);
+    try {
+      await updatePerEventBet(getSupabaseBrowserClient(), betId, {
+        pick_player_id: pickPlayerId,
+        target: targetDraft[eventId] ?? "win",
+        wager,
+      });
+      setEditingBetId(null);
+      setWagerDraft((d) => ({ ...d, [eventId]: "" }));
+      setPickDraft((d) => ({ ...d, [eventId]: "" }));
+    } catch (err) {
+      setPerEventError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyEventId(null);
+    }
+  }
+
+  async function handleCancelPerEvent(betId: string) {
+    setBusyEventId(betId);
+    setPerEventError(null);
+    try {
+      await cancelPerEventBet(getSupabaseBrowserClient(), betId);
     } catch (err) {
       setPerEventError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -466,14 +523,21 @@ export default function BetsPage() {
                     rankingComplete && pickId
                       ? perEventPayoutMultiplier(ranking, pickId, target)
                       : null;
-                  const maxWager = reserve ? Math.max(0, reserve.available) : 0;
+                  const isEditing = myBet != null && editingBetId === myBet.id;
+                  // Editing doesn't cost anything on top of the existing
+                  // wager — it's replacing it, not adding to it — so add
+                  // this bet's own current wager back to what's otherwise
+                  // available before capping the new amount.
+                  const maxWager = reserve
+                    ? Math.max(0, reserve.available) + (isEditing && myBet ? myBet.wager : 0)
+                    : 0;
 
                   return (
                     <div key={event.id} className="flex flex-col gap-2 border-t pt-3 first:border-t-0 first:pt-0">
                       <span className="text-sm font-medium">{event.name}</span>
 
-                      {myBet ? (
-                        <div className="flex items-center justify-between gap-2 text-sm">
+                      {myBet && !isEditing ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                           <span className="flex flex-wrap items-center gap-1.5">
                             <PlayerName
                               name={playersById.get(myBet.pick_player_id)?.name ?? "?"}
@@ -485,9 +549,28 @@ export default function BetsPage() {
                               wagered {myBet.wager.toFixed(1)}
                             </span>
                           </span>
-                          <Badge variant="outline">Awaiting result</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">Awaiting result</Badge>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => startEditingPerEvent(event.id, myBet)}
+                              disabled={busyEventId === myBet.id}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive"
+                              onClick={() => handleCancelPerEvent(myBet.id)}
+                              disabled={busyEventId === myBet.id}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
                         </div>
-                      ) : !rankingComplete ? (
+                      ) : !myBet && !rankingComplete ? (
                         <p className="text-muted-foreground text-sm">
                           Odds not set for this event yet.
                         </p>
@@ -540,7 +623,11 @@ export default function BetsPage() {
                           </span>
                           <Button
                             size="sm"
-                            onClick={() => handlePlacePerEvent(event.id)}
+                            onClick={() =>
+                              isEditing && myBet
+                                ? handleUpdatePerEvent(event.id, myBet.id)
+                                : handlePlacePerEvent(event.id)
+                            }
                             disabled={
                               busyEventId === event.id ||
                               !pickId ||
@@ -548,8 +635,13 @@ export default function BetsPage() {
                               Number(wagerDraft[event.id]) > maxWager
                             }
                           >
-                            Wager
+                            {isEditing ? "Save changes" : "Wager"}
                           </Button>
+                          {isEditing ? (
+                            <Button size="sm" variant="ghost" onClick={() => discardPerEventEdit(event.id)}>
+                              Discard
+                            </Button>
+                          ) : null}
                         </div>
                       )}
                     </div>

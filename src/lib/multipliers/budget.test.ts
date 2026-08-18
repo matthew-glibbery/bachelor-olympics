@@ -87,6 +87,25 @@ describe("validateAllocations", () => {
     expect(result.valid).toBe(true);
     expect(result.budgetRemaining).toBe(0);
   });
+
+  it("treats budget already escrowed in open bets as unavailable to allocate", () => {
+    // Total 3.0, spent 2.5 on events — looks like 0.5 free, but 0.5 is
+    // already wagered on an open per-event bet, so none is actually free.
+    const allocs = [alloc("a", 0.5), alloc("b", 1.0), alloc("c", 1.0)];
+    const result = validateAllocations(allocs, 3, 0.5);
+    expect(result.valid).toBe(true);
+    expect(result.budgetRemaining).toBe(0);
+  });
+
+  it("flags over-allocation caused by reallocating already-wagered budget", () => {
+    // Same allocation as the "under-allocated" case above (2.5 of 3.0
+    // spent, nominally 0.5 free) but 0.7 of the total is tied up in an
+    // open bet — the player is trying to spend money they no longer have.
+    const allocs = [alloc("a", 0.5), alloc("b", 1.0), alloc("c", 1.0)];
+    const result = validateAllocations(allocs, 3, 0.7);
+    expect(result.valid).toBe(false);
+    expect(result.budgetRemaining).toBeCloseTo(-0.2, 5);
+  });
 });
 
 describe("unlockedBudgetRemaining", () => {

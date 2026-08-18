@@ -433,6 +433,41 @@ export async function placePerEventBet(
   return data as PerEventBetRow;
 }
 
+export type PerEventBetPatch = Partial<
+  Pick<NewPerEventBet, "pick_player_id" | "target" | "wager">
+>;
+
+/**
+ * Change an open per-event bet's pick, target, or wager. Same "UI-enforced,
+ * no DB constraint" pattern as placing one — the caller is responsible for
+ * only offering this while the bet is still "open" and its event still
+ * "planned" (PRODUCT_SPEC.md: betting closes once the event starts), and
+ * for capping a new wager amount against the player's current reserve
+ * (src/lib/betting/reserve.ts), remembering to add the bet's *own* current
+ * wager back first since that's what's being replaced, not added to.
+ */
+export async function updatePerEventBet(
+  client: SupabaseClient,
+  betId: string,
+  patch: PerEventBetPatch,
+): Promise<PerEventBetRow> {
+  const { data, error } = await client
+    .from("per_event_bets")
+    .update(patch)
+    .eq("id", betId)
+    .select()
+    .single();
+  if (error) throw new Error(`updatePerEventBet: ${error.message}`);
+  return data as PerEventBetRow;
+}
+
+/** Cancel an open per-event bet outright — the wagered amount returns to
+ * the player's betting reserve immediately (it was never spent). */
+export async function cancelPerEventBet(client: SupabaseClient, betId: string): Promise<void> {
+  const { error } = await client.from("per_event_bets").delete().eq("id", betId);
+  if (error) throw new Error(`cancelPerEventBet: ${error.message}`);
+}
+
 /**
  * Settle every open per-event bet on one just-finalized event. Reads the
  * open bets and that event's ranking, runs the pure resolution logic

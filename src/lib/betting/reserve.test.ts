@@ -37,4 +37,13 @@ describe("bettingReserve", () => {
     const r = bettingReserve(8, 7.5, [{ wager: 0.3, status: "void", payout: 0.3 }]);
     expect(r.available).toBeCloseTo(0.5, 5);
   });
+
+  it("never reports available below zero, even if the ledger would go negative", () => {
+    // 8.0 budget, 7.5 allocated to events, 1.0 tied up in an open bet —
+    // more committed than the player actually has. Shouldn't happen once
+    // callers account for tied-up bets (src/lib/multipliers/budget.ts),
+    // but "available to wager" is never a sane negative number to show.
+    const r = bettingReserve(8, 7.5, [{ wager: 1.0, status: "open", payout: null }]);
+    expect(r.available).toBe(0);
+  });
 });

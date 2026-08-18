@@ -78,10 +78,22 @@ export interface BudgetValidation {
  * `allocations.length`, but passable explicitly so a caller can reason about a
  * mid-change state). Locked allocations are included in the sum but flagged if
  * they carry an out-of-range value.
+ *
+ * `reservedForBets` is however much of this player's budget is currently
+ * escrowed in open per-event bets (src/lib/betting/reserve.ts's `tiedUp`) —
+ * money that's "unallocated" from the multiplier sliders' point of view but
+ * NOT actually free to reallocate to an event, since PRODUCT_SPEC.md → Per-
+ * event multiplier betting says a placed wager is "escrowed, not spendable
+ * elsewhere while the bet is open." Without this, a player could leave 0.3
+ * unspent, wager it on an event, then go back and allocate that same 0.3 to
+ * a multiplier — double-spending it and pushing their betting reserve
+ * negative. Defaults to 0 so existing callers that don't have a bet list
+ * handy (or genuinely have none) are unaffected.
  */
 export function validateAllocations(
   allocations: MultiplierAllocation[],
   eventCount: number = allocations.length,
+  reservedForBets = 0,
 ): BudgetValidation {
   const errors: string[] = [];
 
@@ -95,11 +107,13 @@ export function validateAllocations(
     sumTenths += toTenths(alloc.value);
   }
 
-  const totalTenths = eventCount * DEFAULT_T;
+  const totalTenths = eventCount * DEFAULT_T - toTenths(reservedForBets);
   const remainingTenths = totalTenths - sumTenths;
   if (remainingTenths < 0) {
     errors.push(
-      `over budget by ${(-remainingTenths / 10).toFixed(1)} — lower another event first`,
+      reservedForBets > 0
+        ? `over budget by ${(-remainingTenths / 10).toFixed(1)} — some of your budget is tied up in open bets, lower another event first`
+        : `over budget by ${(-remainingTenths / 10).toFixed(1)} — lower another event first`,
     );
   }
 
