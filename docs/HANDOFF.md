@@ -2,6 +2,97 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-17/18 — N64 game-feel ported from a stray local scaffold, four PRs
+
+The user reported PR #18's deployed `/select` didn't match the much richer
+N64 look they remembered from "overnight work" — a real gamepad-driven
+character-select with procedural low-poly busts, an extruded logo, a
+starfield, CRT vignette. Turned out that work never happened in this repo
+at all: it lived in a completely separate, disconnected local clone at
+`~/Downloads/bachelor-olympics 2` (no git remote, never pushed, hardcoded
+8-player mock roster, no Supabase). Confirmed via `AskUserQuestion` before
+doing anything. The rest of the session was porting that scaffold's real
+system into this repo, wired to real data instead of the mock roster, across
+four merged PRs (all squash-merged to `main`, all CI-green):
+
+- **#19** — `/start`, `/select`, `/multipliers`, and the leaderboard (`/`).
+  New `src/hooks/use-game-input.ts`/`use-menu-nav.ts` (D-pad/gamepad/keyboard
+  menu cursor, `useMenuNav` reused by every screen below), `src/lib/sfx.ts`
+  (WebAudio blips, no audio files), `src/components/n64/*` (game-logo,
+  starfield, crt-overlay, button-legend, character-render, multiplier-bar,
+  nameplate). `character-render.tsx`'s swap seam: real character clip >
+  uploaded photo > procedural SVG stand-in colored via each player's
+  `chartColors.ts` hex — replaces `character-bust.tsx`'s plain silhouette
+  fallback on these screens only; `character-bust.tsx` itself is untouched
+  for whatever else still uses it. Caught and fixed one real correctness bug
+  while porting `/multipliers`: the scaffold assumed the product's old
+  "must hit exactly zero" submit rule, which `PRODUCT_SPEC.md` had since
+  relaxed to "must not go negative" — followed the current spec, not the
+  scaffold's stale assumption. Had to stack this PR on #18's branch and
+  later un-stack it (cherry-pick the real commits onto a fresh branch off
+  `main`, re-verify, force-push) after #18 squash-merged and the stacked
+  branch false-conflicted against the new `main` — a squash merge doesn't
+  leave the original commits behind for a stacked branch to diff against
+  cleanly.
+- **#20** — Fixed feedback on #19: swapped the warm amber palette for the
+  scaffold's actual blue/purple one (explicit user preference), dropped the
+  CRT scanline pass (read as literal lines across the screen, kept the
+  vignette), and ported `/events` — the `/select` roster-strip pattern
+  applied to events instead of players, `EventCard` reskinned **in place**
+  (not rebuilt — it's only ever used from this one page) since it's ~500
+  lines of real groom-tool logic (start scoring, edit results, cancel/reset,
+  photo upload, victory replay) that had no reason to be touched, only
+  restyled. Also fixed a real, independently-discovered bug here: `globals.css`'s
+  `.bevel-sunken` never had a `background-color`, only an inset shadow — so
+  the leaderboard's table (and the multiplier bars) read as floating on the
+  bare page background. Added the missing fill; this one CSS fix improved
+  every `bevel-sunken` surface added afterward too.
+- **#21** — More `/events` feedback (bonus events folded into the roster
+  strip as one more tile, selection is click/D-pad only now, not mouse
+  hover — new `selectOnHover` option on `useMenuNav`, default `true` so
+  `/select`/`/multipliers` are unaffected) **plus two real betting bugs**,
+  found while investigating "something with the wager logic is broken":
+  `validateAllocations` (`src/lib/multipliers/budget.ts`) never accounted
+  for budget already escrowed in an open per-event bet, so a player could
+  wager their reserve, then go back to `/multipliers` and reallocate that
+  same money to an event — double-spending it and pushing `available`
+  negative. Fixed with a new `reservedForBets` param, threaded from
+  `/multipliers`. Also floored `bettingReserve`'s `available` at zero
+  (belt-and-suspenders) and added the previously-missing ability to
+  edit/cancel an open per-event bet before its event starts
+  (`updatePerEventBet`/`cancelPerEventBet` in `mutations.ts`, same
+  "UI-enforced, no DB constraint" pattern as everything else there). 147
+  tests (was 144 before #19, +3 for the budget/reserve fixes).
+
+**Verification approach, all four PRs**: this sandbox has no live Supabase
+connection, so every gated screen normally renders blank/loading. Verified
+visually anyway via a throwaway local mock — temporarily seeded
+`gameStore`'s initial state with realistic mock players/events/bets, set
+`groomUnlocked`/`selectedPlayerId`, bypassed `sessionStore`'s `hydrate()`
+(it reads empty localStorage and stomps the mock), and added a dummy
+`.env.local` so `getSupabaseBrowserClient()` doesn't throw synchronously —
+then screenshotted every changed screen with a local headless Chrome
+(`chromium-cli` wasn't available; `Applications/Google Chrome.app
+--headless=new --screenshot` worked fine), and always `git checkout`'d the
+store files + deleted `.env.local` before committing. None of that scratch
+state made it into any commit — worth double-checking if a future session
+finds `gameStore.ts`/`sessionStore.ts` unexpectedly seeded, that'd mean a
+revert was missed.
+
+### Still open
+
+- **`/bets` and `/setup` are unstyled** — still the plain Card-based groom-
+  tools look from before this session, not the N64 skin. Not clear they
+  *should* get the skin (they're dense admin forms, not console-menu
+  screens — `/events` already leaned "N64 chrome over an admin form" and
+  came out fine, but that's a judgment call for whoever picks this up).
+- Every "verified" claim above is against representative mock data in a
+  credential-less sandbox, not the real live Supabase project or the actual
+  Vercel preview. Worth a real look there before the event.
+- The medal-table screen's podium/table pattern (`src/app/page.tsx`) and
+  the multiplier segmented-bar (`multiplier-bar.tsx`) are reusable
+  reference points if any other screen wants the same treatment later.
+
 ## 2026-08-17 (cont'd, part 3) — Theme picker removed, full N64 identity everywhere
 
 Same day, third pass. The previous two entries below explicitly scoped down
