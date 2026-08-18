@@ -18,16 +18,15 @@ import { PlayerName } from "@/components/player-name";
 import { ManagePlayerRow } from "@/components/manage-player-row";
 import { AddPlayerRow } from "@/components/add-player-row";
 import { ManageEventsCard } from "@/components/manage-events-card";
-import { ThemePicker } from "@/components/theme-picker";
 import { EventOddsEditor } from "@/components/event-odds-editor";
 import { PowerMoveCard } from "@/components/power-move-card";
 import { BootVideoUploader } from "@/components/boot-video-uploader";
 import { AppNav } from "@/components/app-nav";
+import { PageHeading } from "@/components/page-heading";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { resetWeekend } from "@/lib/data/mutations";
-import { DEFAULT_THEME_ID } from "@/lib/themes";
 
 export default function SetupPage() {
   const { players, events, eventRankings, appSettings, powerMove, connect, ready } = useGameStore();
@@ -76,7 +75,7 @@ export default function SetupPage() {
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
       <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Player Settings</h1>
+          <PageHeading>Player Settings</PageHeading>
           <p className="text-muted-foreground text-sm">
             Pick which competitor this device is acting as, or add a player.
           </p>
@@ -211,20 +210,6 @@ export default function SetupPage() {
           </CardHeader>
           <CardContent>
             <EventOddsEditor players={players} events={events} eventRankings={eventRankings} />
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {groomUnlocked ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>App theme</CardTitle>
-            <CardDescription>
-              Picks the look for everyone, live — tweakcn presets.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ThemePicker activeThemeId={appSettings?.theme_id ?? DEFAULT_THEME_ID} />
           </CardContent>
         </Card>
       ) : null}

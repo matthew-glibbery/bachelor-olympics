@@ -6,6 +6,7 @@ import { CalendarDays } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { EventCard } from "@/components/event-card";
 import { BonusEventsCard } from "@/components/bonus-events-card";
+import { PageHeading } from "@/components/page-heading";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { deriveScoreLines, upcomingCatchUp } from "@/lib/scoring/fromRows";
@@ -53,7 +54,7 @@ export default function EventsPage() {
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
       <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Events</h1>
+          <PageHeading>Events</PageHeading>
           <p className="text-muted-foreground text-sm">
             Start scoring, enter results, or cancel an event.
           </p>

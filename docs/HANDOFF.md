@@ -2,6 +2,175 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-17 (cont'd, part 3) — Theme picker removed, full N64 identity everywhere
+
+Same day, third pass. The previous two entries below explicitly scoped down
+to a bevel-headline-only treatment, reasoning that overriding the Card/Table
+look everywhere would compete with the real, groom-facing 8-theme picker.
+The user reviewed that PR's preview and explicitly overrode that call: go
+full N64 everywhere, theme picker can go, reuse existing shadcn components,
+drive it all through tokens. Entered plan mode for this one given the size
+(deletes a feature, touches most of the app) — three Explore agents mapped
+the theme-picker removal surface, the shadcn-primitive/token architecture,
+and the remaining page components before writing a word of code; the actual
+diff ended up almost exactly matching that plan.
+
+Full detail is in the commit message on `ea315a2` — the short version:
+
+- Deleted `src/lib/themes.ts` + `theme-applier.tsx`/`theme-picker.tsx` and
+  their call sites. Confirmed safe to just drop `ThemeApplier`'s mount in
+  `layout.tsx` entirely: its only other job (calling `connect()`) was
+  already redundant with `IdentityGate`'s own independent `connect()` call,
+  guarded against double-firing. `theme_id` stays an unused column in
+  Supabase — no migration, this is a live table with a real event coming up.
+- `globals.css`'s `:root` block IS the identity now — promoted from the
+  file's own previously-dead `.dark` block (already close to what
+  `chartColors.ts`'s validated dark-mode player palette was tuned against)
+  rather than invented from scratch, then punched up `--primary`/`--accent`
+  since they now carry real UI-chrome duty. New `--bevel-light`/
+  `--bevel-dark` tokens + a `.bevel-raised` utility, applied inside exactly
+  two files (`button.tsx`'s four "plate" variants, `card.tsx`) — every Card
+  and Button in the app inherited the look automatically from there. New
+  `Plate` component for freestanding non-Card surfaces.
+- `progress-chart.tsx` was the one file needing genuinely new values, not
+  just new tokens — recharts/SVG props need literal colors. Recomputed via
+  a real oklch→srgb conversion (not eyeballed), status-color contrast
+  re-checked against the new dark tooltip surface, `assignPlayerColors`
+  flipped to `"dark"` mode (activating an already-validated palette that
+  just wasn't switched on before).
+- Caught and fixed a real inversion bug before it shipped: `/start`/`/select`
+  used `bg-foreground`/`text-background` as a hack to force a dark stage
+  regardless of which light-mode theme was active. Once `:root` itself went
+  dark by default, that hack would have silently inverted (light text on
+  light background) — flipped every occurrence to the new-normal
+  `bg-background`/`text-foreground`.
+- 144 tests (was 150 — `themes.test.ts` deleted with the code it tested, no
+  other change), lint/typecheck/build all green.
+- **Verified against realistic seeded data**, not just "it compiles" — same
+  Playwright-fixture-intercepting-Supabase-REST approach as the previous
+  session, all 7 routes, mobile (440px) and desktop (1280px) width, every
+  screenshot actually looked at. Confirms the dark stage, the bevel effect,
+  the chart's dark palette, the leaderboard, and the nav's active-tab glow
+  all render correctly together, not just individually.
+- Still true: no verification against the real live Supabase project or the
+  real deployed app — this proves the code composes correctly against
+  representative data, not that it matches production right now.
+- Small known rough edge, not introduced this session: "Leaderboard" still
+  clips slightly on the mobile nav even in normal case (pre-existing
+  `max-w-16` column, same as the old "Medal Table" label).
+
+## 2026-08-17 (cont'd) — Bevel heading extended to every screen, verified against seeded local data
+
+Follow-up on the same day's session below, after the user chose "skip real
+data, reskin locally with representative fixtures" over sharing live
+Supabase credentials or Vercel access. Two things made this worth doing
+carefully rather than guessing:
+
+1. **The established N64 idiom is lighter-touch than it first looks.**
+   `/start`/`/select` are a dark "boot stage" (`bg-foreground`) plus one
+   `text-shadow` bevel trick on the title, sitting on top of a real,
+   groom-facing 8-theme picker (`src/lib/themes.ts` — Classic, Olympic,
+   Doom 64, etc.) that every other screen deliberately respects. Reskinning
+   `/events`/`/bets`/`/setup`'s Card/Table backgrounds to the dark stage
+   would have meant overriding that picker for the core screens — a bigger
+   product call than "extend the N64 look," and not one to make
+   unilaterally. What actually shipped: a new `PageHeading` component
+   (`src/components/page-heading.tsx`) reusing the exact same bevel trick,
+   sized for an in-page title instead of a full boot screen, applied to
+   every core screen's `<h1>` (`/`, `/events`, `/multipliers`, `/bets`,
+   `/setup`) — plus uppercase nav labels on `AppNav`'s desktop pill row. The
+   underlying Card/Table/Button treatment is untouched, so the theme picker
+   still does its job everywhere.
+2. **Verified against real seeded data, not just "it compiles."** Docker
+   couldn't pull fresh Supabase images (same corporate TLS interception as
+   npm, but at the Docker-daemon/VM trust-store level — `NODE_EXTRA_CA_CERTS`
+   doesn't reach that, and patching Colima's root store felt disproportionate
+   for a verification step) — so a full local Supabase stack wasn't viable
+   this session. Instead: a small Playwright fixture layer
+   (`~/.claude/jobs/.../pw/fixtures.mjs`, not part of this repo) intercepts
+   the `rest/v1/*` calls the browser Supabase client makes and returns
+   representative fake rows matching `database.types.ts` — 8 players, all 9
+   events in a mix of resolved/scoring/planned states, results, multipliers
+   with a real budget reserve, event rankings, overall bets, a per-event
+   bet, and a bonus event. This caught two real things before they'd have
+   shipped un-verified:
+   - `/multipliers`'s own `<h1>` was missed in the sweep — still the old
+     plain heading. Fixed.
+   - Uppercase nav labels looked fine in isolation but visibly truncated
+     "Leaderboard"/"Multipliers" on the mobile floating bar once real text
+     was actually rendered at that width — reverted to normal case there,
+     kept only on the desktop pill row where there's room. "Leaderboard"
+     still clips slightly even in normal case (same pre-existing `max-w-16`
+     column "Medal Table" already sat inside) — a small, pre-existing rough
+     edge, not something this session introduced; worth a follow-up if it
+     bothers anyone in practice.
+   Also caught: `bonus-events-card.tsx`'s description still said "onto the
+   medal table" — missed in the previous rename pass since it's card copy,
+   not a heading.
+- 150 tests (unchanged), lint/typecheck/build all green.
+- **Still true from before**: no live verification against the real
+  Supabase project or the actual deployed app — the fixture layer proves the
+  UI and domain logic compose correctly with realistic data, not that it
+  matches what's actually live right now.
+
+## 2026-08-17 — Leaderboard rename, /start cleanup, reconciling a parallel Claude Code session
+
+A different Claude Code session (this repo's local clone, no git remote) had
+spent a chat building an N64-styled UI from scratch against `docs/PRODUCT_SPEC.md`
+and an early `docs/VISUAL_SPEC.md`, unaware this repo already existed on
+GitHub with 17 merged PRs of real, Supabase-backed functionality (betting,
+groom tools, the progress chart, `/start`+`/select` from PR #13/#14) — a
+disconnected copy in `~/Downloads/bachelor-olympics 2` diverged after commit
+`acdf783`. Once the user pointed at real differences, that work was set
+aside as exploratory (not merged, not referenced here) and this session
+picked up cold on the real clone (`~/dev/bachelor-olympics`) instead. Noting
+this in case the disconnected copy resurfaces in a future session — it isn't
+canonical and shouldn't be treated as a spec.
+
+150 tests (unchanged), lint/typecheck/build all green, dev-server smoke test
+of all 7 routes against placeholder Supabase credentials (no crashes; the
+data-dependent pages just hang on "connecting," which is a placeholder-URL
+artifact, not a real bug — a fake-but-well-formed hostname makes the client
+hang rather than fail fast, unlike a real network error, which
+`IdentityGate`/`gameStore` already handle by bypassing the gate).
+
+- **"Medal Table" → "Leaderboard"** in every user-facing string: nav label
+  (`app-nav.tsx`), home page heading + tagline (`page.tsx`), and `layout.tsx`
+  metadata description. `PRODUCT_SPEC.md`'s Theming bullet updated to record
+  the reversal (previously specified "medal table," explicitly not
+  "leaderboard" — now the other way). **Deliberately left the `MedalTable`
+  component/file/type names alone** — internal identifiers, not product
+  copy; a rename is a pure refactor with no user-facing effect, and doing it
+  in the same pass risked a needless collision with any concurrent work on
+  this file. Worth doing as its own small PR if a clean rename is wanted.
+- **`/start` cleanup**: dropped the "tap anywhere, or press any key"
+  instructional line — explicit direction to keep this screen to just the
+  logo and Press Start, no controller/input hints. Added a background-image
+  layer reading `public/start-background.jpg`, sitting below the existing
+  `boot_video_url`/gradient fallbacks in specificity — the user is supplying
+  a designed title-card background as a follow-up artifact; dropping the
+  file at that exact path will make it appear with zero further code
+  changes. No file exists there yet (a missing CSS `background-image`
+  degrades silently, unlike a missing `<img src>`), so this is safe to land
+  ahead of the actual asset.
+- **Verified, not changed**: `src/lib/multipliers/budget.ts` already allows
+  proceeding with a nonzero, unallocated multiplier balance (PR #5's "budget
+  reserve" — only rejects going negative) — this already matches what was
+  asked for, no code change needed.
+- **Not yet done, blocked on access**: the user also asked to see the
+  betting screens, more of the app's navigation, and the groom controls, and
+  to compare against "the current online version"'s graph. This session
+  found the live Vercel production deployment via the GitHub Deployments API
+  but it sits behind Vercel's SSO/deployment-protection gate — not reachable
+  without either the project's real Supabase anon key + URL (safe to share
+  per `.env.example`'s own comment) or a way past the Vercel gate. Asked the
+  user for one of those rather than guessing at how to extend the N64
+  treatment to `/events`, `/bets`, `/setup`, and `AppNav` — those screens are
+  all fully built and functional already (see PRs #1–#10), just still on the
+  plain shadcn/tweakcn theme rather than the N64 bevel treatment `/start`
+  and `/select` (PR #13/#14) got. Whether that extension is actually wanted,
+  and against what real data, is the open question for next session.
+
 ## 2026-08-15 — Results columns, hover-flash fix, full-screen replay, dropped portrait field
 
 Follow-up batch after PR #15's own real-use feedback. 150 tests (unchanged

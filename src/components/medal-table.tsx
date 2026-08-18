@@ -15,9 +15,15 @@ import { applyBonusAwards, type BonusAward } from "@/lib/bonus/bonusEvent";
 import { standings, type EventScoreLine } from "@/lib/scoring/total";
 
 /**
- * The live "medal table" (PRODUCT_SPEC.md → Live standings / Theming). Shows
- * every competitor's raw event points and their multiplier-adjusted total, in
- * standings order, with a podium treatment for the top three.
+ * The live leaderboard (PRODUCT_SPEC.md → Live standings / Theming — this
+ * label was "medal table" until a later product decision reversed it back to
+ * "leaderboard"; the component/file/type names below still say `MedalTable`
+ * for that reason — an internal identifier, not user-facing copy, so
+ * renaming it is a pure refactor with no product meaning. Left as-is to
+ * avoid an unnecessary rename colliding with concurrent work elsewhere in
+ * the codebase; happy to do the rename in its own PR if that's wanted).
+ * Shows every competitor's raw event points and their multiplier-adjusted
+ * total, in standings order, with a podium treatment for the top three.
  *
  * Pure presentation over the Phase-0 domain layer: it takes score lines +
  * player metadata and calls `standings()`. Once the Phase-1 store lands, feed it

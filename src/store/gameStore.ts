@@ -113,8 +113,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       // Fetched separately and allowed to fail without taking down the rest
       // of the app: app_settings is a newer table, so until its migration has
       // been run against a given project this would otherwise throw and
-      // block players/events/etc. from ever loading. ThemeApplier already
-      // treats a null appSettings as "use the default theme."
+      // block players/events/etc. from ever loading. A null appSettings just
+      // means no boot video has been uploaded yet.
       const appSettings = await fetchAppSettings(client).catch(() => null);
       set({
         players,

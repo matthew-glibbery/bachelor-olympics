@@ -12,6 +12,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { AppNav } from "@/components/app-nav";
+import { PageHeading } from "@/components/page-heading";
 import { MedalTable } from "@/components/medal-table";
 import type { MedalTablePlayer } from "@/components/medal-table";
 import { ProgressChart } from "@/components/progress-chart";
@@ -71,9 +72,9 @@ export default function Home() {
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
       <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Bachelor Party</h1>
+          <PageHeading>Bachelor Party</PageHeading>
           <p className="text-muted-foreground text-sm">
-            Eight events. Eight competitors. One medal table.
+            Eight events. Eight competitors. One leaderboard.
           </p>
         </div>
         <AppNav />
@@ -105,7 +106,7 @@ export default function Home() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Medal className="text-chart-3 size-5" />
-            Medal Table
+            Leaderboard
           </CardTitle>
           <CardDescription>
             Live standings — raw event points and multiplier-adjusted totals,

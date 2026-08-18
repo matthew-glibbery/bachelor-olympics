@@ -9,7 +9,7 @@ import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 
 const STATIC_LINKS = [
-  { href: "/", label: "Medal Table", icon: Medal },
+  { href: "/", label: "Leaderboard", icon: Medal },
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/multipliers", label: "Multipliers", icon: Sliders },
   { href: "/bets", label: "Bets", icon: Coins },
@@ -20,6 +20,15 @@ const STATIC_LINKS = [
  * (this app is mostly used on phones at the actual event) that reverts to a
  * plain inline pill row at larger widths — one component, responsive
  * classes, no separate mobile/desktop implementations to keep in sync.
+ *
+ * Labels go uppercase+tracked on the wide `sm:` pill row, echoing the same
+ * chunky-game-menu register `PageHeading` puts on every screen's title —
+ * colors/icons/layout untouched, they already work. Desktop-only, though:
+ * on the floating mobile bar five tabs share one phone-width screen (the
+ * device this app is mostly used on, per the note above), and uppercase
+ * alone is enough to push "Leaderboard"/"Multipliers" past a ~70px column
+ * into visible truncation — verified by testing the mobile bar directly,
+ * not assumed. Normal case there reads fine at this size.
  */
 export function AppNav() {
   const pathname = usePathname();
@@ -51,9 +60,13 @@ export function AppNav() {
             href={href}
             className={cn(
               "flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-medium transition-colors",
-              "sm:flex-none sm:flex-row sm:items-center sm:gap-1.5 sm:rounded-md sm:border sm:px-3 sm:py-1.5 sm:text-sm",
+              "sm:flex-none sm:flex-row sm:items-center sm:gap-1.5 sm:rounded-md sm:border sm:px-3 sm:py-1.5 sm:text-sm sm:tracking-wide sm:uppercase",
               active
-                ? "bg-primary/10 text-primary sm:bg-primary sm:text-primary-foreground sm:border-transparent"
+                ? // A small glow on the active mobile tab (real shadow-*
+                  // utilities, so sm:shadow-none correctly cancels it at the
+                  // desktop pill row, where the solid bg-primary fill is
+                  // already enough weight on its own).
+                  "bg-primary/10 text-primary shadow-[0_0_0_1px_var(--primary),0_0_10px_-2px_var(--primary)] sm:bg-primary sm:text-primary-foreground sm:border-transparent sm:shadow-none"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground sm:border-transparent",
             )}
           >

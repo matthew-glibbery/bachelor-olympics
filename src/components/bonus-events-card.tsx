@@ -78,9 +78,9 @@ export function BonusEventsCard({
           Bonus events
         </CardTitle>
         <CardDescription>
-          Spontaneous, on-the-fly extras — flat points straight onto the medal
-          table, outside the main scoring and betting system entirely. Points
-          can be negative (a deduction).
+          Spontaneous, on-the-fly extras — flat points straight onto the
+          leaderboard, outside the main scoring and betting system entirely.
+          Points can be negative (a deduction).
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

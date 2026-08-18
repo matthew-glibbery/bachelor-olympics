@@ -39,18 +39,21 @@ export function PlayerName({
   const px = AVATAR_PX[size];
   return (
     <span className={cn("inline-flex items-center gap-2", className)} {...props}>
+      {/* A thin bordered ring — a small nod to game-portrait framing without
+          the full bevel treatment, which would be too heavy repeated dozens
+          of times in a dense list. */}
       {photoUrl ? (
         <Image
           src={photoUrl}
           alt=""
           width={px}
           height={px}
-          className="shrink-0 rounded-full object-cover"
+          className="border-primary/60 shrink-0 rounded-full border-2 object-cover"
           style={{ width: px, height: px }}
         />
       ) : (
         <span
-          className="bg-muted text-muted-foreground flex shrink-0 items-center justify-center rounded-full"
+          className="bg-muted text-muted-foreground border-primary/60 flex shrink-0 items-center justify-center rounded-full border-2"
           style={{ width: px, height: px }}
         >
           <UserRound className="size-3" />

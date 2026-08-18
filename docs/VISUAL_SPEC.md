@@ -34,6 +34,13 @@ screen degrades gracefully to a plain fallback until real clips exist):
   `CharacterBust` is the shared "big render" piece: plays `videoUrl`
   (character clip) if set, else falls back to `photoUrl`, else a
   silhouette — the real swap seam once assets exist.
+- `/start`'s background is layered, most to least specific: a real
+  groom-uploaded `app_settings.boot_video_url`, then a static design asset at
+  `public/start-background.jpg` (the swap seam for a one-off title-card image
+  — drop the file at that exact path and it appears with no code change),
+  then a plain gradient fallback. The controller/input hint text ("tap
+  anywhere, or press any key") was removed from this screen per explicit
+  direction — keep it to just the logo and the press-start prompt.
 - `src/components/victory-replay-button.tsx` — "Replay" button on a
   resolved `EventCard`, wired via `src/lib/scoring/eventWinner.ts` (pure
   winner-id lookup, handles placement + absolute + ties). Renders nothing if

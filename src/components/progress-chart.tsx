@@ -32,21 +32,25 @@ import type { PlayerRow } from "@/lib/data/database.types";
  * the tooltip and legend carry the full names.
  */
 
-// App token hex, converted from the oklch values in globals.css (light mode
-// only — this app has no dark-mode toggle wired up yet, see chartColors.ts).
-const GRID = "#e3ddd7"; // --border
-const AXIS_TEXT = "#68625e"; // --muted-foreground
-const SURFACE = "#ffffff"; // --card
+// App token hex, converted from globals.css's :root oklch values. Recharts/
+// SVG props need literal color values, not CSS-variable-backed Tailwind
+// classes, so these are a manual mirror rather than a live read — the app
+// now has exactly one fixed (dark) identity, so unlike before there's no
+// second light-mode variant these could silently drift out of sync with.
+const GRID = "#3a3633"; // --border
+const AXIS_TEXT = "#9d9792"; // --muted-foreground
+const SURFACE = "#241e1a"; // --card / --popover
 
 // Reserved status colors for the tooltip's rank-change/points-gained
 // indicators — deliberately NOT the categorical palette's own green/red
 // slots (chartColors.ts), which are tied to specific players' identity;
 // reusing them here would make a status badge look like it belongs to
-// whichever player happens to be on that slot. Both contrast >5:1 against
-// the white tooltip surface (WCAG AA for small text), and always ship with
-// a +/− sign or ▲/▼ glyph alongside the color, never color alone.
-const STATUS_GOOD = "#166534";
-const STATUS_BAD = "#991b1b";
+// whichever player happens to be on that slot. Both re-checked against the
+// new dark #241e1a tooltip surface (green 8.80:1, red 5.75:1 — both clear
+// WCAG AA for small text), and always ship with a +/− sign or ▲/▼ glyph
+// alongside the color, never color alone.
+const STATUS_GOOD = "#4cd676";
+const STATUS_BAD = "#ff6759";
 
 const DOT_SIZE = 22;
 
@@ -69,7 +73,7 @@ export function ProgressChart({ players, series }: ProgressChartProps) {
     const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
     return assignPlayerColors(
       stable.map((p) => ({ id: p.id, state: p.state ?? "" })),
-      "light",
+      "dark",
     );
   }, [players]);
 

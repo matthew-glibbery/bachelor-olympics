@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
  * real `selectPlayer` mechanism (src/store/sessionStore.ts) underneath the
  * game-boot skin, not a fake mock — this IS how you tell the app which
  * competitor this device is, just re-skinned. Same dark-stage token trick as
- * /start (bg-foreground, so it follows whatever app theme is active).
+ * /start (bg-background — the whole app is one fixed dark identity now).
  */
 export default function SelectPage() {
   const router = useRouter();
@@ -91,27 +91,27 @@ export default function SelectPage() {
   }
 
   return (
-    <main className="bg-foreground flex min-h-screen w-full flex-col items-center gap-8 overflow-hidden px-4 pt-8 pb-10">
+    <main className="bg-background flex min-h-screen w-full flex-col items-center gap-8 overflow-hidden px-4 pt-8 pb-10">
       <div className="flex w-full max-w-2xl items-center justify-between">
         <Link
           href="/start"
-          className="text-background/50 hover:text-background/80 inline-flex items-center gap-1 text-xs font-medium tracking-wide uppercase transition-colors"
+          className="text-foreground/50 hover:text-foreground/80 inline-flex items-center gap-1 text-xs font-medium tracking-wide uppercase transition-colors"
         >
           <ArrowLeft className="size-3.5" />
           Back
         </Link>
-        <p className="text-background/50 text-xs font-semibold tracking-[0.3em] uppercase">
+        <p className="text-foreground/50 text-xs font-semibold tracking-[0.3em] uppercase">
           Choose your character
         </p>
         <span className="w-10" aria-hidden />
       </div>
 
       {!ready ? (
-        <p className="text-background/60 mt-20 text-sm">Loading roster…</p>
+        <p className="text-foreground/60 mt-20 text-sm">Loading roster…</p>
       ) : players.length === 0 ? (
-        <p className="text-background/60 mt-20 max-w-xs text-center text-sm">
+        <p className="text-foreground/60 mt-20 max-w-xs text-center text-sm">
           No competitors yet —{" "}
-          <Link href="/setup" className="text-background underline">
+          <Link href="/setup" className="text-foreground underline">
             add players in Setup
           </Link>{" "}
           to get started.
@@ -191,7 +191,7 @@ function ConfirmClip({ videoUrl, onDone }: { videoUrl: string; onDone: () => voi
       type="button"
       onClick={onDone}
       aria-label="Skip"
-      className="bg-foreground fixed inset-0 z-50 flex h-dvh w-dvw cursor-pointer items-center justify-center overflow-hidden"
+      className="bg-background fixed inset-0 z-50 flex h-dvh w-dvw cursor-pointer items-center justify-center overflow-hidden"
     >
       <video
         src={videoUrl}
@@ -250,7 +250,7 @@ function RosterBust({
       <span
         className={cn(
           "max-w-16 truncate text-[10px] font-semibold tracking-wide uppercase",
-          active ? "text-background" : "text-background/50",
+          active ? "text-foreground" : "text-foreground/50",
         )}
       >
         {name}

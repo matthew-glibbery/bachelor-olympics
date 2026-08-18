@@ -112,7 +112,6 @@ export interface PowerMoveRow {
 
 export interface AppSettingsRow {
   id: 1;
-  theme_id: string;
   /** Single global start-screen video (docs/VISUAL_SPEC.md), not per-player. */
   boot_video_url: string | null;
 }

@@ -4,80 +4,68 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
-  This :root / .dark block is the exact shape tweakcn exports.
-  To change the theme: go to https://tweakcn.com, design a theme,
-  copy its generated CSS, and paste it in place of the two blocks
-  below. Everything else in this file (the @theme inline mapping)
-  stays the same — it just points Tailwind's utility classes at
-  these variables, so a new tweakcn theme "just works" once pasted.
+  Single fixed visual identity — an N64-era boot-screen look, everywhere,
+  all the time. There used to be a groom-facing picker with 8 swappable
+  tweakcn presets (src/lib/themes.ts, removed); this app doesn't need that
+  flexibility, it needs one deliberate look. Everything below is still a
+  plain CSS custom property, same shape tweakcn exports used — so "change the
+  look" is still just "edit a value here," no picker, no per-theme JSON to
+  keep in sync.
+
+  These values started from this file's old `.dark` block (a complete,
+  already-coherent dark palette that nothing ever actually applied, since no
+  dark-mode toggle was ever wired up) rather than being invented from
+  scratch — --background/--card/--muted-foreground in particular are kept
+  close to those original values on purpose, because src/lib/chartColors.ts's
+  dark-mode player-line palette (DARK_HEX) was already validated by the
+  dataviz skill against a --card right around this value. --primary/--accent
+  are punched up from the old .dark block's fairly desaturated originals,
+  since those need to carry actual "trophy gold" / chunky-UI-chrome duty now,
+  not just serve as an unused dark-mode fallback.
 */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.98 0.005 75);
-  --foreground: oklch(0.22 0.01 60);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.01 60);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.01 60);
-  --primary: oklch(0.62 0.14 40);
-  --primary-foreground: oklch(0.98 0.005 75);
-  --secondary: oklch(0.94 0.01 70);
-  --secondary-foreground: oklch(0.3 0.01 60);
-  --muted: oklch(0.94 0.01 70);
-  --muted-foreground: oklch(0.5 0.01 60);
-  --accent: oklch(0.9 0.03 55);
-  --accent-foreground: oklch(0.25 0.01 60);
-  --destructive: oklch(0.58 0.21 27);
-  --border: oklch(0.9 0.01 65);
-  --input: oklch(0.9 0.01 65);
-  --ring: oklch(0.62 0.14 40);
-  --chart-1: oklch(0.62 0.14 40);
-  --chart-2: oklch(0.55 0.1 200);
-  --chart-3: oklch(0.7 0.12 90);
-  --chart-4: oklch(0.6 0.13 300);
-  --chart-5: oklch(0.65 0.15 15);
-  --sidebar: oklch(0.96 0.008 70);
-  --sidebar-foreground: oklch(0.22 0.01 60);
-  --sidebar-primary: oklch(0.62 0.14 40);
-  --sidebar-primary-foreground: oklch(0.98 0.005 75);
-  --sidebar-accent: oklch(0.9 0.03 55);
-  --sidebar-accent-foreground: oklch(0.25 0.01 60);
-  --sidebar-border: oklch(0.9 0.01 65);
-  --sidebar-ring: oklch(0.62 0.14 40);
-}
-
-.dark {
+  --radius: 0.375rem;
   --background: oklch(0.2 0.01 55);
   --foreground: oklch(0.95 0.005 75);
   --card: oklch(0.24 0.012 55);
   --card-foreground: oklch(0.95 0.005 75);
   --popover: oklch(0.24 0.012 55);
   --popover-foreground: oklch(0.95 0.005 75);
-  --primary: oklch(0.68 0.14 40);
-  --primary-foreground: oklch(0.2 0.01 55);
+  --primary: oklch(0.78 0.16 85);
+  --primary-foreground: oklch(0.2 0.05 60);
   --secondary: oklch(0.3 0.012 55);
   --secondary-foreground: oklch(0.95 0.005 75);
   --muted: oklch(0.3 0.012 55);
-  --muted-foreground: oklch(0.65 0.01 65);
-  --accent: oklch(0.35 0.03 50);
-  --accent-foreground: oklch(0.95 0.005 75);
+  --muted-foreground: oklch(0.68 0.01 65);
+  --accent: oklch(0.74 0.15 195);
+  --accent-foreground: oklch(0.16 0.04 230);
   --destructive: oklch(0.65 0.2 25);
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0 / 14%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.68 0.14 40);
-  --chart-1: oklch(0.68 0.14 40);
-  --chart-2: oklch(0.6 0.1 200);
+  --ring: oklch(0.78 0.16 85);
+  --chart-1: oklch(0.78 0.16 85);
+  --chart-2: oklch(0.74 0.15 195);
   --chart-3: oklch(0.72 0.12 90);
   --chart-4: oklch(0.65 0.13 300);
   --chart-5: oklch(0.68 0.15 15);
   --sidebar: oklch(0.22 0.012 55);
   --sidebar-foreground: oklch(0.95 0.005 75);
-  --sidebar-primary: oklch(0.68 0.14 40);
-  --sidebar-primary-foreground: oklch(0.2 0.01 55);
-  --sidebar-accent: oklch(0.35 0.03 50);
-  --sidebar-accent-foreground: oklch(0.95 0.005 75);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.68 0.14 40);
+  --sidebar-primary: oklch(0.78 0.16 85);
+  --sidebar-primary-foreground: oklch(0.2 0.05 60);
+  --sidebar-accent: oklch(0.74 0.15 195);
+  --sidebar-accent-foreground: oklch(0.16 0.04 230);
+  --sidebar-border: oklch(1 0 0 / 14%);
+  --sidebar-ring: oklch(0.78 0.16 85);
+
+  /*
+    The bevel effect — the single most era-defining detail. Every plate,
+    button, and card gets a light top-left edge and a dark bottom-right
+    edge, faking a light source the way a mid-90s console UI would. Flat
+    single-color borders/box-shadows can't do this on their own; the
+    .bevel-raised utility below is what actually applies it.
+  */
+  --bevel-light: oklch(0.92 0.03 85);
+  --bevel-dark: oklch(0.12 0.02 60);
 }
 
 @theme inline {
@@ -112,6 +100,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-bevel-light: var(--bevel-light);
+  --color-bevel-dark: var(--bevel-dark);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -124,6 +114,34 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /*
+    Raised bevel: light edge top-left, dark edge bottom-right, plus a chunky
+    drop shadow so plates feel physically stacked rather than flat. Applied
+    directly inside button.tsx/card.tsx (see those files) so every Button and
+    Card in the app gets it automatically — this is the one CSS
+    implementation every "chunky plate" surface shares, including the
+    freestanding Plate component (src/components/ui/plate.tsx) for anything
+    that isn't already a Card.
+  */
+  .bevel-raised {
+    box-shadow:
+      inset 2px 2px 0 0 var(--bevel-light),
+      inset -2px -2px 0 0 var(--bevel-dark),
+      0 3px 0 0 var(--bevel-dark),
+      0 6px 14px -4px oklch(0 0 0 / 55%);
+  }
+
+  /* The inverse — a recessed well, for anything that should read as a slot
+     rather than a raised plate (e.g. a sunken stat readout). Not wired into
+     any primitive by default; opt in with this class where it's wanted. */
+  .bevel-sunken {
+    box-shadow:
+      inset -2px -2px 0 0 var(--bevel-light),
+      inset 2px 2px 0 0 var(--bevel-dark);
   }
 }
 

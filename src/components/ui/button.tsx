@@ -8,15 +8,19 @@ const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
   {
     variants: {
+      // bevel-raised goes on every variant that's meant to read as a chunky
+      // physical plate (default/destructive/outline/secondary). ghost and
+      // link are deliberately flat/textual — bevel-ing them would fight
+      // their whole point, so they're left plain.
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+          "bevel-raised bg-primary text-primary-foreground hover:bg-primary/90 active:translate-y-px",
         destructive:
-          "bg-destructive text-white shadow-xs hover:bg-destructive/90",
+          "bevel-raised bg-destructive text-white hover:bg-destructive/90 active:translate-y-px",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground",
+          "bevel-raised border bg-background hover:bg-accent hover:text-accent-foreground active:translate-y-px",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+          "bevel-raised bg-secondary text-secondary-foreground hover:bg-secondary/80 active:translate-y-px",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
