@@ -6,13 +6,6 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlayerName } from "@/components/player-name";
@@ -266,192 +259,212 @@ export function EventCard({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start gap-3">
-          {event.photo_url ? (
-            <Image
-              src={event.photo_url}
-              alt=""
-              width={56}
-              height={56}
-              className="shrink-0 rounded-md object-cover"
-              style={{ width: 56, height: 56 }}
-            />
-          ) : null}
-          <div className="flex flex-col gap-1.5">
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              {event.name}
-              <Badge
-                variant={
-                  event.status === "resolved"
-                    ? "default"
-                    : event.status === "scoring"
-                      ? "outline"
-                      : "secondary"
-                }
-              >
-                {STATUS_LABEL[event.status]}
-              </Badge>
-              <Badge variant="outline">
-                {isPlacement ? "Placement" : "Absolute"}
-              </Badge>
-            </CardTitle>
-            {event.notes ? <CardDescription>{event.notes}</CardDescription> : null}
-            {event.status === "planned" && catchUpBonuses && catchUpBonuses.size > 0 ? (
-              <div className="flex flex-col gap-1 text-xs">
-                <span className="text-muted-foreground">Catch-up bonus this event:</span>
-                <div className="flex flex-col gap-1">
-                  {[...catchUpBonuses.entries()].map(([playerId, bonus]) => {
-                    const p = playerById.get(playerId);
-                    if (!p) return null;
-                    return (
-                      <span key={playerId} className="flex items-center justify-between gap-2">
-                        <PlayerName name={p.name} size="sm" />
-                        <CatchUpBadge bonus={bonus} />
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-            {groomUnlocked ? (
-              <Label className="text-muted-foreground inline-flex w-fit cursor-pointer items-center gap-1.5 text-xs">
-                <ImageUp className="size-3.5" />
-                {event.photo_url ? "Replace photo" : "Add photo"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handlePhoto}
-                  disabled={busy}
-                />
-              </Label>
-            ) : null}
+    <div className="bevel-raised bg-card flex flex-col gap-4 rounded-md p-4">
+      <div className="flex items-start gap-3">
+        {event.photo_url ? (
+          <Image
+            src={event.photo_url}
+            alt=""
+            width={64}
+            height={64}
+            className="border-bevel-dark shrink-0 rounded-md border-2 object-cover"
+            style={{ width: 64, height: 64 }}
+          />
+        ) : null}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-extruded text-lg sm:text-xl">{event.name}</h2>
+            <Badge
+              variant={
+                event.status === "resolved"
+                  ? "default"
+                  : event.status === "scoring"
+                    ? "outline"
+                    : "secondary"
+              }
+            >
+              {STATUS_LABEL[event.status]}
+            </Badge>
+            <Badge variant="outline">
+              {isPlacement ? "Placement" : "Absolute"}
+            </Badge>
           </div>
+          {event.notes ? <p className="text-muted-foreground text-sm">{event.notes}</p> : null}
+          {event.status === "planned" && catchUpBonuses && catchUpBonuses.size > 0 ? (
+            <div className="flex flex-col gap-1 text-xs">
+              <span className="font-display text-muted-foreground tracking-wide uppercase">
+                Catch-up bonus this event:
+              </span>
+              <div className="flex flex-col gap-1">
+                {[...catchUpBonuses.entries()].map(([playerId, bonus]) => {
+                  const p = playerById.get(playerId);
+                  if (!p) return null;
+                  return (
+                    <span key={playerId} className="flex items-center justify-between gap-2">
+                      <PlayerName name={p.name} size="sm" />
+                      <CatchUpBadge bonus={bonus} />
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+          {groomUnlocked ? (
+            <Label className="text-muted-foreground inline-flex w-fit cursor-pointer items-center gap-1.5 text-xs">
+              <ImageUp className="size-3.5" />
+              {event.photo_url ? "Replace photo" : "Add photo"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhoto}
+                disabled={busy}
+              />
+            </Label>
+          ) : null}
         </div>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="results">
-          <TabsList>
-            <TabsTrigger value="results">Results</TabsTrigger>
-            <TabsTrigger value="odds">Odds</TabsTrigger>
-            {bettingClosed ? <TabsTrigger value="bets">Bets</TabsTrigger> : null}
-          </TabsList>
+      </div>
 
-          <TabsContent value="results" className="flex flex-col gap-3 pt-3">
-            {error ? <p className="text-destructive text-sm">{error}</p> : null}
+      <Tabs defaultValue="results">
+        <TabsList className="bevel-sunken h-auto w-fit gap-1 rounded-md bg-transparent p-1">
+          <TabsTrigger
+            value="results"
+            className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            Results
+          </TabsTrigger>
+          <TabsTrigger
+            value="odds"
+            className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            Odds
+          </TabsTrigger>
+          {bettingClosed ? (
+            <TabsTrigger
+              value="bets"
+              className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              Bets
+            </TabsTrigger>
+          ) : null}
+        </TabsList>
 
-            {!groomUnlocked ? null : (
-              <div className="flex flex-wrap items-center gap-2">
-                {event.status === "planned" ? (
-                  <Button size="sm" onClick={startScoring} disabled={busy}>
-                    <Play className="size-4" />
-                    Start scoring
-                  </Button>
-                ) : null}
-                {(event.status === "scoring" || event.status === "resolved") && !editing ? (
-                  <Button size="sm" variant="outline" onClick={openEditing}>
-                    <Pencil className="size-4" />
-                    {event.status === "resolved" ? "Edit results" : "Enter results"}
-                  </Button>
-                ) : null}
-                {confirmingReset ? (
-                  <>
-                    <span className="text-sm">Clear results and reset to not started?</span>
-                    <Button size="sm" variant="destructive" onClick={doReset} disabled={busy}>
-                      Yes, reset
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setConfirmingReset(false)}>
-                      No
-                    </Button>
-                  </>
-                ) : event.status !== "planned" ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-muted-foreground"
-                    onClick={() => setConfirmingReset(true)}
-                  >
-                    <RotateCcw className="size-4" />
-                    Reset event
-                  </Button>
-                ) : null}
-                {confirmingCancel ? (
-                  <>
-                    <span className="text-sm">Cancel this event?</span>
-                    <Button size="sm" variant="destructive" onClick={doCancel} disabled={busy}>
-                      Yes, cancel
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setConfirmingCancel(false)}>
-                      No
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-muted-foreground"
-                    onClick={() => setConfirmingCancel(true)}
-                  >
-                    <X className="size-4" />
-                    Cancel event
-                  </Button>
-                )}
-              </div>
-            )}
+        <TabsContent value="results" className="flex flex-col gap-3 pt-3">
+          {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-            {editing ? (
-              <div className="flex flex-col gap-3 border-t pt-3">
-                {isPlacement ? (
-                  <RankedResultsEditor
-                    order={order}
-                    tied={tied}
-                    players={playerById}
-                    onReorder={setOrder}
-                    onToggleTie={toggleTie}
-                  />
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {players.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between gap-3">
-                        <PlayerName
-                          name={p.name}
-                          state={p.state ?? "??"}
-                          size="sm"
-                          photoUrl={p.photo_url}
-                        />
-                        <Input
-                          type="number"
-                          step="any"
-                          className="w-24"
-                          placeholder="result"
-                          value={rawDraft[p.id] ?? ""}
-                          onChange={(e) =>
-                            setRawDraft((d) => ({ ...d, [p.id]: e.target.value }))
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="flex gap-2 pt-1">
-                  <Button size="sm" variant="outline" onClick={() => saveResults(false)} disabled={busy}>
-                    Save draft
+          {!groomUnlocked ? null : (
+            <div className="flex flex-wrap items-center gap-2">
+              {event.status === "planned" ? (
+                <Button size="sm" onClick={startScoring} disabled={busy}>
+                  <Play className="size-4" />
+                  Start scoring
+                </Button>
+              ) : null}
+              {(event.status === "scoring" || event.status === "resolved") && !editing ? (
+                <Button size="sm" variant="outline" onClick={openEditing}>
+                  <Pencil className="size-4" />
+                  {event.status === "resolved" ? "Edit results" : "Enter results"}
+                </Button>
+              ) : null}
+              {confirmingReset ? (
+                <>
+                  <span className="text-sm">Clear results and reset to not started?</span>
+                  <Button size="sm" variant="destructive" onClick={doReset} disabled={busy}>
+                    Yes, reset
                   </Button>
-                  <Button size="sm" onClick={() => saveResults(true)} disabled={busy}>
-                    Finalize
+                  <Button size="sm" variant="outline" onClick={() => setConfirmingReset(false)}>
+                    No
                   </Button>
+                </>
+              ) : event.status !== "planned" ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-muted-foreground"
+                  onClick={() => setConfirmingReset(true)}
+                >
+                  <RotateCcw className="size-4" />
+                  Reset event
+                </Button>
+              ) : null}
+              {confirmingCancel ? (
+                <>
+                  <span className="text-sm">Cancel this event?</span>
+                  <Button size="sm" variant="destructive" onClick={doCancel} disabled={busy}>
+                    Yes, cancel
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setConfirmingCancel(false)}>
+                    No
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-muted-foreground"
+                  onClick={() => setConfirmingCancel(true)}
+                >
+                  <X className="size-4" />
+                  Cancel event
+                </Button>
+              )}
+            </div>
+          )}
+
+          {editing ? (
+            <div className="border-bevel-dark/40 flex flex-col gap-3 border-t pt-3">
+              {isPlacement ? (
+                <RankedResultsEditor
+                  order={order}
+                  tied={tied}
+                  players={playerById}
+                  onReorder={setOrder}
+                  onToggleTie={toggleTie}
+                />
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {players.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-3">
+                      <PlayerName
+                        name={p.name}
+                        state={p.state ?? "??"}
+                        size="sm"
+                        photoUrl={p.photo_url}
+                      />
+                      <Input
+                        type="number"
+                        step="any"
+                        className="w-24"
+                        placeholder="result"
+                        value={rawDraft[p.id] ?? ""}
+                        onChange={(e) =>
+                          setRawDraft((d) => ({ ...d, [p.id]: e.target.value }))
+                        }
+                      />
+                    </div>
+                  ))}
                 </div>
+              )}
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" variant="outline" onClick={() => saveResults(false)} disabled={busy}>
+                  Save draft
+                </Button>
+                <Button size="sm" onClick={() => saveResults(true)} disabled={busy}>
+                  Finalize
+                </Button>
               </div>
-            ) : event.status !== "planned" ? (
-              <div className="border-t pt-3">
-                <div className="grid grid-cols-[1.5rem_1fr_auto_auto_auto] items-center gap-x-3 gap-y-1.5 text-sm">
-                  <span className="text-muted-foreground text-xs">#</span>
-                  <span className="text-muted-foreground text-xs">Player</span>
-                  <span className="text-muted-foreground text-right text-xs">Pts</span>
-                  <span className="text-muted-foreground text-right text-xs">×</span>
-                  <span className="text-muted-foreground text-right text-xs">Total</span>
+            </div>
+          ) : event.status !== "planned" ? (
+            <div className="flex flex-col gap-3">
+              <div className="bevel-sunken overflow-x-auto rounded-md px-3 py-2">
+                <div className="grid min-w-[26rem] grid-cols-[1.5rem_1fr_auto_auto_auto] items-center gap-x-3 gap-y-1.5 text-sm">
+                  <span className="font-display text-muted-foreground text-[10px] uppercase">#</span>
+                  <span className="font-display text-muted-foreground text-[10px] uppercase">Player</span>
+                  <span className="font-display text-muted-foreground text-right text-[10px] uppercase">Pts</span>
+                  <span className="font-display text-muted-foreground text-right text-[10px] uppercase">×</span>
+                  <span className="font-display text-muted-foreground text-right text-[10px] uppercase">
+                    Total
+                  </span>
                   {finishingOrder.map((p, i) => {
                     const r = results.find((x) => x.player_id === p.id);
                     const hasResult = (isPlacement ? r?.position : r?.raw) != null;
@@ -462,46 +475,47 @@ export function EventCard({
                     return (
                       <div
                         key={p.id}
-                        className={cn("contents", !hasResult && "text-muted-foreground")}
+                        className={cn(
+                          "contents",
+                          !hasResult && "text-muted-foreground",
+                          "[&>*]:py-1",
+                          i % 2 === 1 && "[&>*]:bg-black/15",
+                        )}
                       >
-                        <span className="tabular-nums">{hasResult ? i + 1 : "—"}</span>
+                        <span className="font-score tabular-nums">{hasResult ? i + 1 : "—"}</span>
                         <span className="inline-flex min-w-0 items-center gap-1.5">
                           <PlayerName name={p.name} size="sm" />
                           {catchUpBonuses?.has(p.id) ? <CatchUpBadge bonus={catchUpBonus} /> : null}
                         </span>
-                        <span className="text-right tabular-nums">
+                        <span className="font-score text-right tabular-nums">
                           {points != null ? Math.round(points) : "—"}
                         </span>
-                        <span className="text-right tabular-nums">
+                        <span className="font-score text-right tabular-nums">
                           {multiplier.toFixed(1)}×
                         </span>
-                        <span className="text-right font-medium tabular-nums">
+                        <span className="font-score text-primary text-right font-medium tabular-nums">
                           {total != null ? Math.round(total) : "—"}
                         </span>
                       </div>
                     );
                   })}
                 </div>
-                {event.status === "resolved" ? (
-                  <div className="pt-3">
-                    <VictoryReplayButton event={event} results={results} players={players} />
-                  </div>
-                ) : null}
               </div>
-            ) : null}
-          </TabsContent>
-
-          <TabsContent value="odds" className="pt-3">
-            <EventOddsTable ranking={ranking} players={playerById} />
-          </TabsContent>
-
-          {bettingClosed ? (
-            <TabsContent value="bets" className="pt-3">
-              <EventBetsList bets={bets} players={playerById} />
-            </TabsContent>
+              {event.status === "resolved" ? <VictoryReplayButton event={event} results={results} players={players} /> : null}
+            </div>
           ) : null}
-        </Tabs>
-      </CardContent>
-    </Card>
+        </TabsContent>
+
+        <TabsContent value="odds" className="pt-3">
+          <EventOddsTable ranking={ranking} players={playerById} />
+        </TabsContent>
+
+        {bettingClosed ? (
+          <TabsContent value="bets" className="pt-3">
+            <EventBetsList bets={bets} players={playerById} />
+          </TabsContent>
+        ) : null}
+      </Tabs>
+    </div>
   );
 }

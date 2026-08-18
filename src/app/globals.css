@@ -170,6 +170,9 @@
      rather than a raised plate (e.g. a sunken stat readout). Not wired into
      any primitive by default; opt in with this class where it's wanted. */
   .bevel-sunken {
+    /* A recessed well needs its own fill — without one this reads as
+       floating on the page background instead of a distinct panel. */
+    background-color: color-mix(in oklch, var(--card) 55%, var(--bevel-dark));
     box-shadow:
       inset -2px -2px 0 0 var(--bevel-light),
       inset 2px 2px 0 0 var(--bevel-dark);

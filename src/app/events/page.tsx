@@ -2,15 +2,30 @@
 
 import { useEffect } from "react";
 import { CalendarDays } from "lucide-react";
+import Image from "next/image";
 
 import { AppNav } from "@/components/app-nav";
-import { EventCard } from "@/components/event-card";
 import { BonusEventsCard } from "@/components/bonus-events-card";
-import { PageHeading } from "@/components/page-heading";
+import { ButtonLegend } from "@/components/n64/button-legend";
+import { EventCard } from "@/components/event-card";
+import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { deriveScoreLines, upcomingCatchUp } from "@/lib/scoring/fromRows";
+import { cn } from "@/lib/utils";
 
+/**
+ * Events (docs/VISUAL_SPEC.md) — the /select roster-strip pattern applied to
+ * events instead of players: every event visible at once as a thumbnail
+ * strip up top, one focused event's full detail below. Unlike /select
+ * there's no separate "confirm" step — moving the cursor (D-pad, click, or
+ * Tab) is itself the selection, since this screen doesn't route anywhere.
+ *
+ * The detail panel is the real EventCard (src/components/event-card.tsx,
+ * reskinned in place — same groom-tool logic as before: start scoring,
+ * enter/edit results, cancel/reset, photo upload, odds, bets, victory
+ * replay), just showing one event at a time instead of all of them stacked.
+ */
 export default function EventsPage() {
   const {
     players,
@@ -50,58 +65,100 @@ export default function EventsPage() {
     catchUpByEvent.set(preview.eventId, preview.bonuses);
   }
 
+  const { index, getItemProps } = useMenuNav({ count: events.length, columns: 1 });
+  const focused = events[index] ?? null;
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
-      <header className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <PageHeading>Events</PageHeading>
-          <p className="text-muted-foreground text-sm">
-            Start scoring, enter results, or cancel an event.
+    <main className="relative min-h-dvh px-4 py-6 pb-28 sm:px-8 sm:pb-6">
+      <div className="mx-auto flex max-w-4xl flex-col gap-5">
+        <header className="flex flex-col items-center gap-3 text-center">
+          <h1 className="text-extruded text-xl sm:text-2xl">Events</h1>
+          <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
+            Start scoring, enter results, or cancel an event
           </p>
-        </div>
-        <AppNav />
-      </header>
+          <AppNav />
+        </header>
 
-      {error ? (
-        <p className="text-destructive text-sm">{error}</p>
-      ) : !ready && loading ? (
-        <p className="text-muted-foreground text-sm">Loading…</p>
-      ) : (
-        <>
-          {events.length === 0 ? (
-            <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-              <CalendarDays className="size-4" />
-              No events configured yet.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {events.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  players={players}
-                  results={eventResults.filter((r) => r.event_id === event.id)}
-                  multipliers={multipliers.filter((m) => m.event_id === event.id)}
-                  ranking={eventRankings
-                    .filter((r) => r.event_id === event.id)
-                    .map((r) => ({ playerId: r.player_id, rank: r.rank }))}
-                  bets={perEventBets.filter((b) => b.event_id === event.id)}
-                  groomUnlocked={groomUnlocked}
-                  catchUpBonuses={catchUpByEvent.get(event.id) ?? null}
-                />
-              ))}
-            </div>
-          )}
+        {error ? (
+          <p className="text-destructive text-center text-sm">{error}</p>
+        ) : !ready && loading ? (
+          <p className="text-muted-foreground text-center text-sm">Loading…</p>
+        ) : events.length === 0 ? (
+          <p className="text-muted-foreground flex items-center justify-center gap-1.5 text-sm">
+            <CalendarDays className="size-4" />
+            No events configured yet.
+          </p>
+        ) : (
+          <>
+            {/* Event strip. */}
+            <ul className="mx-auto grid w-full max-w-4xl grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
+              {events.map((event, i) => {
+                const isActive = i === index;
+                return (
+                  <li key={event.id} className="min-w-0">
+                    <button
+                      type="button"
+                      {...getItemProps(i)}
+                      aria-pressed={isActive}
+                      className={cn(
+                        "bevel-raised bg-card group w-full min-w-0 rounded-md p-1 transition-transform duration-75 focus:outline-none",
+                        isActive && "is-cursor -translate-y-1",
+                      )}
+                    >
+                      <span className="block aspect-square w-full overflow-hidden rounded-sm bg-black/20">
+                        {event.photo_url ? (
+                          <Image
+                            src={event.photo_url}
+                            alt=""
+                            width={96}
+                            height={96}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center">
+                            <CalendarDays className="text-muted-foreground size-6" />
+                          </span>
+                        )}
+                      </span>
+                      <span
+                        className={cn(
+                          "font-display mt-1 block truncate text-[10px] tracking-wider uppercase",
+                          isActive ? "text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {event.name}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
 
-          {players.length > 0 ? (
-            <BonusEventsCard
-              players={players}
-              bonusEvents={bonusEvents}
-              groomUnlocked={groomUnlocked}
-            />
-          ) : null}
-        </>
-      )}
+            <ButtonLegend entries={[{ button: "↔", action: "Pick event" }]} />
+
+            {/* Focused event's full detail. */}
+            {focused ? (
+              <EventCard
+                key={focused.id}
+                event={focused}
+                players={players}
+                results={eventResults.filter((r) => r.event_id === focused.id)}
+                multipliers={multipliers.filter((m) => m.event_id === focused.id)}
+                ranking={eventRankings
+                  .filter((r) => r.event_id === focused.id)
+                  .map((r) => ({ playerId: r.player_id, rank: r.rank }))}
+                bets={perEventBets.filter((b) => b.event_id === focused.id)}
+                groomUnlocked={groomUnlocked}
+                catchUpBonuses={catchUpByEvent.get(focused.id) ?? null}
+              />
+            ) : null}
+
+            {players.length > 0 ? (
+              <BonusEventsCard players={players} bonusEvents={bonusEvents} groomUnlocked={groomUnlocked} />
+            ) : null}
+          </>
+        )}
+      </div>
     </main>
   );
 }

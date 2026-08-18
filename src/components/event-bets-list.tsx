@@ -29,7 +29,7 @@ export function EventBetsList({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="bevel-sunken flex flex-col gap-1.5 rounded-md p-2">
       {bets.map((bet) => {
         const bettor = players.get(bet.player_id);
         const pick = players.get(bet.pick_player_id);
@@ -37,7 +37,7 @@ export function EventBetsList({
         return (
           <div
             key={bet.id}
-            className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
+            className="bevel-raised bg-card flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm"
           >
             <span className="flex flex-wrap items-center gap-1.5">
               <PlayerName name={bettor.name} state={bettor.state ?? "??"} size="sm" />
