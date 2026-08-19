@@ -103,13 +103,6 @@ export interface BonusEventRow {
   created_at: string;
 }
 
-export interface PowerMoveRow {
-  id: 1;
-  used: boolean;
-  note: string | null;
-  used_at: string | null;
-}
-
 export interface AppSettingsRow {
   id: 1;
   /** Single global start-screen video (docs/VISUAL_SPEC.md), not per-player. */

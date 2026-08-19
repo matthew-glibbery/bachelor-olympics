@@ -165,7 +165,32 @@ describe("deriveScoreLines", () => {
 });
 
 describe("upcomingCatchUp", () => {
-  it("previews the catch-up bonus for the next planned event", () => {
+  it("previews the catch-up bonus for the event actually being scored", () => {
+    const events: EventRow[] = [
+      {
+        ...baseEvent,
+        id: "e1",
+        scoring_mode: "placement",
+        status: "resolved",
+        sort_order: 0,
+        resolved_at: "2026-01-01T00:00:00Z",
+      },
+      { ...baseEvent, id: "e2", scoring_mode: "placement", status: "scoring", sort_order: 1 },
+    ];
+    const results: EventResultRow[] = [
+      { event_id: "e1", player_id: "p1", position: 1, raw: null },
+      { event_id: "e1", player_id: "p2", position: 2, raw: null },
+    ];
+    const preview = upcomingCatchUp(events, results, [], ["p1", "p2"]);
+    expect(preview?.eventId).toBe("e2");
+    expect(preview?.bonuses.get("p2")).toBeCloseTo(0.3, 5);
+    expect(preview?.bonuses.has("p1")).toBe(false);
+  });
+
+  it("returns null when nothing is currently being scored, even if a planned event exists", () => {
+    // The real play order routinely diverges from configured sort_order, so
+    // a merely "planned" event is never assumed to be next — only an event
+    // that's actually been started (status "scoring") qualifies.
     const events: EventRow[] = [
       {
         ...baseEvent,
@@ -181,10 +206,16 @@ describe("upcomingCatchUp", () => {
       { event_id: "e1", player_id: "p1", position: 1, raw: null },
       { event_id: "e1", player_id: "p2", position: 2, raw: null },
     ];
-    const preview = upcomingCatchUp(events, results, [], ["p1", "p2"]);
+    expect(upcomingCatchUp(events, results, [], ["p1", "p2"])).toBeNull();
+  });
+
+  it("targets the scoring event even when a planned event has a lower sort_order", () => {
+    const events: EventRow[] = [
+      { ...baseEvent, id: "e1", scoring_mode: "placement", status: "planned", sort_order: 0 },
+      { ...baseEvent, id: "e2", scoring_mode: "placement", status: "scoring", sort_order: 5 },
+    ];
+    const preview = upcomingCatchUp(events, [], [], ["p1", "p2"]);
     expect(preview?.eventId).toBe("e2");
-    expect(preview?.bonuses.get("p2")).toBeCloseTo(0.3, 5);
-    expect(preview?.bonuses.has("p1")).toBe(false);
   });
 
   it("returns null when every event is already resolved", () => {

@@ -108,14 +108,20 @@ export default function MultipliersPage() {
     setSaving(true);
     setError(null);
     try {
+      // Only the sliders that actually moved — writing every planned event
+      // every save (even ones still sitting at their already-committed
+      // value) meant a single click could upsert 6-8 unchanged rows. Each
+      // row Postgres touches fires its own realtime event, so that turned
+      // one save into a burst of redundant refetches app-wide — most of
+      // what made saving feel slow (see gameStore.ts's scheduleRefetch).
       const entries = events
         .filter((e) => e.status === "planned")
-        .map((e) => ({
-          player_id: player.id,
-          event_id: e.id,
-          value: draft[e.id] ?? MULTIPLIER_DEFAULT,
-        }));
-      await upsertMultipliers(getSupabaseBrowserClient(), entries);
+        .map((e) => ({ event_id: e.id, value: draft[e.id] ?? MULTIPLIER_DEFAULT }))
+        .filter((e) => e.value !== (committed[e.event_id] ?? MULTIPLIER_DEFAULT))
+        .map((e) => ({ player_id: player.id, ...e }));
+      if (entries.length > 0) {
+        await upsertMultipliers(getSupabaseBrowserClient(), entries);
+      }
       setJustSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

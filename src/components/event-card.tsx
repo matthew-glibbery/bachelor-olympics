@@ -47,8 +47,11 @@ const STATUS_LABEL: Record<EventRow["status"], string> = {
   cancelled: "Cancelled",
 };
 
-/** "+30%" style badge next to a trailing player's name — see EventCardProps.catchUpBonuses. */
-function CatchUpBadge({ bonus }: { bonus: number }) {
+/** "+30%" style badge next to a trailing player's name — see
+ * EventCardProps.catchUpBonuses. Exported: the standalone catch-up-bonus
+ * section on /events (src/app/events/page.tsx) uses the same badge, since
+ * it moved out of this card. */
+export function CatchUpBadge({ bonus }: { bonus: number }) {
   return (
     <Badge variant="outline" className="text-primary border-primary/40 gap-1">
       <Flame className="size-3" />+{Math.round(bonus * 100)}%
@@ -301,25 +304,6 @@ export function EventCard({
             </Badge>
           </div>
           {event.notes ? <p className="text-muted-foreground text-sm">{event.notes}</p> : null}
-          {event.status === "planned" && catchUpBonuses && catchUpBonuses.size > 0 ? (
-            <div className="flex flex-col gap-1 text-xs">
-              <span className="font-display text-muted-foreground tracking-wide uppercase">
-                Catch-up bonus this event:
-              </span>
-              <div className="flex flex-col gap-1">
-                {[...catchUpBonuses.entries()].map(([playerId, bonus]) => {
-                  const p = playerById.get(playerId);
-                  if (!p) return null;
-                  return (
-                    <span key={playerId} className="flex items-center justify-between gap-2">
-                      <PlayerName name={p.name} size="sm" />
-                      <CatchUpBadge bonus={bonus} />
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
           {groomUnlocked ? (
             <Label className="text-muted-foreground inline-flex w-fit cursor-pointer items-center gap-1.5 text-xs">
               <ImageUp className="size-3.5" />
@@ -481,11 +465,18 @@ export function EventCard({
                   painted per-cell, and a real gap left unpainted vertical
                   slots through every striped row — it read as a rendering
                   fault rather than a stripe. */}
-              <div className="grid grid-cols-[2rem_1fr_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_auto_auto]">
+              {/* The two `sm:block`-only empty spans are spacer columns, not
+                  a real `gap-x` (see the note above on why) — they widen
+                  the previously-cramped run of Pts/×/Total without breaking
+                  the per-cell zebra stripe. Hidden on mobile along with the
+                  columns they separate. */}
+              <div className="grid grid-cols-[2rem_1fr_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_0.75rem_auto_0.75rem_auto]">
                 <span className="font-display text-muted-foreground text-[10px] uppercase">#</span>
                 <span className="font-display text-muted-foreground text-[10px] uppercase">Player</span>
                 <span className="font-display text-muted-foreground hidden text-right text-[10px] uppercase sm:block">Pts</span>
+                <span className="hidden sm:block" aria-hidden />
                 <span className="font-display text-muted-foreground hidden text-right text-[10px] uppercase sm:block">×</span>
+                <span className="hidden sm:block" aria-hidden />
                 <span className="font-display text-muted-foreground text-right text-[10px] uppercase">
                   Total
                 </span>
@@ -514,9 +505,11 @@ export function EventCard({
                       <span className="font-score hidden text-right tabular-nums sm:block">
                         {points != null ? Math.round(points) : "—"}
                       </span>
+                      <span className="hidden sm:block" aria-hidden />
                       <span className="font-score hidden text-right tabular-nums sm:block">
                         {multiplier.toFixed(1)}×
                       </span>
+                      <span className="hidden sm:block" aria-hidden />
                       <span className="font-score text-primary text-right font-medium tabular-nums">
                         {total != null ? Math.round(total) : "—"}
                       </span>

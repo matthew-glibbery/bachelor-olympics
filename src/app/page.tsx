@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingUp } from "lucide-react";
+import { ListOrdered, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
 import { CharacterRender } from "@/components/n64/character-render";
@@ -152,87 +152,94 @@ export default function Home() {
               })}
             </section>
 
-            {/* Full standings. The table used to be `min-w-[30rem]` inside a
+            {/* Full standings, in the same raised-card `Panel` frame as the
+                Progress chart below it — this used to be a bare
+                `bevel-sunken` table sitting directly on the page background,
+                one bevel treatment for this section and a different one for
+                the very next section down. Now both read as the same kind
+                of thing. The table used to be `min-w-[30rem]` inside a
                 horizontal scroller, which on a 390–430px phone — the device
                 this is actually used on — pushed "Adjusted" off the right
                 edge. That's the one number that decides the game, hidden
                 behind a sideways scroll nobody would think to try. "Raw" is
                 the expendable column (it's only interesting next to the
                 adjusted figure), so it drops out below `sm` instead. */}
-            <div className="bevel-sunken bg-sunken rounded-md">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-bevel-dark border-b-2">
-                    {["", "Competitor", "Raw", "Adjusted"].map((h, i) => (
-                      <th
-                        key={h || i}
-                        scope="col"
-                        className={cn(
-                          "font-display text-muted-foreground px-3 py-2 text-[10px] tracking-[0.15em] uppercase",
-                          i >= 2 ? "text-right" : "text-left",
-                          i === 2 && "hidden sm:table-cell",
-                        )}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ranked.map((total, i) => {
-                    const player = players.find((p) => p.id === total.playerId);
-                    if (!player) return null;
-                    const isYou = player.id === selectedPlayerId;
-                    const color = colorByPlayer[player.id]!;
+            <Panel title="Standings" icon={ListOrdered}>
+              <div className="bevel-sunken bg-sunken rounded-md">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-bevel-dark border-b-2">
+                      {["", "Competitor", "Raw", "Adjusted"].map((h, i) => (
+                        <th
+                          key={h || i}
+                          scope="col"
+                          className={cn(
+                            "font-display text-muted-foreground px-3 py-2 text-[10px] tracking-[0.15em] uppercase",
+                            i >= 2 ? "text-right" : "text-left",
+                            i === 2 && "hidden sm:table-cell",
+                          )}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ranked.map((total, i) => {
+                      const player = players.find((p) => p.id === total.playerId);
+                      if (!player) return null;
+                      const isYou = player.id === selectedPlayerId;
+                      const color = colorByPlayer[player.id]!;
 
-                    return (
-                      <tr
-                        key={player.id}
-                        className={cn(
-                          "border-bevel-dark/40 border-b last:border-b-0",
-                          i % 2 === 1 && "bg-black/15",
-                          isYou && "bg-card/70",
-                        )}
-                      >
-                        <td className="px-3 py-2">
-                          <span
-                            className="font-display flex size-7 items-center justify-center rounded-sm text-sm"
-                            style={{ backgroundColor: color, color: "oklch(0.14 0.04 275)" }}
-                          >
-                            {i + 1}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2">
-                          <PlayerName
-                            name={player.name}
-                            state={player.state ?? "??"}
-                            nickname={player.nickname}
-                            photoUrl={player.photo_url}
-                          />
-                        </td>
-                        {/* Whole numbers, not 1dp. PRODUCT_SPEC.md →
-                            Scoring is explicit that "no scoring currency in
-                            this app ever shows a fraction, full stop" — and
-                            the same figure already rendered as a whole
-                            number on the event card, so the leaderboard was
-                            both off-spec and disagreeing with another
-                            screen about the same player's score. */}
-                        <td className="font-score text-muted-foreground hidden px-3 py-2 text-right text-sm tabular-nums sm:table-cell">
-                          {Math.round(total.raw)}
-                        </td>
-                        <td className="font-score text-primary px-3 py-2 text-right text-base tabular-nums">
-                          {Math.round(total.adjusted)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      return (
+                        <tr
+                          key={player.id}
+                          className={cn(
+                            "border-bevel-dark/40 border-b last:border-b-0",
+                            i % 2 === 1 && "bg-black/15",
+                            isYou && "bg-card/70",
+                          )}
+                        >
+                          <td className="px-3 py-2">
+                            <span
+                              className="font-display flex size-7 items-center justify-center rounded-sm text-sm"
+                              style={{ backgroundColor: color, color: "oklch(0.14 0.04 275)" }}
+                            >
+                              {i + 1}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <PlayerName
+                              name={player.name}
+                              state={player.state ?? "??"}
+                              nickname={player.nickname}
+                              photoUrl={player.photo_url}
+                            />
+                          </td>
+                          {/* Whole numbers, not 1dp. PRODUCT_SPEC.md →
+                              Scoring is explicit that "no scoring currency in
+                              this app ever shows a fraction, full stop" — and
+                              the same figure already rendered as a whole
+                              number on the event card, so the leaderboard was
+                              both off-spec and disagreeing with another
+                              screen about the same player's score. */}
+                          <td className="font-score text-muted-foreground hidden px-3 py-2 text-right text-sm tabular-nums sm:table-cell">
+                            {Math.round(total.raw)}
+                          </td>
+                          <td className="font-score text-primary px-3 py-2 text-right text-base tabular-nums">
+                            {Math.round(total.adjusted)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-            <p className="font-display text-muted-foreground text-center text-[9px] tracking-[0.15em] uppercase">
-              Adjusted = raw points × that event&apos;s multiplier, plus any bonus-event or overall-bet points
-            </p>
+              <p className="font-display text-muted-foreground text-center text-[9px] tracking-[0.15em] uppercase">
+                Adjusted = raw points × that event&apos;s multiplier, plus any bonus-event or overall-bet points
+              </p>
+            </Panel>
 
             {/* Progress panel — same ProgressChart as before, reskinned frame.
                 Sits below the leaderboard now, not above it. */}

@@ -15,7 +15,6 @@ import type {
   OverallBetRow,
   PerEventBetRow,
   PlayerRow,
-  PowerMoveRow,
 } from "./database.types";
 import { eventSeedRows } from "./events";
 
@@ -80,17 +79,6 @@ export function fetchPerEventBets(client: SupabaseClient): Promise<PerEventBetRo
 export async function fetchBonusEvents(client: SupabaseClient): Promise<BonusEventRow[]> {
   const rows = await selectAll<BonusEventRow>(client, "bonus_events");
   return [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
-}
-
-/** The single shared power_move row (PRODUCT_SPEC.md → Extras). */
-export async function fetchPowerMove(client: SupabaseClient): Promise<PowerMoveRow> {
-  const { data, error } = await client
-    .from("power_move")
-    .select("*")
-    .eq("id", 1)
-    .single();
-  if (error) throw new Error(`power_move: ${error.message}`);
-  return data as PowerMoveRow;
 }
 
 /** The single shared app_settings row (currently just the boot video). */

@@ -6,10 +6,10 @@ any scoring, betting, or multiplier logic — the rules here are specific and
 were arrived at deliberately; don't infer or simplify them.
 
 The groom is one of the competitors — he plays and scores points like everyone
-else — and he *also* officiates: he sets the odds, enters scores, and gets the
-one-time power move. This means he sets odds on a field that includes himself;
-that conflict of interest is a deliberate, accepted trade-off (the players trust
-him, and no one else knows all the competitors well enough to set odds credibly).
+else — and he *also* officiates: he sets the odds and enters scores. This means
+he sets odds on a field that includes himself; that conflict of interest is a
+deliberate, accepted trade-off (the players trust him, and no one else knows
+all the competitors well enough to set odds credibly).
 
 ## Events
 
@@ -261,11 +261,6 @@ If a pre-planned event gets cancelled (weather, logistics, whatever):
 
 ## Extras (not core scoring, but part of the weekend)
 
-- **Groom's power move**: the groom gets exactly one intervention to use at
-  any point in the weekend — something like doubling a specific bet's stakes,
-  or forcing a rematch. This is a manual, one-off admin action in the app
-  (a button the groom can hit once), not something that needs elaborate
-  rules — the fun is in the surprise and timing, not the mechanic.
 - **Theming**: opening ceremony with player intros/nicknames, a real medal
   podium for top 3 at the end, and "leaderboard" as the label for the
   standings screen. (Reversed from an earlier decision recorded here as

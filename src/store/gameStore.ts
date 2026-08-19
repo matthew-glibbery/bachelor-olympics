@@ -17,7 +17,6 @@ import {
   fetchOverallBets,
   fetchPerEventBets,
   fetchPlayers,
-  fetchPowerMove,
 } from "@/lib/data/queries";
 import type {
   AppSettingsRow,
@@ -29,7 +28,6 @@ import type {
   OverallBetRow,
   PerEventBetRow,
   PlayerRow,
-  PowerMoveRow,
 } from "@/lib/data/database.types";
 
 const REALTIME_TABLES = [
@@ -42,7 +40,6 @@ const REALTIME_TABLES = [
   "overall_bets",
   "per_event_bets",
   "bonus_events",
-  "power_move",
 ] as const;
 
 interface GameState {
@@ -54,7 +51,6 @@ interface GameState {
   overallBets: OverallBetRow[];
   perEventBets: PerEventBetRow[];
   bonusEvents: BonusEventRow[];
-  powerMove: PowerMoveRow | null;
   appSettings: AppSettingsRow | null;
   loading: boolean;
   error: string | null;
@@ -77,7 +73,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   overallBets: [],
   perEventBets: [],
   bonusEvents: [],
-  powerMove: null,
   appSettings: null,
   loading: false,
   error: null,
@@ -98,7 +93,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         overallBets,
         perEventBets,
         bonusEvents,
-        powerMove,
       ] = await Promise.all([
         fetchPlayers(client),
         fetchEvents(client),
@@ -108,7 +102,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         fetchOverallBets(client),
         fetchPerEventBets(client),
         fetchBonusEvents(client),
-        fetchPowerMove(client),
       ]);
       // Fetched separately and allowed to fail without taking down the rest
       // of the app: app_settings is a newer table, so until its migration has
@@ -125,7 +118,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         overallBets,
         perEventBets,
         bonusEvents,
-        powerMove,
         appSettings,
         loading: false,
         ready: true,
@@ -135,28 +127,59 @@ export const useGameStore = create<GameState>((set, get) => ({
       return;
     }
 
-    // Any change on any game table triggers a full refetch. Simpler and safer
-    // than patching individual rows in place, and cheap enough at this scale
-    // (8 players, 8-9 events) to just re-pull everything on every change.
+    // Any change on any game table triggers a refetch (debounced — see
+    // scheduleRefetch below). Simpler and safer than patching individual
+    // rows in place, and cheap enough at this scale (8 players, 8-9 events)
+    // to just re-pull everything.
     channel = client
       .channel("game-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "players" }, () =>
-        refetch(client, set),
+        scheduleRefetch(client, set),
       );
     for (const table of REALTIME_TABLES.slice(1)) {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, () =>
-        refetch(client, set),
+        scheduleRefetch(client, set),
       );
     }
     channel.subscribe();
   },
 
   disconnect: () => {
+    if (refetchTimer !== undefined) {
+      clearTimeout(refetchTimer);
+      refetchTimer = undefined;
+    }
     channel?.unsubscribe();
     channel = undefined;
     set({ ready: false });
   },
 }));
+
+let refetchTimer: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Coalesces a burst of realtime events into one refetch. A single multi-row
+ * write (e.g. saving several multiplier sliders in one upsert, or
+ * `setEventRanking`'s wipe-then-insert) fires one `postgres_changes` message
+ * per row Postgres actually touched — without this, that meant N *separate*,
+ * concurrent, un-deduplicated refetches (9 parallel queries each) for what
+ * the user experienced as a single "Save" click. That pile-up is what read
+ * as saving being slow: the write itself lands in well under a second, but
+ * the page kept visibly working through a queue of redundant refetches
+ * after it. A short debounce collapses the whole burst into one refetch
+ * fired after it settles — still effectively real-time (300ms), just no
+ * longer quadratic in the number of rows a single action touches.
+ */
+function scheduleRefetch(
+  client: ReturnType<typeof getSupabaseBrowserClient>,
+  set: (partial: Partial<GameState>) => void,
+) {
+  if (refetchTimer !== undefined) clearTimeout(refetchTimer);
+  refetchTimer = setTimeout(() => {
+    refetchTimer = undefined;
+    void refetch(client, set);
+  }, 300);
+}
 
 async function refetch(
   client: ReturnType<typeof getSupabaseBrowserClient>,
@@ -171,7 +194,6 @@ async function refetch(
     overallBets,
     perEventBets,
     bonusEvents,
-    powerMove,
   ] = await Promise.all([
     fetchPlayers(client),
     fetchEvents(client),
@@ -181,7 +203,6 @@ async function refetch(
     fetchOverallBets(client),
     fetchPerEventBets(client),
     fetchBonusEvents(client),
-    fetchPowerMove(client),
   ]);
   const appSettings = await fetchAppSettings(client).catch(() => null);
   set({
@@ -193,7 +214,6 @@ async function refetch(
     overallBets,
     perEventBets,
     bonusEvents,
-    powerMove,
     appSettings,
   });
 }
