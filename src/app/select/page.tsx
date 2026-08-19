@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 import { CharacterRender } from "@/components/n64/character-render";
 import { Nameplate } from "@/components/n64/nameplate";
@@ -76,7 +75,7 @@ export default function SelectPage() {
 
   const confirmingPlayer = players.find((p) => p.id === confirmingPlayerId) ?? null;
 
-  const { index, getItemProps } = useMenuNav({
+  const { index, setIndex, getItemProps } = useMenuNav({
     count: players.length,
     columns: 1,
     initialIndex,
@@ -98,16 +97,8 @@ export default function SelectPage() {
       <Starfield className="opacity-60" />
 
       <div className="relative flex min-h-dvh flex-col gap-4 px-4 py-6 sm:px-8">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/start"
-            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium tracking-wide uppercase transition-colors"
-          >
-            <ArrowLeft className="size-3.5" />
-            Back
-          </Link>
+        <div className="flex items-center justify-center">
           <h1 className="extruded text-lg sm:text-2xl">Choose your character</h1>
-          <span className="w-10" aria-hidden />
         </div>
 
         {!ready ? (
@@ -136,6 +127,18 @@ export default function SelectPage() {
                     <button
                       type="button"
                       {...getItemProps(i)}
+                      // Override the default click-to-confirm: on a
+                      // console menu, moving the cursor here (D-pad, or
+                      // hovering with a mouse) already previews the
+                      // character centre-stage, but a touch tap has no
+                      // separate "hover" step — without this override,
+                      // the very first tap on a roster tile locked in that
+                      // pick immediately, with no chance to browse first
+                      // and no visible way to undo it. Tapping now only
+                      // previews, same as hover/D-pad; "Let's go" below
+                      // the focused character is the one deliberate
+                      // confirm action, for every input method.
+                      onClick={() => setIndex(i)}
                       aria-pressed={isActive}
                       className={cn(
                         "group w-full min-w-0 rounded-md p-1 transition-transform duration-75 focus:outline-none",
@@ -208,6 +211,18 @@ export default function SelectPage() {
                     color={colorByPlayer[focused.id]!}
                     className="anim-pop-in"
                   />
+
+                  {/* The one deliberate confirm action (also what A/Enter
+                      triggers via useMenuNav's onConfirm) — plays the
+                      player's confirm clip if they have one, then routes
+                      in. */}
+                  <button
+                    type="button"
+                    onClick={() => onConfirm(index)}
+                    className="bevel-raised is-cursor bg-primary text-primary-foreground font-display mt-1 rounded-md px-8 py-3 text-sm tracking-widest uppercase focus-visible:outline-none"
+                  >
+                    Let&apos;s go ▶
+                  </button>
                 </>
               ) : null}
             </div>
@@ -224,6 +239,8 @@ export default function SelectPage() {
  * ends, or immediately on tap/keypress (skippable, doesn't trap anyone).
  */
 function ConfirmClip({ videoUrl, onDone }: { videoUrl: string; onDone: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   useEffect(() => {
     function onKey() {
       onDone();
@@ -231,6 +248,17 @@ function ConfirmClip({ videoUrl, onDone }: { videoUrl: string; onDone: () => voi
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onDone]);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    // Same mobile-autoplay fix as start/page.tsx's boot video and
+    // character-render.tsx's clips: `autoPlay` alone isn't reliable on
+    // mobile Safari/Chrome, so set `muted` as a real DOM property and call
+    // `.play()` imperatively.
+    v.muted = true;
+    v.play().catch(() => {});
+  }, [videoUrl]);
 
   return (
     <button
@@ -240,6 +268,7 @@ function ConfirmClip({ videoUrl, onDone }: { videoUrl: string; onDone: () => voi
       className="bg-background fixed inset-0 z-50 flex h-dvh w-dvw cursor-pointer items-center justify-center overflow-hidden"
     >
       <video
+        ref={videoRef}
         src={videoUrl}
         autoPlay
         muted

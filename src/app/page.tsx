@@ -195,10 +195,25 @@ export default function Home() {
                         <tr
                           key={player.id}
                           className={cn(
-                            "border-bevel-dark/40 border-b last:border-b-0",
-                            i % 2 === 1 && "bg-black/15",
-                            isYou && "bg-card/70",
+                            "border-bevel-dark/40 border-b-2 last:border-b-0",
+                            i % 2 === 1 && !isYou && "bg-black/15",
+                            // The previous highlight was a flat 70%-opacity
+                            // card tint — barely distinguishable from the
+                            // zebra striping already on the table. A left
+                            // border in the player's own colour (same colour
+                            // as their rank badge and chart line elsewhere on
+                            // this screen) plus a real background tint reads
+                            // unambiguously as "this row is different."
+                            isYou && "border-l-4",
                           )}
+                          style={
+                            isYou
+                              ? {
+                                  backgroundColor: `color-mix(in oklab, ${color} 18%, transparent)`,
+                                  borderLeftColor: color,
+                                }
+                              : undefined
+                          }
                         >
                           <td className="px-3 py-2">
                             <span
@@ -209,12 +224,19 @@ export default function Home() {
                             </span>
                           </td>
                           <td className="px-3 py-2">
-                            <PlayerName
-                              name={player.name}
-                              state={player.state ?? "??"}
-                              nickname={player.nickname}
-                              photoUrl={player.photo_url}
-                            />
+                            <span className="flex items-center gap-2">
+                              <PlayerName
+                                name={player.name}
+                                state={player.state ?? "??"}
+                                nickname={player.nickname}
+                                photoUrl={player.photo_url}
+                              />
+                              {isYou ? (
+                                <span className="font-display text-primary shrink-0 text-[9px] tracking-widest uppercase">
+                                  You
+                                </span>
+                              ) : null}
+                            </span>
                           </td>
                           {/* Whole numbers, not 1dp. PRODUCT_SPEC.md →
                               Scoring is explicit that "no scoring currency in
@@ -248,7 +270,7 @@ export default function Home() {
               icon={TrendingUp}
               description="Cumulative points after each event or bonus event, in the order they actually happened."
             >
-              <ProgressChart players={players} series={series} />
+              <ProgressChart players={players} series={series} currentPlayerId={selectedPlayerId} />
             </Panel>
           </>
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { GameLogo } from "@/components/n64/game-logo";
@@ -69,6 +69,20 @@ export default function StartPage() {
 
   const bootVideoUrl = appSettings?.boot_video_url ?? null;
 
+  const bootVideoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = bootVideoRef.current;
+    if (!v) return;
+    // The `autoPlay` attribute alone is unreliable on mobile Safari/Chrome —
+    // same fix already used for character clips (character-render.tsx):
+    // explicitly set `muted` as a DOM property (not just the JSX attribute)
+    // and call `.play()` imperatively, catching the rejection autoplay
+    // policies can still throw rather than letting it become an unhandled
+    // rejection.
+    v.muted = true;
+    v.play().catch(() => {});
+  }, [bootVideoUrl]);
+
   return (
     <main
       onClick={skipOrStart}
@@ -76,6 +90,7 @@ export default function StartPage() {
     >
       {bootVideoUrl ? (
         <video
+          ref={bootVideoRef}
           src={bootVideoUrl}
           autoPlay
           muted
