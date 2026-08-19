@@ -2,6 +2,70 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-19 (4) — `/bets` rework: overall picks as a roster list, per-event bets view-only
+
+User ask: make picking the overall win/top3 bet feel like the Odds tab's
+per-event betting (event-odds-betting.tsx) — a roster list with Win/Place
+columns and buttons, not the old two `<select>` dropdowns. Once the weekend
+starts (any event leaves "planned"), that same list should re-sort by
+however many picks each candidate received and swap the button columns for
+the photos of whoever picked them. Separately: stop letting people place
+new per-event bets from `/bets` at all (that's the Odds tab's job now,
+since #23–#24 put a full wager form there) — this page should just be a
+single read view of a player's own per-event bets, past and future, with
+edit/cancel for whichever ones are still on a "planned" event. 153 tests
+(unchanged — pure UI rework, no new domain logic), lint/typecheck/build all
+green.
+
+- **New `src/components/overall-betting.tsx`**, replaces the two
+  `OVERALL_BET_TYPES.map(...)` dropdown blocks and the separate "Everyone's
+  overall bets" reveal panel that used to live in `bets/page.tsx`. One
+  roster list, ordered alphabetically pre-lock; once `weekendStarted`, it
+  re-sorts by total picks received (win + top3 combined, ties alphabetical)
+  and each column swaps from a clickable odds button
+  (`placeOverallBet` fires immediately on click — no separate confirm step,
+  since unlike a per-event wager there's no amount to review first) to a
+  new `PickerAvatars` — a small overlapping stack of the bettors' photos,
+  `title`-tagged with each name, `-ml-2` overlap with a `border-background`
+  ring so overlapping photos don't blend into each other. A player's own
+  pick/status/switch-when-eliminated summary is a compact `bevel-sunken`
+  panel below the list (same shape as the Odds tab's "Your bet" panel),
+  instead of being interleaved into each bet-type block like before.
+- **`bets/page.tsx`'s per-event section** now maps `events` to this
+  player's own `perEventBets` (`myPerEventBets`, filters out events with no
+  bet) instead of `bettableEvents` — no more "Pick a player…" selects for a
+  *new* bet. `canEdit = bet.status === "open" && event.status === "planned"`
+  gates Edit/Cancel; resolved/void/still-in-progress bets render as a plain
+  read row with a final Won/Lost/Voided badge. `handlePlacePerEvent` deleted
+  outright (dead code — nothing on this page inserts a bet anymore);
+  `startEditingPerEvent`/`handleUpdatePerEvent`/`discardPerEventEdit`/
+  `handleCancelPerEvent` kept as-is, same mutations as before.
+- **Verified against the real live Supabase project**, not just typechecked
+  — copied `.env.local` into this worktree (gitignored, deleted again
+  before committing), ran the real dev server behind headless Chrome
+  (`scripts/devtools/`), screenshotted `/bets` at 430px and 1280px against
+  actual production data: 8 real players, weekend already underway (golf
+  scoring, 2 events resolved), one real overall bet pair (Matthew → Joe to
+  win, Tyler to place) and one real per-event bet (Matthew → Josh to place
+  top 3 on the still-planned Catan). Confirmed live: the roster re-sorts
+  Joe/Tyler to the top, the Win/Place avatar cells correctly show Matthew's
+  photo only in the cells matching his actual picks, the "Your picks" panel
+  reads both bet types correctly with live Alive/worth-N-pts badges, and
+  the Catan bet shows with working Edit/Cancel since it's still "planned."
+  `check-overflow.mjs` clean at 390px on all five routes. Read-only
+  verification throughout — never clicked a live Place/Edit/Cancel button
+  against the real bets, to avoid mutating actual pre-event game state.
+  One pre-existing, unrelated thing the screenshots surface: player photos
+  render as a broken-image glyph in this sandboxed dev server (`fetch
+  failed: unable to get local issuer certificate` from Next's image
+  optimizer hitting Supabase Storage over this machine's TLS interception)
+  — visible on the nav avatar too, not something this session's code causes
+  or can fix locally; will render fine on the real Vercel deploy.
+- **Not built, out of scope for this session**: no change to
+  `event-odds-betting.tsx` itself (per-event placement stays exactly where
+  it already was, on the Odds tab) — this session only touched where
+  *overall* bets get placed and where per-event bets get *reviewed*.
+
 ## 2026-08-19 (3) — Column spacing, catch-up preview before scoring starts, locked-icon-only, side-by-side reserve stats, bet-form alignment
 
 Real-use feedback batch after (2) — **this app is now genuinely being used

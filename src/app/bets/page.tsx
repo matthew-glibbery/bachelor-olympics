@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Coins, Percent, Users } from "lucide-react";
+import { Coins, Percent } from "lucide-react";
 
 import { GameScreen } from "@/components/n64/game-screen";
 import { Panel } from "@/components/n64/panel";
 import { Stat } from "@/components/n64/stat";
+import { OverallBetting } from "@/components/overall-betting";
 import { PlayerName } from "@/components/player-name";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,23 +17,18 @@ import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   cancelPerEventBet,
-  placeOverallBet,
-  placePerEventBet,
-  switchOverallBetPick,
   updatePerEventBet,
 } from "@/lib/data/mutations";
 import { eliminationField } from "@/lib/betting/fromRows";
-import { isPickAlive, overallPayoutValue, type OverallBetType } from "@/lib/betting/overall";
 import { bettingReserve } from "@/lib/betting/reserve";
 import { aggregateRanking } from "@/lib/odds/aggregate";
 import {
-  impliedProbabilities,
   payoutMultipliers,
   perEventPayoutMultiplier,
   type RankingEntry,
 } from "@/lib/odds/ranking";
 import { allocatedMultiplierTotal, MULTIPLIER_STEP } from "@/lib/multipliers/budget";
-import type { OverallBetRow, PerEventBetRow } from "@/lib/data/database.types";
+import type { PerEventBetRow } from "@/lib/data/database.types";
 
 // A native <select> can't be beveled convincingly (the popup is the OS's),
 // but the closed control is ours — so it gets the same recessed well every
@@ -47,20 +43,17 @@ import type { OverallBetRow, PerEventBetRow } from "@/lib/data/database.types";
 const SELECT_CLASS =
   "bevel-sunken bg-sunken text-foreground h-9 w-full rounded-md border-0 px-3 text-sm outline-none focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2";
 
-const OVERALL_BET_TYPES: { type: OverallBetType; label: string; description: string }[] = [
-  { type: "win", label: "Win outright", description: "Pick the overall winner." },
-  { type: "top3", label: "Top 3", description: "Pick anyone who finishes top 3." },
-];
-
 const PER_EVENT_TARGETS: { target: "win" | "place"; label: string }[] = [
   { target: "win", label: "to win" },
   { target: "place", label: "to place top 3" },
 ];
 
 /** Betting — PRODUCT_SPEC.md → Overall betting + Per-event multiplier
- * betting. Both live here together: overall win/top3 picks against the
- * aggregated odds, and per-event win/place wagers against that event's own
- * odds, right next to where each bet gets placed. */
+ * betting. Overall picks live in `OverallBetting`, the roster-list pick
+ * mechanic itself. Per-event bets are placement-only from the Odds tab on
+ * `/events` (event-odds-betting.tsx) — this page is a read view of all of
+ * this player's per-event bets, past and future, with edit/cancel for
+ * whichever ones are still on a "planned" event. */
 export default function BetsPage() {
   const {
     players,
@@ -108,7 +101,6 @@ export default function BetsPage() {
       .filter((r) => r.length === players.length && players.length > 0);
     return aggregateRanking(complete);
   }, [events, rankingByEvent, players.length]);
-  const overallProbabilities = overallRanking.length > 0 ? impliedProbabilities(overallRanking) : null;
   const overallPayouts = overallRanking.length > 0 ? payoutMultipliers(overallRanking) : null;
 
   const eliminationFieldValue = useMemo(
@@ -124,56 +116,16 @@ export default function BetsPage() {
     [players, events, eventResults, multipliers],
   );
 
-  const [pendingPick, setPendingPick] = useState<Record<OverallBetType, string>>({
-    win: "",
-    top3: "",
-  });
-  const [busyOverall, setBusyOverall] = useState<OverallBetType | null>(null);
-  const [overallError, setOverallError] = useState<string | null>(null);
+  // Every event that has a bet from this player, in the event board's own
+  // order — that naturally reads as past-then-future since events proceed
+  // in order, no separate sort needed.
+  const myPerEventBets = events
+    .map((event) => ({
+      event,
+      bet: perEventBets.find((b) => b.player_id === player?.id && b.event_id === event.id),
+    }))
+    .filter((row): row is { event: (typeof events)[number]; bet: PerEventBetRow } => !!row.bet);
 
-  async function handlePlaceOverall(betType: OverallBetType) {
-    if (!player) return;
-    const pickId = pendingPick[betType];
-    if (!pickId) return;
-    setBusyOverall(betType);
-    setOverallError(null);
-    try {
-      await placeOverallBet(getSupabaseBrowserClient(), {
-        player_id: player.id,
-        bet_type: betType,
-        pick_player_id: pickId,
-      });
-      setPendingPick((d) => ({ ...d, [betType]: "" }));
-    } catch (err) {
-      setOverallError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusyOverall(null);
-    }
-  }
-
-  async function handleSwitchOverall(bet: OverallBetRow) {
-    const betType = bet.bet_type;
-    const newPick = pendingPick[betType];
-    if (!newPick) return;
-    setBusyOverall(betType);
-    setOverallError(null);
-    try {
-      await switchOverallBetPick(getSupabaseBrowserClient(), bet.id, newPick);
-      setPendingPick((d) => ({ ...d, [betType]: "" }));
-    } catch (err) {
-      setOverallError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusyOverall(null);
-    }
-  }
-
-  // Placement events only for now: resolution keys off the finishing
-  // `position`, which absolute-scored events (golf, etc.) don't record —
-  // see docs/HANDOFF.md for the open question on extending this. Betting
-  // closes once an event starts, so only "planned" events take new bets.
-  const bettableEvents = events.filter(
-    (e) => e.status === "planned" && e.scoring_mode === "placement",
-  );
   const [wagerDraft, setWagerDraft] = useState<Record<string, string>>({});
   const [targetDraft, setTargetDraft] = useState<Record<string, "win" | "place">>({});
   const [pickDraft, setPickDraft] = useState<Record<string, string>>({});
@@ -195,31 +147,6 @@ export default function BetsPage() {
           .map((b) => ({ wager: b.wager, status: b.status, payout: b.payout })),
       )
     : null;
-
-  async function handlePlacePerEvent(eventId: string) {
-    if (!player) return;
-    const raw = wagerDraft[eventId];
-    const wager = raw ? Number(raw) : NaN;
-    const pickPlayerId = pickDraft[eventId];
-    if (!Number.isFinite(wager) || wager <= 0 || !pickPlayerId) return;
-    setBusyEventId(eventId);
-    setPerEventError(null);
-    try {
-      await placePerEventBet(getSupabaseBrowserClient(), {
-        player_id: player.id,
-        event_id: eventId,
-        pick_player_id: pickPlayerId,
-        target: targetDraft[eventId] ?? "win",
-        wager,
-      });
-      setWagerDraft((d) => ({ ...d, [eventId]: "" }));
-      setPickDraft((d) => ({ ...d, [eventId]: "" }));
-    } catch (err) {
-      setPerEventError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusyEventId(null);
-    }
-  }
 
   function startEditingPerEvent(eventId: string, bet: PerEventBetRow) {
     setPerEventError(null);
@@ -273,7 +200,7 @@ export default function BetsPage() {
   return (
     <GameScreen
       title="Bets"
-      subtitle="Overall picks and per-event wagers, odds right where you place them"
+      subtitle="Overall picks, plus every per-event wager you've got open"
       // Both these screens are stacked prose-and-form panels, not a grid —
       // they were `max-w-2xl` before the shared shell existed and reading
       // measure is the reason, so keep it rather than inheriting the
@@ -302,180 +229,20 @@ export default function BetsPage() {
                 choose. Switching a pick after it&apos;s eliminated halves
                 the payout each time.{" "}
                 {weekendStarted
-                  ? "New picks are closed — the weekend's underway."
+                  ? "Picks are locked in — everyone's are visible below."
                   : "Locks once the first event starts."}
               </>
             }
           >
-            <>
-              {overallError ? <p className="text-destructive text-sm">{overallError}</p> : null}
-              {!overallProbabilities || !overallPayouts ? (
-                <p className="text-muted-foreground text-sm">
-                  No odds yet — the groom needs to finish ranking at least one
-                  event on Setup first.
-                </p>
-              ) : null}
-
-              {OVERALL_BET_TYPES.map(({ type, label, description }) => {
-                const bet = overallBets.find(
-                  (b) => b.player_id === player.id && b.bet_type === type,
-                );
-                const pick = bet ? playersById.get(bet.pick_player_id) : undefined;
-                const alive =
-                  bet && pick ? isPickAlive(type, bet.pick_player_id, eliminationFieldValue) : null;
-                const aliveCandidates = players.filter(
-                  (p) => !bet || p.id === bet.pick_player_id || isPickAlive(type, p.id, eliminationFieldValue),
-                );
-
-                return (
-                  <div key={type} className="flex flex-col gap-2 border-t pt-3 first:border-t-0 first:pt-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium">{label}</span>
-                      <span className="text-muted-foreground text-xs">{description}</span>
-                    </div>
-
-                    {bet && pick ? (
-                      <>
-                        <div className="flex items-center justify-between gap-2">
-                          <PlayerName
-                            name={pick.name}
-                            state={pick.state ?? "??"}
-                            size="sm"
-                            photoUrl={pick.photo_url}
-                          />
-                          {bet.status !== "open" ? (
-                            <Badge variant={bet.status === "won" ? "default" : "destructive"}>
-                              {bet.status === "won" ? `Won ${bet.payout} pts` : "Lost"}
-                            </Badge>
-                          ) : (
-                            <Badge variant={alive ? "default" : "destructive"}>
-                              {alive ? "Alive" : "Eliminated"}
-                            </Badge>
-                          )}
-                        </div>
-                        {bet.status === "open" ? (
-                          <p className="text-muted-foreground text-sm">
-                            Worth {overallPayoutValue(type, bet.switches)} pts if it lands
-                            {bet.switches > 0 ? ` (switched ${bet.switches}×)` : ""}.
-                          </p>
-                        ) : null}
-                        {bet.status === "open" && !alive ? (
-                          <div className="flex items-end gap-2">
-                            <select
-                              className={SELECT_CLASS}
-                              value={pendingPick[type]}
-                              onChange={(e) =>
-                                setPendingPick((d) => ({ ...d, [type]: e.target.value }))
-                              }
-                            >
-                              <option value="">Switch to…</option>
-                              {aliveCandidates
-                                .filter((p) => p.id !== bet.pick_player_id)
-                                .map((p) => (
-                                  <option key={p.id} value={p.id}>
-                                    {p.name}
-                                  </option>
-                                ))}
-                            </select>
-                            <Button
-                              size="sm"
-                              onClick={() => handleSwitchOverall(bet)}
-                              disabled={!pendingPick[type] || busyOverall === type}
-                            >
-                              Switch pick
-                            </Button>
-                          </div>
-                        ) : null}
-                      </>
-                    ) : weekendStarted ? (
-                      <p className="text-muted-foreground text-sm">
-                        Betting closed for the weekend.
-                      </p>
-                    ) : (
-                      <div className="flex items-end gap-2">
-                        <select
-                          className={SELECT_CLASS}
-                          value={pendingPick[type]}
-                          onChange={(e) =>
-                            setPendingPick((d) => ({ ...d, [type]: e.target.value }))
-                          }
-                        >
-                          <option value="">Pick a player…</option>
-                          {players.map((p) => {
-                            const odds = overallPayouts?.get(p.id);
-                            return (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                                {odds ? ` — ${(type === "win" ? odds.win : odds.top3).toFixed(1)}x` : ""}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <Button
-                          size="sm"
-                          onClick={() => handlePlaceOverall(type)}
-                          disabled={!pendingPick[type] || busyOverall === type}
-                        >
-                          Place bet
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </>
+            <OverallBetting
+              players={players}
+              currentPlayerId={player.id}
+              overallBets={overallBets}
+              payouts={overallPayouts}
+              weekendStarted={weekendStarted}
+              eliminationField={eliminationFieldValue}
+            />
           </Panel>
-
-          {weekendStarted ? (
-            <Panel
-              title="Everyone's overall bets"
-              icon={Users}
-              description="No suspense here — visible to everyone once the weekend starts."
-            >
-              <>
-                {overallBets.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No bets were placed.</p>
-                ) : (
-                  <div className="flex flex-col gap-1.5">
-                    {overallBets.map((bet) => {
-                      const bettor = playersById.get(bet.player_id);
-                      const pick = playersById.get(bet.pick_player_id);
-                      if (!bettor || !pick) return null;
-                      const alive =
-                        bet.status === "open"
-                          ? isPickAlive(bet.bet_type, bet.pick_player_id, eliminationFieldValue)
-                          : null;
-                      return (
-                        <div
-                          key={bet.id}
-                          className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
-                        >
-                          <span className="flex items-center gap-1.5">
-                            <PlayerName name={bettor.name} state={bettor.state ?? "??"} size="sm" />
-                            <span className="text-muted-foreground">
-                              {OVERALL_BET_TYPES.find((b) => b.type === bet.bet_type)?.label ??
-                                bet.bet_type}
-                              :
-                            </span>
-                            <PlayerName name={pick.name} state={pick.state ?? "??"} size="sm" />
-                          </span>
-                          {bet.status !== "open" ? (
-                            <Badge variant={bet.status === "won" ? "default" : "destructive"}>
-                              {bet.status === "won" ? `Won ${bet.payout} pts` : "Lost"}
-                            </Badge>
-                          ) : (
-                            <Badge variant={alive ? "outline" : "destructive"}>
-                              {alive ? "Alive" : "Eliminated"}
-                            </Badge>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            </Panel>
-          ) : null}
 
           <Panel
             title="Per-event bets"
@@ -483,11 +250,12 @@ export default function BetsPage() {
             contentClassName="gap-4"
             description={
               <>
-                Wager a slice of your unallocated multiplier budget on any
-                player&apos;s win/place outcome in an upcoming event — closes
-                once that event starts.{" "}
+                Your wagers on other players&apos; win/place outcomes, wherever
+                they land on the calendar — place new ones from an
+                event&apos;s Odds tab. Edit or cancel here up until that event
+                starts.{" "}
                 <Link href="/multipliers" className="text-foreground underline">
-                  See the breakdown on Multipliers
+                  See the reserve breakdown on Multipliers
                 </Link>
                 .
               </>
@@ -505,37 +273,39 @@ export default function BetsPage() {
             ) : null}
             <>
               {perEventError ? <p className="text-destructive text-sm">{perEventError}</p> : null}
-              {bettableEvents.length === 0 ? (
+              {myPerEventBets.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  No upcoming event is open for betting right now.
+                  No per-event bets yet — place one from an event&apos;s Odds
+                  tab on{" "}
+                  <Link href="/events" className="text-foreground underline">
+                    Events
+                  </Link>
+                  .
                 </p>
               ) : (
-                bettableEvents.map((event) => {
+                myPerEventBets.map(({ event, bet: myBet }) => {
                   const ranking = rankingByEvent.get(event.id) ?? [];
-                  const rankingComplete = ranking.length === players.length && players.length > 0;
-                  const myBet = perEventBets.find(
-                    (b) => b.player_id === player.id && b.event_id === event.id,
-                  );
                   const target = targetDraft[event.id] ?? "win";
                   const pickId = pickDraft[event.id] ?? "";
                   const odds =
-                    rankingComplete && pickId
+                    ranking.length > 0 && pickId
                       ? perEventPayoutMultiplier(ranking, pickId, target)
                       : null;
-                  const isEditing = myBet != null && editingBetId === myBet.id;
+                  const isEditing = editingBetId === myBet.id;
+                  const canEdit = myBet.status === "open" && event.status === "planned";
                   // Editing doesn't cost anything on top of the existing
                   // wager — it's replacing it, not adding to it — so add
                   // this bet's own current wager back to what's otherwise
                   // available before capping the new amount.
                   const maxWager = reserve
-                    ? Math.max(0, reserve.available) + (isEditing && myBet ? myBet.wager : 0)
+                    ? Math.max(0, reserve.available) + (isEditing ? myBet.wager : 0)
                     : 0;
 
                   return (
                     <div key={event.id} className="flex flex-col gap-2 border-t pt-3 first:border-t-0 first:pt-0">
                       <span className="text-sm font-medium">{event.name}</span>
 
-                      {myBet && !isEditing ? (
+                      {!isEditing ? (
                         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                           <span className="flex flex-wrap items-center gap-1.5">
                             <PlayerName
@@ -549,30 +319,38 @@ export default function BetsPage() {
                             </span>
                           </span>
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline">Awaiting result</Badge>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => startEditingPerEvent(event.id, myBet)}
-                              disabled={busyEventId === myBet.id}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive"
-                              onClick={() => handleCancelPerEvent(myBet.id)}
-                              disabled={busyEventId === myBet.id}
-                            >
-                              Cancel
-                            </Button>
+                            {myBet.status === "won" ? (
+                              <Badge>Won {myBet.payout} pts</Badge>
+                            ) : myBet.status === "lost" ? (
+                              <Badge variant="destructive">Lost</Badge>
+                            ) : myBet.status === "void" ? (
+                              <Badge variant="outline">Voided — event cancelled</Badge>
+                            ) : (
+                              <Badge variant="outline">Awaiting result</Badge>
+                            )}
+                            {canEdit ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => startEditingPerEvent(event.id, myBet)}
+                                  disabled={busyEventId === myBet.id}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive"
+                                  onClick={() => handleCancelPerEvent(myBet.id)}
+                                  disabled={busyEventId === myBet.id}
+                                >
+                                  Cancel
+                                </Button>
+                              </>
+                            ) : null}
                           </div>
                         </div>
-                      ) : !myBet && !rankingComplete ? (
-                        <p className="text-muted-foreground text-sm">
-                          Odds not set for this event yet.
-                        </p>
                       ) : (
                         <div className="flex flex-wrap items-end gap-2">
                           <select
@@ -622,11 +400,7 @@ export default function BetsPage() {
                           </span>
                           <Button
                             size="sm"
-                            onClick={() =>
-                              isEditing && myBet
-                                ? handleUpdatePerEvent(event.id, myBet.id)
-                                : handlePlacePerEvent(event.id)
-                            }
+                            onClick={() => handleUpdatePerEvent(event.id, myBet.id)}
                             disabled={
                               busyEventId === event.id ||
                               !pickId ||
@@ -634,13 +408,11 @@ export default function BetsPage() {
                               Number(wagerDraft[event.id]) > maxWager
                             }
                           >
-                            {isEditing ? "Save changes" : "Wager"}
+                            Save changes
                           </Button>
-                          {isEditing ? (
-                            <Button size="sm" variant="ghost" onClick={() => discardPerEventEdit(event.id)}>
-                              Discard
-                            </Button>
-                          ) : null}
+                          <Button size="sm" variant="ghost" onClick={() => discardPerEventEdit(event.id)}>
+                            Discard
+                          </Button>
                         </div>
                       )}
                     </div>
