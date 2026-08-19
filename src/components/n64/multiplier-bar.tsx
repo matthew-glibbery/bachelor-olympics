@@ -91,9 +91,19 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
 
   const delta = value - MULTIPLIER_DEFAULT;
 
+  // The label stacks above the bar on a phone: at `w-28` beside it, real
+  // event names ("Super Smash Bros. (N64)", "Nine Holes of Golf") truncated
+  // to "SUPER SMAS…", so the row you were adjusting was the one row you
+  // couldn't identify. Side-by-side from `sm` up, where 112px is enough.
   return (
-    <div className={cn("flex items-center gap-3 px-3 py-2", locked && "opacity-70", className)}>
-      <span className="font-display flex w-28 shrink-0 items-center gap-1.5 text-xs tracking-wider uppercase">
+    <div
+      className={cn(
+        "flex flex-col items-stretch gap-1.5 px-3 py-2 sm:flex-row sm:items-center sm:gap-3",
+        locked && "opacity-70",
+        className,
+      )}
+    >
+      <span className="font-display flex shrink-0 items-center gap-1.5 text-xs tracking-wider uppercase sm:w-28">
         {locked ? <Lock className="text-muted-foreground size-3 shrink-0" /> : null}
         <span className="truncate">{label}</span>
       </span>

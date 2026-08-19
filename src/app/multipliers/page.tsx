@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Coins, RotateCcw } from "lucide-react";
 
-import { AppNav } from "@/components/app-nav";
-import { ButtonLegend } from "@/components/n64/button-legend";
 import { CharacterRender } from "@/components/n64/character-render";
+import { GameScreen } from "@/components/n64/game-screen";
 import { MultiplierBar } from "@/components/n64/multiplier-bar";
 import { Nameplate } from "@/components/n64/nameplate";
+import { Panel } from "@/components/n64/panel";
+import { Stat } from "@/components/n64/stat";
 import { useGameInput } from "@/hooks/use-game-input";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { bettingReserve } from "@/lib/betting/reserve";
@@ -66,6 +67,12 @@ export default function MultipliersPage() {
   const [draft, setDraft] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Briefly true right after a successful write, so the button can confirm
+   *  it. Without this a save was completely silent — the button flicked back
+   *  to its idle label and nothing on screen changed (the values were
+   *  already showing the draft), which is indistinguishable from a save that
+   *  did nothing at all. */
+  const [justSaved, setJustSaved] = useState(false);
   /** Bumped on every change, to retrigger the character's reaction pop. */
   const [reactionKey, setReactionKey] = useState(0);
 
@@ -111,12 +118,21 @@ export default function MultipliersPage() {
           value: draft[e.id] ?? MULTIPLIER_DEFAULT,
         }));
       await upsertMultipliers(getSupabaseBrowserClient(), entries);
+      setJustSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
   }
+
+  // Clear the confirmation on the next edit, or after a couple of seconds if
+  // they just leave it sitting there.
+  useEffect(() => {
+    if (!justSaved) return;
+    const t = window.setTimeout(() => setJustSaved(false), 2200);
+    return () => window.clearTimeout(t);
+  }, [justSaved]);
 
   // ── D-pad row cursor ──
   const unlockedIndices = useMemo(
@@ -146,17 +162,24 @@ export default function MultipliersPage() {
     [cursor, unlockedIndices],
   );
 
-  const confirmSave = useCallback(() => {
+  // Deliberately NOT memoised. It was a useCallback keyed on
+  // [validation.valid], which silently broke saving outright: useCallback
+  // freezes the `handleSave` closure from the render where the dep last
+  // changed, and `validation.valid` is already `true` on the very first
+  // render (no events loaded yet -> nothing allocated -> nothing over
+  // budget). So confirmSave permanently held the mount-time handleSave,
+  // which had closed over `player === undefined` (the store hadn't loaded)
+  // and bailed at its own first line — no write, no error, not even a
+  // "Saving…" flicker. useGameInput keeps its handlers in a ref and
+  // re-reads them every event, so a stable identity buys nothing here.
+  function confirmSave() {
     if (!validation.valid) {
       playSfx("deny");
       return;
     }
     playSfx("lock");
     void handleSave();
-    // handleSave already closes over the latest draft/player/validation via
-    // component scope, so it doesn't need to be in this callback's deps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [validation.valid]);
+  }
 
   useGameInput({
     enabled: Boolean(player),
@@ -168,27 +191,28 @@ export default function MultipliersPage() {
     onConfirm: confirmSave,
   });
 
+  // Both pre-content states keep the full screen shell rather than a bare
+  // centered line — losing the title and nav on the way in made the app feel
+  // like it had dropped you somewhere else entirely.
   if (!ready) {
     return (
-      <main className="relative flex min-h-dvh items-center justify-center px-6">
-        <p className="text-muted-foreground text-sm">Loading…</p>
-        <AppNav />
-      </main>
+      <GameScreen title="Set Your Multipliers" width="wide">
+        <p className="text-muted-foreground text-center text-sm">Loading…</p>
+      </GameScreen>
     );
   }
 
   if (!player) {
     return (
-      <main className="relative flex min-h-dvh items-center justify-center px-6 text-center">
-        <p className="text-muted-foreground text-sm">
+      <GameScreen title="Set Your Multipliers" width="wide">
+        <p className="text-muted-foreground text-center text-sm">
           Pick who you are on the{" "}
           <Link href="/setup" className="text-foreground underline">
             Setup
           </Link>{" "}
           screen first.
         </p>
-        <AppNav />
-      </main>
+      </GameScreen>
     );
   }
 
@@ -200,17 +224,17 @@ export default function MultipliersPage() {
   const charge = Math.max(0, (peak - MULTIPLIER_DEFAULT) / (MULTIPLIER_MAX - MULTIPLIER_DEFAULT));
 
   return (
-    <main className="relative min-h-dvh px-4 py-6 pb-28 sm:px-8 sm:pb-6">
-      <div className="mx-auto flex max-w-6xl flex-col gap-5">
-        <header className="flex flex-col items-center gap-3 text-center">
-          <h1 className="text-extruded text-xl sm:text-2xl">Set Your Multipliers</h1>
-          <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
-            Raising one event has to come from another — spend up to your full budget, not over it
-          </p>
-          <AppNav />
-        </header>
-
-        <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
+    <GameScreen
+      title="Set Your Multipliers"
+      subtitle="Raising one event has to come from another — spend up to your full budget, not over it"
+      width="wide"
+      legend={[
+        { button: "↑↓", action: "Pick event" },
+        { button: "←→", action: "Adjust" },
+        { button: "A", action: "Save", tone: "a" },
+      ]}
+    >
+      <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
           {/* Character, carried over from /select and still idling. */}
           <aside className="flex flex-col items-center gap-3">
             <div className="relative h-56 w-full max-w-52">
@@ -242,7 +266,11 @@ export default function MultipliersPage() {
             {/* The budget counter. The whole constraint, in one number. */}
             <div
               className={cn(
-                "bevel-sunken bg-card w-full rounded-md px-4 py-3 text-center",
+                // No bg-* here: .bevel-sunken paints its own recessed fill,
+                // and a Tailwind background utility would win the cascade
+                // (utilities layer beats components) and quietly make this
+                // the one well in the app with a different colour.
+                "bevel-sunken w-full rounded-md px-4 py-3 text-center",
                 validation.budgetRemaining < 0 && "is-cursor",
               )}
             >
@@ -297,6 +325,7 @@ export default function MultipliersPage() {
                           setDraft((d) => ({ ...d, [e.id]: next }));
                           setCursor(i);
                           setReactionKey((k) => k + 1);
+                          setJustSaved(false);
                         }}
                       />
                     </li>
@@ -339,47 +368,38 @@ export default function MultipliersPage() {
                     : "bevel-sunken text-muted-foreground cursor-not-allowed",
                 )}
               >
-                {saving ? "Saving…" : validation.valid ? "Save multipliers ▶" : "Over budget — adjust first"}
+                {saving
+                  ? "Saving…"
+                  : justSaved
+                    ? "Saved ✓"
+                    : validation.valid
+                      ? "Save multipliers ▶"
+                      : "Over budget — adjust first"}
               </button>
             </div>
           </section>
         </div>
 
-        {reserve ? (
-          <div className="bevel-raised bg-card rounded-md p-4">
-            <p className="font-display flex items-center gap-2 text-sm tracking-wide uppercase">
-              <Coins className="text-primary size-4" />
-              Betting reserve
-            </p>
-            <p className="text-muted-foreground mt-1 text-xs">
+      {reserve ? (
+        <Panel
+          title="Betting reserve"
+          icon={Coins}
+          description={
+            <>
               What&apos;s left of your budget after events and open per-event wagers — see{" "}
               <Link href="/bets" className="text-foreground underline">
                 Bets
               </Link>
               .
-            </p>
-            <div className="mt-3 flex gap-6">
-              <div className="flex flex-col">
-                <span className="text-muted-foreground text-[10px] uppercase">Available to wager</span>
-                <span className="font-score text-lg tabular-nums">{reserve.available.toFixed(1)}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-muted-foreground text-[10px] uppercase">Tied up in open wagers</span>
-                <span className="font-score text-lg tabular-nums">{reserve.tiedUp.toFixed(1)}</span>
-              </div>
-            </div>
+            </>
+          }
+        >
+          <div className="flex gap-3">
+            <Stat label="Available to wager" value={reserve.available.toFixed(1)} tone="primary" />
+            <Stat label="Tied up in open wagers" value={reserve.tiedUp.toFixed(1)} />
           </div>
-        ) : null}
-
-        <ButtonLegend
-          className="pb-2"
-          entries={[
-            { button: "↑↓", action: "Pick event" },
-            { button: "←→", action: "Adjust" },
-            { button: "A", action: "Save", tone: "a" },
-          ]}
-        />
-      </div>
-    </main>
+        </Panel>
+      ) : null}
+    </GameScreen>
   );
 }

@@ -6,13 +6,7 @@ import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Panel } from "@/components/n64/panel";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { spendPowerMove } from "@/lib/data/mutations";
 import type { PowerMoveRow } from "@/lib/data/database.types";
@@ -43,18 +37,12 @@ export function PowerMoveCard({ powerMove }: { powerMove: PowerMoveRow | null })
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="text-primary size-5" />
-          Power move
-        </CardTitle>
-        <CardDescription>
-          One intervention, any time this weekend — double a bet&apos;s
-          stakes, force a rematch, whatever you want. Usable exactly once.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+    <Panel
+      title="Power move"
+      icon={Sparkles}
+      description="One intervention, any time this weekend — double a bet's stakes, force a rematch, whatever you want. Usable exactly once."
+    >
+      <>
         {powerMove?.used ? (
           <div className="rounded-md border px-3 py-2 text-sm">
             <p className="font-medium">Used{powerMove.used_at ? ` — ${new Date(powerMove.used_at).toLocaleString()}` : ""}</p>
@@ -97,7 +85,7 @@ export function PowerMoveCard({ powerMove }: { powerMove: PowerMoveRow | null })
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+      </>
+    </Panel>
   );
 }

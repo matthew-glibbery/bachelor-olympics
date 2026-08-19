@@ -4,10 +4,9 @@ import { useEffect } from "react";
 import { CalendarDays, PartyPopper } from "lucide-react";
 import Image from "next/image";
 
-import { AppNav } from "@/components/app-nav";
 import { BonusEventsCard } from "@/components/bonus-events-card";
-import { ButtonLegend } from "@/components/n64/button-legend";
 import { EventCard } from "@/components/event-card";
+import { GameScreen } from "@/components/n64/game-screen";
 import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -107,17 +106,12 @@ export default function EventsPage() {
   const bonusSelected = showBonusTile && index === bonusIndex;
 
   return (
-    <main className="relative min-h-dvh px-4 py-6 pb-28 sm:px-8 sm:pb-6">
-      <div className="mx-auto flex max-w-4xl flex-col gap-5">
-        <header className="flex flex-col items-center gap-3 text-center">
-          <h1 className="text-extruded text-xl sm:text-2xl">Events</h1>
-          <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
-            Start scoring, enter results, or cancel an event
-          </p>
-          <AppNav />
-        </header>
-
-        {error ? (
+    <GameScreen
+      title="Events"
+      subtitle="Start scoring, enter results, or cancel an event"
+      legend={events.length > 0 ? [{ button: "↔", action: "Pick" }] : undefined}
+    >
+      {error ? (
           <p className="text-destructive text-center text-sm">{error}</p>
         ) : !ready && loading ? (
           <p className="text-muted-foreground text-center text-sm">Loading…</p>
@@ -198,8 +192,6 @@ export default function EventsPage() {
               ) : null}
             </ul>
 
-            <ButtonLegend entries={[{ button: "↔", action: "Pick" }]} />
-
             {/* Focused tile's full detail — the real event's card, or the
                 bonus-events card, never both at once. */}
             {bonusSelected ? (
@@ -220,10 +212,9 @@ export default function EventsPage() {
                 currentPlayerId={selectedPlayerId}
                 reserve={reserve}
               />
-            ) : null}
-          </>
-        )}
-      </div>
-    </main>
+          ) : null}
+        </>
+      )}
+    </GameScreen>
   );
 }

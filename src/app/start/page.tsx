@@ -120,7 +120,7 @@ export default function StartPage() {
         >
           <span
             className={
-              starting ? "text-extruded text-2xl sm:text-3xl" : "anim-blink text-extruded text-2xl sm:text-3xl"
+              starting ? "extruded text-2xl sm:text-3xl" : "anim-blink extruded text-2xl sm:text-3xl"
             }
             style={{ visibility: promptVisible ? "visible" : "hidden" }}
           >

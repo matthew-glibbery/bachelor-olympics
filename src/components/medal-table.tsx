@@ -49,7 +49,10 @@ export interface MedalTableProps {
 /** Podium tint for ranks 1–3 (gold/silver/bronze), transparent otherwise. */
 const PODIUM_ICON = ["text-chart-3", "text-muted-foreground", "text-primary"];
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
+/** Whole points, per PRODUCT_SPEC.md → Scoring: "no scoring currency in this
+ *  app ever shows a fraction, full stop." (Was 1dp; kept the name so call
+ *  sites read the same.) */
+const round1 = (n: number) => Math.round(n);
 
 export function MedalTable({ players, scoreLines, bonusAwards = [] }: MedalTableProps) {
   const byId = new Map(players.map((p) => [p.id, p]));
