@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { ButtonLegend } from "@/components/n64/button-legend";
 import { CharacterRender } from "@/components/n64/character-render";
 import { Nameplate } from "@/components/n64/nameplate";
 import { Starfield } from "@/components/n64/starfield";
@@ -107,7 +106,7 @@ export default function SelectPage() {
             <ArrowLeft className="size-3.5" />
             Back
           </Link>
-          <h1 className="extruded text-lg sm:text-2xl">Select Your Competitor</h1>
+          <h1 className="extruded text-lg sm:text-2xl">Choose your character</h1>
           <span className="w-10" aria-hidden />
         </div>
 
@@ -212,15 +211,6 @@ export default function SelectPage() {
                 </>
               ) : null}
             </div>
-
-            <ButtonLegend
-              className="pb-2"
-              entries={[
-                { button: "↔", action: "Choose" },
-                { button: "A", action: "Confirm", tone: "a" },
-                { button: "B", action: "Back", tone: "b" },
-              ]}
-            />
           </>
         )}
       </div>
