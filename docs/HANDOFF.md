@@ -2,6 +2,116 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-18 (4) — Multipliers save bug + a real N64 UI consistency pass
+
+Two asks: "the adjustments on the multipliers page aren't saving", and a
+visual/consistency pass toward an awwwards-level bar, checked by another
+model and iterated on. 150 tests, lint/typecheck/build green.
+
+**This session finally has screenshots.** Every prior entry carries the same
+"not independently screenshot-verified — no browser driver in this
+environment" caveat. That turned out to be false: `npx playwright` can't
+install behind this machine's TLS interception, but **Google Chrome is
+installed and Node 22 ships a global WebSocket, which is all the DevTools
+Protocol needs**. `--headless --remote-debugging-port=9222` plus a ~90-line
+zero-dependency CDP script gives full-page screenshots at any viewport,
+computed-style probes, and scripted clicking. Worth rebuilding for any
+future UI session — it caught several things that reasoning alone did not.
+
+### The save bug (real, and completely silent)
+
+`confirmSave` in `src/app/multipliers/page.tsx` was
+`useCallback(..., [validation.valid])`. `useCallback` freezes the
+`handleSave` closure from the render where its deps last changed — and
+`validation.valid` is already `true` on the very first render (no events
+loaded yet → nothing allocated → nothing over budget), so it never changed
+again for anyone staying within budget. That frozen `handleSave` had closed
+over `player === undefined` (the store hadn't loaded at mount) and returned
+at its own first line. No write, no error, not even a "Saving…" flicker.
+Both the Save button and the gamepad A path went through it, so saving was
+dead outright. Now a plain unmemoised function — `useGameInput` keeps its
+handlers in a ref and re-reads them per event, so a stable identity bought
+nothing. **Verified end-to-end through the real UI against the live
+Supabase project**: changed a slider 1.0 → 0.7, saved, hard-reloaded, value
+came back 0.7. (Test mutation restored to 1.0 afterwards.) Also added a
+"Saved ✓" confirmation, since a successful save previously changed nothing
+on screen and was indistinguishable from one that did nothing.
+
+Non-obvious corollary: going over budget and back under would have minted a
+fresh closure and "fixed" saving for that session, which is probably why
+this survived as long as it did.
+
+### Two bugs the screenshots found that no amount of reading would have
+
+- **`cn()` was silently deleting `text-extruded`.** `cn` runs
+  tailwind-merge, which treats `text-extruded` and `text-extruded-gold` as
+  competing `text-*` utilities and keeps only the last — so the leaderboard
+  title lost its font, its uppercasing and its entire extrusion. It only
+  showed up by reading the rendered `className` off the DOM. Renamed to
+  `extruded` / `extruded-gold`, outside the `text-` namespace, so the pair
+  can never be merged away again. (This one was self-inflicted: on `main`
+  they were a plain string, and routing them through `cn` in the new shared
+  header is what broke them.)
+- **Variant-prefixed custom classes were generating nothing.** `.bevel-*` /
+  `.is-cursor` lived in `@layer components`, and Tailwind v4 only emits
+  variants for things it knows are utilities — so `data-[state=active]:bevel-raised`
+  on the event card's active tab had always been dead. Converted to
+  `@utility`; confirmed by diffing built CSS before/after (1 `bevel-raised`
+  selector → 3).
+
+### Consistency pass
+
+- **New `GameScreen` / `Panel` / `Stat`** (`src/components/n64/`). `/bets`
+  and `/setup` were still on a completely different page grammar
+  (`max-w-2xl`, `min-h-screen`, left-aligned italic `PageHeading` left over
+  from the deleted theme-picker era, plain shadcn `Card`s) from the three
+  N64-converted screens. All five now share one shell.
+  `src/components/page-heading.tsx` deleted.
+- **`bevel-sunken` is now shadow-only, paired with a real `bg-sunken`
+  token.** It used to bake in its own `background-color`, which any `bg-*`
+  would silently beat — that's how the event card's tab strip ended up
+  painting shadcn's `bg-muted`. As a real colour utility tailwind-merge
+  resolves it properly instead of two rules racing.
+- **Whole-number scores** on the leaderboard and `MedalTable` (were 1dp).
+  `PRODUCT_SPEC.md` → Scoring is explicit: "no scoring currency in this app
+  ever shows a fraction, full stop" — and the event card already rounded,
+  so two screens disagreed about the same player's score.
+- **Phone fixes:** the leaderboard's "Adjusted" column and the event card's
+  "Total" column were both pushed off-screen inside horizontal scrollers
+  (the two numbers those tables exist to show); the least important column
+  now drops below `sm` instead. Multiplier rows stack so full event names
+  fit. Nav labels shortened so they stop truncating mid-word. Verified no
+  page-level horizontal overflow at 390px on any screen.
+- **Progress chart:** dropped trailing not-yet-played events (over half the
+  plot was empty columns, reading as broken), smaller markers, and
+  photo-less players' dots now carry their initial.
+
+### Chart colours — a measured limit, not a fix
+
+A reviewer called the 8 series colours ambiguous. Ran them through the
+dataviz skill's `validate_palette.js`: they pass adjacent-pair mode but
+**fail `--pairs all`** (worst CVD pair ΔE 1.6 deutan; `#e66767`↔`#d95926`
+only ΔE 7.1 for *normal* vision). Then searched evenly-spaced 8-hue sets
+across lightness/chroma/rotation — **every one also fails**. Eight
+simultaneous categorical hues is simply past what a palette can separate,
+which is what that skill warns about. So the palette is unchanged and the
+markers carry a letter as secondary encoding instead. Re-run the validator
+before touching `DARK_HEX` in `src/lib/chartColors.ts`.
+
+### Still open / deliberately not done
+
+The second reviewer's central point stands and is **not** addressed: the
+N64 treatment is on the chrome, while some things the user actually
+operates are still library defaults — native `<select>`s (styled, but still
+native), lucide's thin line icons against chunky beveled plates, and the
+progress chart being a configured Recharts rather than a designed object.
+Closing that is a bigger piece of work than this session had room for, and
+it's the main thing between here and the bar the user asked for.
+
+Also untouched: `/select`'s large vertical dead space between the roster
+strip and the character; `/start`'s "Press Start" only being visible on the
+blink's on-phase (fine live, awkward in screenshots).
+
 ## 2026-08-18 (3) — Real bug: reserve mismatch between screens, Odds tab table polish
 
 User caught a real discrepancy: `/multipliers` showed 0 available to

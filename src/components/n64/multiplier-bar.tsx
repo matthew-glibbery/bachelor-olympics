@@ -136,7 +136,7 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
         aria-disabled={locked || undefined}
         onKeyDown={onKeyDown}
         className={cn(
-          "bevel-sunken flex flex-1 gap-[3px] rounded-sm p-[3px]",
+          "bevel-sunken bg-sunken flex flex-1 gap-[3px] rounded-sm p-[3px]",
           !locked && "cursor-pointer focus-visible:is-cursor focus-visible:outline-none",
         )}
       >

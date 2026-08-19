@@ -62,7 +62,11 @@ export function GameScreen({
             {title}
           </h1>
           {subtitle ? (
-            <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
+            // Tracked uppercase at 10px is already the hardest type on the
+            // screen; left full-width it wrapped with a single orphan word on
+            // line two on four of five screens. Balanced and capped so it
+            // breaks into even lines instead.
+            <p className="font-display text-muted-foreground max-w-[48ch] text-[10px] tracking-[0.2em] text-balance uppercase">
               {subtitle}
             </p>
           ) : null}

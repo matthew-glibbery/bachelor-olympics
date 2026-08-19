@@ -105,11 +105,15 @@ export default function EventsPage() {
   const focused = index < events.length ? (events[index] ?? null) : null;
   const bonusSelected = showBonusTile && index === bonusIndex;
 
+  // Must match the content branch below exactly — otherwise an error state
+  // still offers a "↔ Pick" legend for a strip that isn't on screen.
+  const showingContent = !error && !(!ready && loading) && events.length > 0;
+
   return (
     <GameScreen
       title="Events"
       subtitle="Start scoring, enter results, or cancel an event"
-      legend={events.length > 0 ? [{ button: "↔", action: "Pick" }] : undefined}
+      legend={showingContent ? [{ button: "↔", action: "Pick" }] : undefined}
     >
       {error ? (
           <p className="text-destructive text-center text-sm">{error}</p>
@@ -152,9 +156,16 @@ export default function EventsPage() {
                           </span>
                         )}
                       </span>
+                      {/* Two lines, not `truncate`: a third of the real
+                          event names ("Super Smash Bros. (N64)", "Settlers
+                          of Catan", "Nine Holes of Golf") were clipped to
+                          "SUPER SMA…" on a phone, and the game's name is
+                          the entire content of a game-select tile. Fixed
+                          two-line box so the grid rows stay aligned whether
+                          a name wraps or not. */}
                       <span
                         className={cn(
-                          "font-display mt-1 block truncate text-[10px] tracking-wider uppercase",
+                          "font-display mt-1 line-clamp-2 block h-[2.2em] text-[10px] leading-[1.1] tracking-wider uppercase",
                           isActive ? "text-foreground" : "text-muted-foreground",
                         )}
                       >

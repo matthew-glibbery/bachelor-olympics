@@ -91,13 +91,20 @@ export default function Home() {
 
   const podium = ranked.slice(0, 3);
 
+  // One predicate for "is the real content on screen", so the control legend
+  // can't drift out of sync with it. Previously the legend keyed off
+  // `players.length > 0` alone, which meant a realtime error arriving after
+  // data had loaded rendered the error line *and* a legend offering
+  // navigation for a screen showing nothing.
+  const showingContent = !error && !(!ready && loading) && players.length > 0;
+
   return (
     <GameScreen
       title="Leaderboard"
       tone="gold"
       subtitle="Eight events · Eight competitors · One leaderboard"
       legend={
-        players.length > 0
+        showingContent
           ? [
               { button: "A", action: "Change competitor", tone: "a" },
               { button: "B", action: "Multipliers", tone: "b" },
@@ -176,7 +183,7 @@ export default function Home() {
                 behind a sideways scroll nobody would think to try. "Raw" is
                 the expendable column (it's only interesting next to the
                 adjusted figure), so it drops out below `sm` instead. */}
-            <div className="bevel-sunken rounded-md">
+            <div className="bevel-sunken bg-sunken rounded-md">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-bevel-dark border-b-2">

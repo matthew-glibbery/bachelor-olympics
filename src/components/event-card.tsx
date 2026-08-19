@@ -338,7 +338,7 @@ export function EventCard({
 
       <Tabs defaultValue={event.status === "planned" ? "odds" : "results"}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <TabsList className="bevel-sunken h-auto w-fit gap-1 rounded-md p-1">
+          <TabsList className="bevel-sunken bg-sunken h-auto w-fit gap-1 rounded-md p-1">
             <TabsTrigger
               value="results"
               className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -475,8 +475,13 @@ export function EventCard({
             // Total column off the right edge on a phone — the one figure
             // this table exists to show. Pts and the multiplier are the
             // working-out behind it, so they drop below `sm` instead.
-            <div className="bevel-sunken rounded-md px-3 py-2">
-              <div className="grid grid-cols-[1.5rem_1fr_auto] items-center gap-x-3 gap-y-1.5 text-sm sm:grid-cols-[1.5rem_1fr_auto_auto_auto]">
+            <div className="bevel-sunken bg-sunken rounded-md px-3 py-2">
+              {/* Column gap is padding on the cells, not `gap-x`: these rows
+                  are `display: contents`, so the zebra stripe has to be
+                  painted per-cell, and a real gap left unpainted vertical
+                  slots through every striped row — it read as a rendering
+                  fault rather than a stripe. */}
+              <div className="grid grid-cols-[2rem_1fr_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_auto_auto]">
                 <span className="font-display text-muted-foreground text-[10px] uppercase">#</span>
                 <span className="font-display text-muted-foreground text-[10px] uppercase">Player</span>
                 <span className="font-display text-muted-foreground hidden text-right text-[10px] uppercase sm:block">Pts</span>

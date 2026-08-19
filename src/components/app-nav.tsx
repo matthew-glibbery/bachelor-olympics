@@ -83,9 +83,14 @@ export function AppNav() {
                   "bg-primary/10 text-primary shadow-[0_0_0_1px_var(--primary),0_0_10px_-2px_var(--primary)] sm:is-cursor sm:bg-primary sm:text-primary-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground sm:bevel-raised sm:bg-card",
             )}
-            aria-label={label}
           >
             <Icon className="size-5 sm:size-4" />
+            {/* No aria-label here on purpose: only one of these two spans is
+                displayed at a time, so the accessible name is already the
+                text actually on screen. An aria-label of the long form would
+                override that and leave a speech-input user saying the word
+                they can see ("Ranking") with nothing to match — WCAG 2.5.3
+                Label in Name. */}
             <span className="truncate sm:hidden">{short}</span>
             <span className="hidden sm:inline">{label}</span>
           </Link>

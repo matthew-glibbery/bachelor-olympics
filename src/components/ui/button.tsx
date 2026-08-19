@@ -5,7 +5,18 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+  // Disabled is a *recessed* plate, not a faded one. `opacity-50` over the
+  // gold primary produced a muddy olive that read as dirty rather than
+  // unavailable; dropping the raised bevel for the sunken one says "this
+  // control is pressed in / dead" in the same physical language the rest of
+  // the UI uses, and it works for every variant rather than just gold.
+  // Disabled is a *recessed* plate, not a faded one: `opacity-50` over the
+  // gold primary produced a muddy olive that read as dirty rather than
+  // unavailable. The `:disabled` pseudo-class outranks the variants' own
+  // `bg-primary` / `.bevel-raised`, so these replace the fill and the raised
+  // shadow instead of layering over them — and this works for every variant,
+  // not just gold.
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:bevel-sunken disabled:bg-sunken disabled:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
   {
     variants: {
       // bevel-raised goes on every variant that's meant to read as a chunky

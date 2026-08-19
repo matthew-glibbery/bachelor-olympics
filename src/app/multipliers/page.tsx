@@ -266,11 +266,9 @@ export default function MultipliersPage() {
             {/* The budget counter. The whole constraint, in one number. */}
             <div
               className={cn(
-                // No bg-* here: .bevel-sunken paints its own recessed fill,
-                // and a Tailwind background utility would win the cascade
-                // (utilities layer beats components) and quietly make this
-                // the one well in the app with a different colour.
-                "bevel-sunken w-full rounded-md px-4 py-3 text-center",
+                // `bevel-sunken` is shadow-only and `bg-sunken` is its
+                // matching fill — always use the pair (see globals.css).
+                "bevel-sunken bg-sunken w-full rounded-md px-4 py-3 text-center",
                 validation.budgetRemaining < 0 && "is-cursor",
               )}
             >
@@ -298,7 +296,7 @@ export default function MultipliersPage() {
 
           {/* Event rows. */}
           <section className="flex flex-col gap-3">
-            <div className="bevel-sunken rounded-md py-2">
+            <div className="bevel-sunken bg-sunken rounded-md py-2">
               <ul>
                 {events.map((e, i) => {
                   const locked = e.status !== "planned";
@@ -349,6 +347,9 @@ export default function MultipliersPage() {
                     return next;
                   });
                   setReactionKey((k) => k + 1);
+                  // Same as adjusting a bar: this leaves unsaved changes on
+                  // screen, so the button must stop claiming "Saved ✓".
+                  setJustSaved(false);
                 }}
                 className="bevel-raised bg-card font-display flex items-center gap-2 rounded-md px-4 py-2 text-xs tracking-wider uppercase focus-visible:is-cursor focus-visible:outline-none"
               >
@@ -365,7 +366,7 @@ export default function MultipliersPage() {
                   "font-display rounded-md px-6 py-2.5 text-sm tracking-widest uppercase focus-visible:outline-none",
                   validation.valid
                     ? "bevel-raised is-cursor bg-primary text-primary-foreground"
-                    : "bevel-sunken text-muted-foreground cursor-not-allowed",
+                    : "bevel-sunken bg-sunken text-muted-foreground cursor-not-allowed",
                 )}
               >
                 {saving

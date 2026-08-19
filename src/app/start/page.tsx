@@ -129,11 +129,21 @@ export default function StartPage() {
         </button>
       </div>
 
+      {/* The boot video plays full-bleed behind all of this, and its bottom
+          edge can be any brightness the groom's clip happens to end on — the
+          current one is pale stone, against which `text-muted-foreground`
+          all but vanished. A gradient scrim behind the footer (rather than
+          a brighter text colour) keeps the type quiet by design while
+          guaranteeing it stays legible over an arbitrary frame. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/75 to-transparent"
+        aria-hidden
+      />
       <footer className="absolute inset-x-0 bottom-6 flex flex-col items-center gap-1 px-6">
-        <p className="font-display text-muted-foreground text-center text-[9px] tracking-[0.2em] uppercase">
+        <p className="font-display text-center text-[9px] tracking-[0.2em] text-white/70 uppercase">
           {GAME_COPYRIGHT}
         </p>
-        <p className="font-display text-muted-foreground/70 text-center text-[9px] tracking-[0.2em] uppercase">
+        <p className="font-display text-center text-[9px] tracking-[0.2em] text-white/50 uppercase">
           Keyboard · Gamepad · Touch
         </p>
       </footer>

@@ -20,6 +20,7 @@ export function Panel({
   title,
   description,
   icon: Icon,
+  iconClassName,
   action,
   children,
   className,
@@ -28,6 +29,9 @@ export function Panel({
   title: React.ReactNode;
   description?: React.ReactNode;
   icon?: React.ComponentType<{ className?: string }>;
+  /** Recolours the icon — the panel's own accent isn't always right (a
+   *  destructive section's warning glyph shouldn't be gold). */
+  iconClassName?: string;
   /** Optional control pinned to the right of the title row. */
   action?: React.ReactNode;
   children?: React.ReactNode;
@@ -39,8 +43,8 @@ export function Panel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2.5">
           {Icon ? (
-            <span className="bevel-sunken grid size-8 shrink-0 place-items-center rounded-md">
-              <Icon className="text-primary size-4" />
+            <span className="bevel-sunken bg-sunken grid size-8 shrink-0 place-items-center rounded-md">
+              <Icon className={cn("text-primary size-4", iconClassName)} />
             </span>
           ) : null}
           <div className="flex min-w-0 flex-col gap-1">

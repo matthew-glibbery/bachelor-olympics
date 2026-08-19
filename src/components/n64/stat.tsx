@@ -28,7 +28,7 @@ export function Stat({
   className?: string;
 }) {
   return (
-    <div className={cn("bevel-sunken flex min-w-0 flex-1 flex-col gap-0.5 rounded-md px-3 py-2", className)}>
+    <div className={cn("bevel-sunken bg-sunken flex min-w-0 flex-1 flex-col gap-0.5 rounded-md px-3 py-2", className)}>
       <span className="font-display text-muted-foreground text-[9px] leading-tight tracking-[0.15em] uppercase">
         {label}
       </span>

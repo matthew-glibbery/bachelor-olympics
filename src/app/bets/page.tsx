@@ -39,8 +39,13 @@ import type { OverallBetRow, PerEventBetRow } from "@/lib/data/database.types";
 // other input-shaped thing in this app sits in, rather than the flat
 // hairline border it had, which was the last visibly-shadcn control left on
 // this screen.
+// `outline`, not `ring`: a ring is a box-shadow, and it would replace the
+// sunken bevel wholesale on focus, so the control visibly changed shape as
+// you tabbed onto it. An outline sits outside the box and leaves the bevel
+// alone. `text-foreground` is explicit because a native select over a dark
+// fill otherwise inherits the OS's own (often black) option colour.
 const SELECT_CLASS =
-  "bevel-sunken h-9 w-full rounded-md border-0 px-3 text-sm outline-none focus-visible:ring-ring/60 focus-visible:ring-2";
+  "bevel-sunken bg-sunken text-foreground h-9 w-full rounded-md border-0 px-3 text-sm outline-none focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2";
 
 const OVERALL_BET_TYPES: { type: OverallBetType; label: string; description: string }[] = [
   { type: "win", label: "Win outright", description: "Pick the overall winner." },
@@ -269,6 +274,11 @@ export default function BetsPage() {
     <GameScreen
       title="Bets"
       subtitle="Overall picks and per-event wagers, odds right where you place them"
+      // Both these screens are stacked prose-and-form panels, not a grid —
+      // they were `max-w-2xl` before the shared shell existed and reading
+      // measure is the reason, so keep it rather than inheriting the
+      // leaderboard's wider default.
+      width="narrow"
     >
       {!ready ? (
         <p className="text-muted-foreground text-center text-sm">Loading…</p>

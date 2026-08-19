@@ -77,6 +77,7 @@ export default function SetupPage() {
     <GameScreen
       title="Player Settings"
       subtitle="Pick which competitor this device is acting as, or add a player"
+      width="narrow"
     >
       <Panel
         title="Who are you?"
@@ -134,7 +135,7 @@ export default function SetupPage() {
         icon={groomUnlocked ? ShieldCheck : Lock}
         description={
           groomUnlocked
-            ? "Unlocked on this device."
+            ? "Unlocked on this device — manage players and events below."
             : "Enter the groom PIN to add or manage players and events."
         }
       >
@@ -158,11 +159,7 @@ export default function SetupPage() {
                 <Badge variant="destructive">Wrong PIN</Badge>
               ) : null}
             </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              Unlocked. Manage players and events below.
-            </p>
-          )}
+          ) : null}
       </Panel>
 
       {groomUnlocked ? (
@@ -209,7 +206,11 @@ export default function SetupPage() {
         <Panel
           title={<span className="text-destructive">Danger zone</span>}
           icon={TriangleAlert}
-          className="ring-destructive/40 ring-2"
+          iconClassName="text-destructive"
+          // A border, not a ring: `ring-*` is implemented as box-shadow,
+          // which the panel's own `bevel-raised` already owns at the same
+          // specificity — the ring silently rendered nothing.
+          className="border-destructive/50 border-2"
           description="Resetting per event happens on the Events screen. This wipes the whole weekend — every result, multiplier, bet, bonus event, the power move, and every event's ranking — back to a fresh start. Players are kept. No undo."
         >
           <>

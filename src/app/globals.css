@@ -61,6 +61,11 @@
   */
   --bevel-light: oklch(0.78 0.09 268);
   --bevel-dark: oklch(0.14 0.05 274);
+  /* Fill for a recessed well — see the `bevel-sunken` utility. A named
+     colour rather than a hardcoded `background-color` inside that utility,
+     so it behaves like every other `bg-*` in the cascade and in
+     tailwind-merge. */
+  --sunken: color-mix(in oklch, var(--card) 55%, var(--bevel-dark));
 
   /*
     ── Console game-feel layer ──────────────────────────────────────────
@@ -119,6 +124,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-bevel-light: var(--bevel-light);
   --color-bevel-dark: var(--bevel-dark);
+  --color-sunken: var(--sunken);
   --color-glow: var(--glow);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -177,17 +183,34 @@
 }
 
 /* The inverse — a recessed well, for anything that should read as a slot
-   rather than a raised plate (e.g. a sunken stat readout). Not wired into
-   any primitive by default; opt in with this class where it's wanted. */
+   rather than a raised plate (e.g. a sunken stat readout).
+
+   Shadow only. The recessed fill is a real theme colour (`bg-sunken`, from
+   `--color-sunken` above) rather than a `background-color` baked in here,
+   and every call site pairs the two: `bevel-sunken bg-sunken`. That split
+   matters because both this and any `bg-*` are now utilities of equal
+   specificity, so whichever Tailwind happens to emit later would win —
+   which is precisely how the event card's tab strip ended up painting
+   `bg-muted` (inherited from shadcn's Tabs base) over this fill. As a real
+   colour utility, `bg-sunken` is something tailwind-merge understands and
+   resolves properly instead of two rules silently racing. */
 @utility bevel-sunken {
-  /* A recessed well needs its own fill — without one this reads as
-     floating on the page background instead of a distinct panel. Don't put
-     a `bg-*` utility alongside this class: it would win the cascade and
-     make that one well a different colour from every other. */
-  background-color: color-mix(in oklch, var(--card) 55%, var(--bevel-dark));
   box-shadow:
     inset -2px -2px 0 0 var(--bevel-light),
     inset 2px 2px 0 0 var(--bevel-dark);
+}
+
+/* Cancels a bevel a primitive applies by default — e.g. DialogContent is a
+   raised plate, but the full-bleed victory video inside it is not.
+
+   Use it as `bevel-none!` (the v4 important modifier). Plain `bevel-none`
+   is not enough and neither is `shadow-none`: all three are now utilities of
+   equal specificity in one layer, and Tailwind emits them in its own sorted
+   order, not source order — `.bevel-none` lands *before* `.bevel-raised` in
+   the output, so unmodified it loses. Verified by grepping byte offsets in
+   .next/static/css after a build. */
+@utility bevel-none {
+  box-shadow: none;
 }
 
 /* Gold "cursor is here" state for a menu item under useMenuNav (roster

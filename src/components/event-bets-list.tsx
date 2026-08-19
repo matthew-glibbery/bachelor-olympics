@@ -29,7 +29,7 @@ export function EventBetsList({
   }
 
   return (
-    <div className="bevel-sunken flex flex-col gap-1.5 rounded-md p-2">
+    <div className="bevel-sunken bg-sunken flex flex-col gap-1.5 rounded-md p-2">
       {bets.map((bet) => {
         const bettor = players.get(bet.player_id);
         const pick = players.get(bet.pick_player_id);
