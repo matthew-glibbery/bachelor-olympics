@@ -470,7 +470,7 @@ export function EventCard({
                   the previously-cramped run of Pts/×/Total without breaking
                   the per-cell zebra stripe. Hidden on mobile along with the
                   columns they separate. */}
-              <div className="grid grid-cols-[2rem_1fr_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_0.75rem_auto_0.75rem_auto]">
+              <div className="grid grid-cols-[2rem_1fr_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_1.5rem_auto_1.5rem_auto]">
                 <span className="font-display text-muted-foreground text-[10px] uppercase">#</span>
                 <span className="font-display text-muted-foreground text-[10px] uppercase">Player</span>
                 <span className="font-display text-muted-foreground hidden text-right text-[10px] uppercase sm:block">Pts</span>

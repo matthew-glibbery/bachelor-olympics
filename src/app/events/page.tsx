@@ -205,17 +205,22 @@ export default function EventsPage() {
                 the strip and the focused event's detail, rather than living
                 inside whichever event card happens to be focused (it used
                 to, and would disappear/reappear depending on cursor
-                position). Always targets the event actually being scored
-                right now (upcomingCatchUp, src/lib/scoring/fromRows.ts),
-                not whichever tile the cursor is on — three states below,
-                not just "has bonuses / hidden", so the section not
+                position). Targets the event actually being scored once
+                one's underway (upcomingCatchUp, src/lib/scoring/fromRows.ts);
+                before that, it falls back to the lowest-sort_order planned
+                event as a best-guess preview — `preview.confirmed`
+                distinguishes the two so the wording doesn't overclaim. Not
+                whichever tile the cursor is on, and not gated behind
+                "has bonuses" — three states below, so the section not
                 rendering never reads as a missing feature. */}
             <Panel title="Catch-up bonus" icon={Flame}>
               {previewEvent && preview && preview.bonuses.size > 0 ? (
                 <>
                   <p className="text-muted-foreground -mt-1 text-xs">
-                    Applies to <span className="text-foreground font-medium">{previewEvent.name}</span>,
-                    the event currently being scored.
+                    Applies to <span className="text-foreground font-medium">{previewEvent.name}</span>
+                    {preview.confirmed
+                      ? ", the event currently being scored."
+                      : ", up next going by the current running order — may change if the groom plays out of order."}
                   </p>
                   <div className="flex flex-col gap-1.5">
                     {[...preview.bonuses.entries()].map(([playerId, bonus]) => {
@@ -232,14 +237,14 @@ export default function EventsPage() {
                 </>
               ) : previewEvent ? (
                 <p className="text-muted-foreground -mt-1 text-xs">
-                  Scoring <span className="text-foreground font-medium">{previewEvent.name}</span> now — no
-                  catch-up bonus applies this time (it only kicks in once someone&apos;s actually behind).
+                  {preview?.confirmed ? "Scoring" : "Up next:"}{" "}
+                  <span className="text-foreground font-medium">{previewEvent.name}</span> — no catch-up
+                  bonus applies this time (it only kicks in once someone&apos;s actually behind).
                 </p>
               ) : (
                 <p className="text-muted-foreground -mt-1 text-xs">
-                  Nothing&apos;s being scored right now. Whoever&apos;s trailing gets +30%/+20%/+10% on
-                  whichever event starts next, however it&apos;s reached — this section will show who as
-                  soon as it starts.
+                  No events left to score. Whoever&apos;s trailing gets +30%/+20%/+10% on whichever event
+                  starts next, however it&apos;s reached.
                 </p>
               )}
             </Panel>

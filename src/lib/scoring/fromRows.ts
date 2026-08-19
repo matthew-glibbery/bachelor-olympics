@@ -113,21 +113,26 @@ export function deriveScoreLines(
 }
 
 /**
- * The catch-up bonus that will apply to whichever event is actually being
- * entered next, based on current standings — for showing the bonus *before*
- * that event resolves, at the same rate it'll actually score with once it
- * does.
+ * The catch-up bonus that will apply to whichever event is up next, based
+ * on current standings — for showing the bonus *before* that event
+ * resolves, at the same rate it'll actually score with once it does.
  *
- * Deliberately targets `status === "scoring"`, not the lowest `sort_order`
- * among not-yet-resolved events: the real play order at the party routinely
- * diverges from however events happen to be listed, and "scoring" is the
- * one unambiguous signal for "this is the event actually being played right
+ * Prefers `status === "scoring"` over the lowest `sort_order` among
+ * "planned" events: the real play order at the party routinely diverges
+ * from however events happen to be listed, and "scoring" is the one
+ * unambiguous signal for "this is the event actually being played right
  * now" (set when the groom hits Start on it, `event-card.tsx`'s
- * `startScoring`). Nothing is reliably "next" before that — a merely
- * "planned" event might not be the one played next at all — so this
- * returns null until an event actually enters scoring. If somehow more than
- * one is mid-scoring at once (not a normal flow, but not prevented by a DB
- * constraint either), `sort_order` breaks the tie deterministically.
+ * `startScoring`) — so once an event is genuinely underway, the preview
+ * snaps to that one even if it jumped the configured order. Before that,
+ * the lowest-`sort_order` "planned" event is the best available guess, and
+ * showing it (marked `confirmed: false`) beats showing nothing — the
+ * groom's badge-relevant deviations from list order are the exception, not
+ * the common case. `confirmed` tells the caller which situation it's in, so
+ * the UI can word a live "in progress" state differently from a "here's
+ * what's next, going by the current running order" one. If somehow more
+ * than one event is mid-scoring at once (not a normal flow, but not
+ * prevented by a DB constraint either), `sort_order` breaks the tie
+ * deterministically.
  *
  * No preview (empty bonuses map) until at least one event has actually
  * resolved — same "no catch-up bonus on the very first resolved event" rule
@@ -143,18 +148,24 @@ export function upcomingCatchUp(
   results: EventResultRow[],
   multipliers: MultiplierRow[],
   playerIds: string[],
-): { eventId: string; bonuses: Map<string, number> } | null {
-  const target = events
+): { eventId: string; bonuses: Map<string, number>; confirmed: boolean } | null {
+  const scoring = events
     .filter((e) => e.status === "scoring")
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order)[0];
+  const planned = events
+    .filter((e) => e.status === "planned")
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order)[0];
+  const target = scoring ?? planned;
   if (!target) return null;
+  const confirmed = target.status === "scoring";
 
   const hasAnyResolvedResults = resolvedOrder(events).some((e) =>
     results.some((r) => r.event_id === e.id),
   );
-  if (!hasAnyResolvedResults) return { eventId: target.id, bonuses: new Map() };
+  if (!hasAnyResolvedResults) return { eventId: target.id, bonuses: new Map(), confirmed };
 
   const { finalTotals } = deriveScoreLinesWithStandings(events, results, multipliers, playerIds);
-  return { eventId: target.id, bonuses: catchUpBonuses(finalTotals) };
+  return { eventId: target.id, bonuses: catchUpBonuses(finalTotals), confirmed };
 }
