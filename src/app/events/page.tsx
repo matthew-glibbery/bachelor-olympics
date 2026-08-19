@@ -13,6 +13,7 @@ import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { deriveScoreLines, upcomingCatchUp } from "@/lib/scoring/fromRows";
 import { bettingReserve } from "@/lib/betting/reserve";
+import { allocatedMultiplierTotal } from "@/lib/multipliers/budget";
 import { cn } from "@/lib/utils";
 
 /**
@@ -67,9 +68,7 @@ export default function EventsPage() {
   const reserve = selectedPlayerId
     ? bettingReserve(
         events.length,
-        multipliers
-          .filter((m) => m.player_id === selectedPlayerId)
-          .reduce((sum, m) => sum + m.value, 0),
+        allocatedMultiplierTotal(events, multipliers, selectedPlayerId),
         perEventBets
           .filter((b) => b.player_id === selectedPlayerId)
           .map((b) => ({ wager: b.wager, status: b.status, payout: b.payout })),

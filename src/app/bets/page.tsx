@@ -37,7 +37,7 @@ import {
   perEventPayoutMultiplier,
   type RankingEntry,
 } from "@/lib/odds/ranking";
-import { MULTIPLIER_STEP } from "@/lib/multipliers/budget";
+import { allocatedMultiplierTotal, MULTIPLIER_STEP } from "@/lib/multipliers/budget";
 import type { OverallBetRow, PerEventBetRow } from "@/lib/data/database.types";
 
 const SELECT_CLASS =
@@ -185,9 +185,7 @@ export default function BetsPage() {
   const reserve = player
     ? bettingReserve(
         events.length,
-        multipliers
-          .filter((m) => m.player_id === player.id)
-          .reduce((sum, m) => sum + m.value, 0),
+        allocatedMultiplierTotal(events, multipliers, player.id),
         perEventBets
           .filter((b) => b.player_id === player.id)
           .map((b) => ({ wager: b.wager, status: b.status, payout: b.payout })),

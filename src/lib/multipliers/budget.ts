@@ -48,6 +48,30 @@ export function budgetTotal(eventCount: number): number {
   return eventCount * MULTIPLIER_DEFAULT;
 }
 
+/**
+ * A player's currently-SAVED multiplier total across `events` — the sum
+ * `bettingReserve` (src/lib/betting/reserve.ts) needs for its
+ * `allocatedToEvents` argument. An event with no saved row yet for this
+ * player defaults to `MULTIPLIER_DEFAULT`, same fallback every other
+ * multiplier read in this app already uses (a player who never touched an
+ * event's slider is implicitly still at 1.0, not 0) — summing only the rows
+ * that happen to exist would silently undercount, inflating "available to
+ * wager" for anyone with unsaved-but-default events. Caught as a real bug:
+ * the Odds tab and `/bets` were both doing the naive `.filter().reduce()`
+ * sum and disagreeing with `/multipliers`' own (correctly-defaulted) budget
+ * math for exactly this reason.
+ */
+export function allocatedMultiplierTotal(
+  events: { id: string }[],
+  multiplierRows: { player_id: string; event_id: string; value: number }[],
+  playerId: string,
+): number {
+  return events.reduce((sum, e) => {
+    const row = multiplierRows.find((m) => m.player_id === playerId && m.event_id === e.id);
+    return sum + (row?.value ?? MULTIPLIER_DEFAULT);
+  }, 0);
+}
+
 /** True if a value sits within range and lands exactly on the 0.1 grid. */
 export function isValidMultiplierValue(value: number): boolean {
   const t = toTenths(value);
