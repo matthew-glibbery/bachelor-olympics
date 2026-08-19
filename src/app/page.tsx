@@ -91,26 +91,11 @@ export default function Home() {
 
   const podium = ranked.slice(0, 3);
 
-  // One predicate for "is the real content on screen", so the control legend
-  // can't drift out of sync with it. Previously the legend keyed off
-  // `players.length > 0` alone, which meant a realtime error arriving after
-  // data had loaded rendered the error line *and* a legend offering
-  // navigation for a screen showing nothing.
-  const showingContent = !error && !(!ready && loading) && players.length > 0;
-
   return (
     <GameScreen
       title="Leaderboard"
       tone="gold"
       subtitle="Eight events · Eight competitors · One leaderboard"
-      legend={
-        showingContent
-          ? [
-              { button: "A", action: "Change competitor", tone: "a" },
-              { button: "B", action: "Multipliers", tone: "b" },
-            ]
-          : undefined
-      }
     >
       {error ? (
           <p className="text-destructive text-center text-sm">{error}</p>
@@ -126,15 +111,6 @@ export default function Home() {
           </p>
         ) : (
           <>
-            {/* Progress panel — same ProgressChart as before, reskinned frame. */}
-            <Panel
-              title="Progress"
-              icon={TrendingUp}
-              description="Cumulative points after each event or bonus event, in the order they actually happened."
-            >
-              <ProgressChart players={players} series={series} />
-            </Panel>
-
             {/* Podium. Order is 2–1–3 so first place stands in the middle. */}
             <section className="flex items-end justify-center gap-2 sm:gap-4" aria-label="Top three">
               {[podium[1], podium[0], podium[2]].map((total, slot) => {
@@ -258,6 +234,15 @@ export default function Home() {
               Adjusted = raw points × that event&apos;s multiplier, plus any bonus-event or overall-bet points
             </p>
 
+            {/* Progress panel — same ProgressChart as before, reskinned frame.
+                Sits below the leaderboard now, not above it. */}
+            <Panel
+              title="Progress"
+              icon={TrendingUp}
+              description="Cumulative points after each event or bonus event, in the order they actually happened."
+            >
+              <ProgressChart players={players} series={series} />
+            </Panel>
           </>
       )}
     </GameScreen>

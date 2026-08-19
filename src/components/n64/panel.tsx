@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
  * This is `Card` + `CardHeader` + `CardTitle` + `CardDescription` collapsed
  * into the one shape those screens actually used every single time, but in
  * the console register the rest of the app speaks: the heading is
- * `font-display`, uppercase and tracked (matching `ButtonLegend`, the roster
- * strip labels, and the screen subtitles) rather than shadcn's default
+ * `font-display`, uppercase and tracked (matching the roster strip labels
+ * and the screen subtitles) rather than shadcn's default
  * sentence-case `font-semibold`, and an icon sits in a small sunken well so
  * it reads as an inset chip rather than free-floating next to the words.
  *

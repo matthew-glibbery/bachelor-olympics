@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { AppNav } from "@/components/app-nav";
-import { ButtonLegend, type LegendEntry } from "@/components/n64/button-legend";
+import { Starfield } from "@/components/n64/starfield";
 
 /**
  * The shell every in-game screen sits in (docs/VISUAL_SPEC.md).
@@ -22,7 +22,6 @@ import { ButtonLegend, type LegendEntry } from "@/components/n64/button-legend";
 export function GameScreen({
   title,
   subtitle,
-  legend,
   width = "default",
   tone = "default",
   children,
@@ -31,9 +30,6 @@ export function GameScreen({
   title: React.ReactNode;
   /** The small tracked uppercase line under the title. */
   subtitle?: React.ReactNode;
-  /** Control legend pinned under the content — omit where nothing on the
-   *  screen is cursor-driven. */
-  legend?: LegendEntry[];
   width?: "default" | "wide" | "narrow";
   /** "gold" is reserved for the leaderboard — the trophy screen, and the
    *  only one that should wear the prestige color in its title. */
@@ -42,10 +38,12 @@ export function GameScreen({
   className?: string;
 }) {
   return (
-    <main className="relative min-h-dvh px-4 py-6 pb-28 sm:px-8 sm:pb-6">
+    <main className="relative min-h-dvh overflow-hidden px-4 py-6 pb-28 sm:px-8 sm:pb-6">
+      <Starfield className="opacity-60" />
+
       <div
         className={cn(
-          "mx-auto flex flex-col gap-5",
+          "relative mx-auto flex flex-col gap-5",
           width === "wide" && "max-w-6xl",
           width === "default" && "max-w-4xl",
           width === "narrow" && "max-w-2xl",
@@ -74,8 +72,6 @@ export function GameScreen({
         </header>
 
         {children}
-
-        {legend ? <ButtonLegend className="pb-2" entries={legend} /> : null}
       </div>
     </main>
   );

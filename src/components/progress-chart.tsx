@@ -294,7 +294,14 @@ function ProgressTooltip({
 
   const playerIds = [...playerById.keys()];
   const currentRanks = computeRanks(point, playerIds);
-  const previousRanks = previous ? computeRanks(previous, playerIds) : null;
+  // The synthetic "start" row has every player tied at 0, so it ranks
+  // everyone #1 (competition ranking). Diffing the first real event against
+  // that baseline made almost the whole field look like it had just fallen
+  // in rank — e.g. 2nd place showed prevRank 1 vs. rank 2, a manufactured
+  // ▼1 nobody actually earned, since there was no real ranking yet to fall
+  // from. Only compare against a previous point that was itself a real
+  // scored moment.
+  const previousRanks = previous && previous.key !== "start" ? computeRanks(previous, playerIds) : null;
 
   const rows = playerIds
     .map((playerId) => ({ playerId, value: point[playerId] }))

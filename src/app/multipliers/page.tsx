@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Coins, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 
 import { CharacterRender } from "@/components/n64/character-render";
 import { GameScreen } from "@/components/n64/game-screen";
 import { MultiplierBar } from "@/components/n64/multiplier-bar";
 import { Nameplate } from "@/components/n64/nameplate";
-import { Panel } from "@/components/n64/panel";
-import { Stat } from "@/components/n64/stat";
 import { useGameInput } from "@/hooks/use-game-input";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { bettingReserve } from "@/lib/betting/reserve";
@@ -228,11 +226,6 @@ export default function MultipliersPage() {
       title="Set Your Multipliers"
       subtitle="Raising one event has to come from another — spend up to your full budget, not over it"
       width="wide"
-      legend={[
-        { button: "↑↓", action: "Pick event" },
-        { button: "←→", action: "Adjust" },
-        { button: "A", action: "Save", tone: "a" },
-      ]}
     >
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
           {/* Character, carried over from /select and still idling. */}
@@ -292,6 +285,35 @@ export default function MultipliersPage() {
                     : "Over budget"}
               </p>
             </div>
+
+            {/* Betting reserve — same sunken-readout shape as the budget
+                counter above, and in the same column, instead of a
+                differently-styled full-width panel further down the page. */}
+            {reserve ? (
+              <>
+                <div className="bevel-sunken bg-sunken w-full rounded-md px-4 py-3 text-center">
+                  <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
+                    Available to wager
+                  </p>
+                  <p className="font-score text-primary text-3xl tabular-nums">
+                    {reserve.available.toFixed(1)}
+                  </p>
+                </div>
+                <div className="bevel-sunken bg-sunken w-full rounded-md px-4 py-3 text-center">
+                  <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
+                    Tied up in open wagers
+                  </p>
+                  <p className="font-score text-3xl tabular-nums">{reserve.tiedUp.toFixed(1)}</p>
+                </div>
+                <p className="font-display text-muted-foreground text-center text-[9px] tracking-wider uppercase">
+                  See{" "}
+                  <Link href="/bets" className="text-foreground underline">
+                    Bets
+                  </Link>{" "}
+                  to place a per-event wager
+                </p>
+              </>
+            ) : null}
           </aside>
 
           {/* Event rows. */}
@@ -380,27 +402,6 @@ export default function MultipliersPage() {
             </div>
           </section>
         </div>
-
-      {reserve ? (
-        <Panel
-          title="Betting reserve"
-          icon={Coins}
-          description={
-            <>
-              What&apos;s left of your budget after events and open per-event wagers — see{" "}
-              <Link href="/bets" className="text-foreground underline">
-                Bets
-              </Link>
-              .
-            </>
-          }
-        >
-          <div className="flex gap-3">
-            <Stat label="Available to wager" value={reserve.available.toFixed(1)} tone="primary" />
-            <Stat label="Tied up in open wagers" value={reserve.tiedUp.toFixed(1)} />
-          </div>
-        </Panel>
-      ) : null}
     </GameScreen>
   );
 }

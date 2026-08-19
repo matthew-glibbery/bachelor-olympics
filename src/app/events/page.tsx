@@ -105,15 +105,10 @@ export default function EventsPage() {
   const focused = index < events.length ? (events[index] ?? null) : null;
   const bonusSelected = showBonusTile && index === bonusIndex;
 
-  // Must match the content branch below exactly — otherwise an error state
-  // still offers a "↔ Pick" legend for a strip that isn't on screen.
-  const showingContent = !error && !(!ready && loading) && events.length > 0;
-
   return (
     <GameScreen
       title="Events"
       subtitle="Start scoring, enter results, or cancel an event"
-      legend={showingContent ? [{ button: "↔", action: "Pick" }] : undefined}
     >
       {error ? (
           <p className="text-destructive text-center text-sm">{error}</p>
