@@ -165,7 +165,7 @@ describe("deriveScoreLines", () => {
 });
 
 describe("upcomingCatchUp", () => {
-  it("previews the catch-up bonus for the event actually being scored", () => {
+  it("previews the catch-up bonus for the event actually being scored, confirmed", () => {
     const events: EventRow[] = [
       {
         ...baseEvent,
@@ -183,14 +183,16 @@ describe("upcomingCatchUp", () => {
     ];
     const preview = upcomingCatchUp(events, results, [], ["p1", "p2"]);
     expect(preview?.eventId).toBe("e2");
+    expect(preview?.confirmed).toBe(true);
     expect(preview?.bonuses.get("p2")).toBeCloseTo(0.3, 5);
     expect(preview?.bonuses.has("p1")).toBe(false);
   });
 
-  it("returns null when nothing is currently being scored, even if a planned event exists", () => {
+  it("falls back to the lowest-sort_order planned event, unconfirmed, when nothing is being scored", () => {
     // The real play order routinely diverges from configured sort_order, so
-    // a merely "planned" event is never assumed to be next — only an event
-    // that's actually been started (status "scoring") qualifies.
+    // a merely "planned" event is only ever a best guess (confirmed: false)
+    // — but showing that guess beats showing nothing, since most of the
+    // time the groom does follow the listed order.
     const events: EventRow[] = [
       {
         ...baseEvent,
@@ -201,12 +203,16 @@ describe("upcomingCatchUp", () => {
         resolved_at: "2026-01-01T00:00:00Z",
       },
       { ...baseEvent, id: "e2", scoring_mode: "placement", status: "planned", sort_order: 1 },
+      { ...baseEvent, id: "e3", scoring_mode: "placement", status: "planned", sort_order: 2 },
     ];
     const results: EventResultRow[] = [
       { event_id: "e1", player_id: "p1", position: 1, raw: null },
       { event_id: "e1", player_id: "p2", position: 2, raw: null },
     ];
-    expect(upcomingCatchUp(events, results, [], ["p1", "p2"])).toBeNull();
+    const preview = upcomingCatchUp(events, results, [], ["p1", "p2"]);
+    expect(preview?.eventId).toBe("e2");
+    expect(preview?.confirmed).toBe(false);
+    expect(preview?.bonuses.get("p2")).toBeCloseTo(0.3, 5);
   });
 
   it("targets the scoring event even when a planned event has a lower sort_order", () => {
@@ -216,6 +222,7 @@ describe("upcomingCatchUp", () => {
     ];
     const preview = upcomingCatchUp(events, [], [], ["p1", "p2"]);
     expect(preview?.eventId).toBe("e2");
+    expect(preview?.confirmed).toBe(true);
   });
 
   it("previews no bonuses (not a bonus for everyone) when the very first event is being scored", () => {

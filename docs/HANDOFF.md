@@ -2,6 +2,60 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-19 (3) — Column spacing, catch-up preview before scoring starts, locked-icon-only, side-by-side reserve stats, bet-form alignment
+
+Real-use feedback batch after (2) — **this app is now genuinely being used
+live**: `events` shows a real in-progress "Nine Holes of Golf" with one
+player's actual result already entered, and real per-event bets exist.
+Screenshot/live verification this session was careful to only ever click
+"Edit" on a real bet form and never "Save changes" — nothing in this
+session's testing wrote to live game data, unlike some earlier sessions
+which mutated-then-restored specific rows. 153 tests (unchanged),
+lint/typecheck/build all green. **Not yet merged** — pushed as
+`fix-pass-4`, left as a PR for the next session to pick up per explicit
+request (a fresh session is starting on `/bets` next).
+
+- **Event results columns widened further**: the spacer columns added last
+  session (`event-card.tsx`, between Pts/×/Total) went from `0.75rem` to
+  `1.5rem` — the first pass wasn't enough.
+- **Catch-up bonus preview now shows before an event starts scoring** —
+  this reverses part of (2)'s own change, on direct user feedback that
+  showing nothing until scoring starts was worse than showing a
+  best-guess. `upcomingCatchUp` (`fromRows.ts`) now prefers an actively
+  `"scoring"` event same as before, but **falls back to the lowest-
+  `sort_order` "planned" event** when nothing's scoring yet, returning a
+  new `confirmed: boolean` alongside `eventId`/`bonuses` so the UI can word
+  a live "the event currently being scored" differently from a "up next
+  going by the current running order — may change" guess. Both matter: the
+  fallback answers today's "I don't see a preview before it starts," and
+  `confirmed` preserves the earlier, still-valid point that a merely
+  "planned" event isn't a promise about what's actually played next.
+- **Multiplier bar's "Locked" text badge removed** (`multiplier-bar.tsx`)
+  — reverted to icon-only, on explicit feedback that combined with the
+  segments' desaturated colour (kept from last session), the text was
+  redundant. Straightforward revert of one specific piece of (2)'s locked-
+  clarity change, not the whole thing.
+- **Budget Remaining / Tied Up in Open Wagers are now side by side**
+  (`multipliers/page.tsx`), not stacked — two short readouts don't need a
+  full stacked column's worth of vertical space, especially on a phone.
+  Numbers went `text-3xl` → `text-2xl` to fit comfortably at half width in
+  the narrow desktop aside column too.
+- **"Place a bet" form on the Odds tab reworked into real aligned columns**
+  (`event-odds-betting.tsx`): added a separate **Odds** column between
+  Wager and Payout (previously payout and odds were mashed into one string,
+  "12.4 (2.3×)"); the label row (Wager/Odds/Payout) and value row now share
+  matching fixed column widths so labels sit directly over their values —
+  they didn't before, because label+value were two independent flex
+  columns of different heights, bottom-aligned (`items-end`), so Payout's
+  shorter column left its label sitting lower than Wager's. Value row is
+  `items-center` so the Odds/Payout numbers and the Input/Button(s) all
+  centre against the tallest thing in the row instead of each sitting on
+  its own baseline. The trailing button group (Wager/Save changes +
+  Discard) has no label of its own and is the one thing allowed to wrap
+  onto its own line — verified live that this actually happens gracefully
+  on a real phone width in the edit-with-two-buttons case, the tightest
+  one; the common single-button case fits on one line at both widths.
+
 ## 2026-08-19 (2) — Multiplier autosave, /select confirm flow, locked-event clarity, "You" highlighting, mobile autoplay
 
 Same-day follow-up on the batch below, after a real look at what shipped.

@@ -278,43 +278,55 @@ export function EventOddsBetting({
           ) : showForm ? (
             <div className="flex flex-col gap-2">
               {error ? <p className="text-destructive text-sm">{error}</p> : null}
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="flex flex-col gap-1">
-                  <span className="text-muted-foreground text-[10px] uppercase">Wager</span>
-                  <Input
-                    ref={wagerInputRef}
-                    type="number"
-                    step={MULTIPLIER_STEP}
-                    min={MULTIPLIER_STEP}
-                    max={maxWager}
-                    placeholder={`up to ${maxWager.toFixed(1)}`}
-                    className="w-28"
-                    value={wager}
-                    onChange={(e) => setWager(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-muted-foreground text-[10px] uppercase">Payout</span>
-                  <span className="font-score tabular-nums">
-                    {payoutPreview != null
-                      ? `${payoutPreview.toFixed(1)} (${odds?.toFixed(1)}×)`
-                      : odds != null
-                        ? `${odds.toFixed(1)}×`
-                        : "—"}
-                  </span>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleWager}
-                  disabled={busy || !pick || !hasValidWager || wagerNum > maxWager}
-                >
-                  {isEditing ? "Save changes" : "Wager"}
-                </Button>
-                {isEditing ? (
-                  <Button size="sm" variant="ghost" onClick={discardEditing} disabled={busy}>
-                    Discard
+              {/* Label row and value row share the same column widths
+                  (Wager / Odds / Payout, `gap-4` between each) so the
+                  labels line up directly over their values — Payout used
+                  to sit lower than Wager because they were two independent
+                  flex columns of different heights, bottom-aligned
+                  (`items-end`) rather than sharing a real grid. `items-center`
+                  on the value row centers the Odds/Payout text and the
+                  Wager/Discard buttons against the tallest thing in the
+                  row (the Input), instead of everything sitting on its own
+                  baseline. The trailing button group has no label of its
+                  own, and is the one thing allowed to wrap onto its own
+                  line on a narrow phone when editing shows two buttons. */}
+              <div className="flex items-center gap-4">
+                <span className="text-muted-foreground w-28 text-[10px] uppercase">Wager</span>
+                <span className="text-muted-foreground w-14 text-[10px] uppercase">Odds</span>
+                <span className="text-muted-foreground w-16 text-[10px] uppercase">Payout</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <Input
+                  ref={wagerInputRef}
+                  type="number"
+                  step={MULTIPLIER_STEP}
+                  min={MULTIPLIER_STEP}
+                  max={maxWager}
+                  placeholder={`up to ${maxWager.toFixed(1)}`}
+                  className="w-28"
+                  value={wager}
+                  onChange={(e) => setWager(e.target.value)}
+                />
+                <span className="font-score w-14 tabular-nums">
+                  {odds != null ? `${odds.toFixed(1)}×` : "—"}
+                </span>
+                <span className="font-score w-16 tabular-nums">
+                  {payoutPreview != null ? payoutPreview.toFixed(1) : "—"}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleWager}
+                    disabled={busy || !pick || !hasValidWager || wagerNum > maxWager}
+                  >
+                    {isEditing ? "Save changes" : "Wager"}
                   </Button>
-                ) : null}
+                  {isEditing ? (
+                    <Button size="sm" variant="ghost" onClick={discardEditing} disabled={busy}>
+                      Discard
+                    </Button>
+                  ) : null}
+                </div>
               </div>
               <span className="text-muted-foreground text-xs">
                 {reserve

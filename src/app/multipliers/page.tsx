@@ -260,59 +260,65 @@ export default function MultipliersPage() {
 
             <Nameplate name={player.name} nickname={player.nickname} color={playerColor} className="w-full" />
 
-            {/* The budget counter. The whole constraint, in one number. */}
-            <div
-              className={cn(
-                // `bevel-sunken` is shadow-only and `bg-sunken` is its
-                // matching fill — always use the pair (see globals.css).
-                "bevel-sunken bg-sunken w-full rounded-md px-4 py-3 text-center",
-                validation.budgetRemaining < 0 && "is-cursor",
-              )}
-            >
-              <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
-                Budget remaining
-              </p>
-              <p
+            {/* Budget counter + betting reserve, side by side rather than
+                stacked — two short readouts, no reason to spend a whole
+                screen-height's worth of vertical space on them,
+                particularly on a phone. */}
+            <div className="flex w-full gap-3">
+              <div
                 className={cn(
-                  "font-score text-3xl tabular-nums",
-                  validation.budgetRemaining >= 0 ? "text-primary" : "text-destructive",
+                  // `bevel-sunken` is shadow-only and `bg-sunken` is its
+                  // matching fill — always use the pair (see globals.css).
+                  "bevel-sunken bg-sunken flex-1 rounded-md px-3 py-3 text-center",
+                  validation.budgetRemaining < 0 && "is-cursor",
                 )}
               >
-                {validation.budgetRemaining > 0 ? "+" : ""}
-                {validation.budgetRemaining.toFixed(1)}
-              </p>
-              <p className="font-display text-muted-foreground mt-1 text-[9px] tracking-wider uppercase">
-                {validation.budgetRemaining > 0
-                  ? "Unspent — becomes your betting reserve"
-                  : validation.budgetRemaining === 0
-                    ? "Fully allocated"
-                    : "Over budget"}
-              </p>
-            </div>
+                <p className="font-display text-muted-foreground text-[9px] tracking-wider uppercase">
+                  Budget remaining
+                </p>
+                <p
+                  className={cn(
+                    "font-score text-2xl tabular-nums",
+                    validation.budgetRemaining >= 0 ? "text-primary" : "text-destructive",
+                  )}
+                >
+                  {validation.budgetRemaining > 0 ? "+" : ""}
+                  {validation.budgetRemaining.toFixed(1)}
+                </p>
+                <p className="font-display text-muted-foreground mt-1 text-[8px] tracking-wide uppercase">
+                  {validation.budgetRemaining > 0
+                    ? "Unspent — becomes reserve"
+                    : validation.budgetRemaining === 0
+                      ? "Fully allocated"
+                      : "Over budget"}
+                </p>
+              </div>
 
-            {/* Betting reserve — same sunken-readout shape as the budget
-                counter above, and in the same column, instead of a
-                differently-styled full-width panel further down the page.
-                Only "tied up" is shown: "available to wager" is always
-                exactly the budget-remaining figure above once everything's
-                saved (same underlying number, see reserve.ts), so showing
-                both was just the same fact printed twice. */}
-            {reserve ? (
-              <>
-                <div className="bevel-sunken bg-sunken w-full rounded-md px-4 py-3 text-center">
-                  <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
+              {/* Betting reserve — same sunken-readout shape as the budget
+                  counter, and in the same column, instead of a
+                  differently-styled full-width panel further down the page.
+                  Only "tied up" is shown: "available to wager" is always
+                  exactly the budget-remaining figure once everything's
+                  saved (same underlying number, see reserve.ts), so showing
+                  both was just the same fact printed twice. */}
+              {reserve ? (
+                <div className="bevel-sunken bg-sunken flex-1 rounded-md px-3 py-3 text-center">
+                  <p className="font-display text-muted-foreground text-[9px] tracking-wider uppercase">
                     Tied up in open wagers
                   </p>
-                  <p className="font-score text-3xl tabular-nums">{reserve.tiedUp.toFixed(1)}</p>
+                  <p className="font-score text-2xl tabular-nums">{reserve.tiedUp.toFixed(1)}</p>
                 </div>
-                <p className="font-display text-muted-foreground text-center text-[9px] tracking-wider uppercase">
-                  See{" "}
-                  <Link href="/bets" className="text-foreground underline">
-                    Bets
-                  </Link>{" "}
-                  to place a per-event wager
-                </p>
-              </>
+              ) : null}
+            </div>
+
+            {reserve ? (
+              <p className="font-display text-muted-foreground text-center text-[9px] tracking-wider uppercase">
+                See{" "}
+                <Link href="/bets" className="text-foreground underline">
+                  Bets
+                </Link>{" "}
+                to place a per-event wager
+              </p>
             ) : null}
           </aside>
 
