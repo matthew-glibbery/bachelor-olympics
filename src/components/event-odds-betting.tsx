@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { PlayerName } from "@/components/player-name";
@@ -26,6 +26,12 @@ const TARGET_LABEL: Record<PerEventBetRow["target"], string> = {
   win: "win",
   place: "place top 3",
 };
+
+// Fixed width for the win/place odds cells so the button/text in each row
+// lines up under its column header regardless of digit count (e.g. "2.3x"
+// vs. "12.4x"). text-center (not justify-center) so it centers a plain
+// <span>'s text too, not just a flex Button's content.
+const ODDS_CELL_CLASS = "w-16 shrink-0 text-center tabular-nums";
 
 /** Odds tab: this event's own ranking as win/place payout odds, in rank
  * order (1 at top) — and, while the event is still "planned," the wager
@@ -55,6 +61,7 @@ export function EventOddsBetting({
   const [editingBet, setEditingBet] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const wagerInputRef = useRef<HTMLInputElement>(null);
 
   if (ranking.length === 0) {
     return (
@@ -78,6 +85,15 @@ export function EventOddsBetting({
   const wagerNum = Number(wager);
   const hasValidWager = Number.isFinite(wagerNum) && wagerNum > 0;
   const payoutPreview = odds != null && hasValidWager ? wagerNum * odds : null;
+
+  function selectPick(playerId: string, nextTarget: PerEventBetRow["target"]) {
+    setPick(playerId);
+    setTarget(nextTarget);
+    // Picking a player/target is step one of placing a bet — jump straight
+    // to the wager field next, rather than making them hunt for it below.
+    wagerInputRef.current?.focus();
+    wagerInputRef.current?.select();
+  }
 
   function startEditing() {
     if (!myBet) return;
@@ -140,6 +156,28 @@ export function EventOddsBetting({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-2 px-2">
+          <span aria-hidden />
+          <div className="flex items-center gap-4">
+            <span
+              className={cn(
+                "font-display text-muted-foreground text-[10px] tracking-wide uppercase",
+                ODDS_CELL_CLASS,
+              )}
+            >
+              Win
+            </span>
+            <span
+              className={cn(
+                "font-display text-muted-foreground text-[10px] tracking-wide uppercase",
+                ODDS_CELL_CLASS,
+              )}
+            >
+              Place
+            </span>
+          </div>
+        </div>
+
         {order.map(({ playerId }, i) => {
           const player = players.get(playerId);
           const mult = payouts.get(playerId);
@@ -164,37 +202,35 @@ export function EventOddsBetting({
                   photoUrl={player.photo_url}
                 />
               </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {mult.win.toFixed(1)}x
-                </span>
+              <div className="flex items-center gap-4">
                 {showForm ? (
                   <Button
                     size="sm"
                     variant={isPick && target === "win" ? "default" : "outline"}
-                    onClick={() => {
-                      setPick(playerId);
-                      setTarget("win");
-                    }}
+                    className={ODDS_CELL_CLASS}
+                    onClick={() => selectPick(playerId, "win")}
                   >
-                    Win
+                    {mult.win.toFixed(1)}x
                   </Button>
-                ) : null}
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {mult.top3.toFixed(1)}x
-                </span>
+                ) : (
+                  <span className={cn("text-muted-foreground text-xs", ODDS_CELL_CLASS)}>
+                    {mult.win.toFixed(1)}x
+                  </span>
+                )}
                 {showForm ? (
                   <Button
                     size="sm"
                     variant={isPick && target === "place" ? "default" : "outline"}
-                    onClick={() => {
-                      setPick(playerId);
-                      setTarget("place");
-                    }}
+                    className={ODDS_CELL_CLASS}
+                    onClick={() => selectPick(playerId, "place")}
                   >
-                    Place
+                    {mult.top3.toFixed(1)}x
                   </Button>
-                ) : null}
+                ) : (
+                  <span className={cn("text-muted-foreground text-xs", ODDS_CELL_CLASS)}>
+                    {mult.top3.toFixed(1)}x
+                  </span>
+                )}
               </div>
             </div>
           );
@@ -242,24 +278,31 @@ export function EventOddsBetting({
           ) : showForm ? (
             <div className="flex flex-col gap-2">
               {error ? <p className="text-destructive text-sm">{error}</p> : null}
-              <div className="flex flex-wrap items-end gap-2">
-                <Input
-                  type="number"
-                  step={MULTIPLIER_STEP}
-                  min={MULTIPLIER_STEP}
-                  max={maxWager}
-                  placeholder={`up to ${maxWager.toFixed(1)}`}
-                  className="w-28"
-                  value={wager}
-                  onChange={(e) => setWager(e.target.value)}
-                />
-                <span className="text-muted-foreground text-xs">
-                  {pick
-                    ? payoutPreview != null
-                      ? `pays ${payoutPreview.toFixed(1)} if correct (${odds?.toFixed(1)}×)`
-                      : `${odds?.toFixed(1)}× if correct`
-                    : "pick a player above to win or place"}
-                </span>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground text-[10px] uppercase">Wager</span>
+                  <Input
+                    ref={wagerInputRef}
+                    type="number"
+                    step={MULTIPLIER_STEP}
+                    min={MULTIPLIER_STEP}
+                    max={maxWager}
+                    placeholder={`up to ${maxWager.toFixed(1)}`}
+                    className="w-28"
+                    value={wager}
+                    onChange={(e) => setWager(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-muted-foreground text-[10px] uppercase">Payout</span>
+                  <span className="font-score tabular-nums">
+                    {payoutPreview != null
+                      ? `${payoutPreview.toFixed(1)} (${odds?.toFixed(1)}×)`
+                      : odds != null
+                        ? `${odds.toFixed(1)}×`
+                        : "—"}
+                  </span>
+                </div>
                 <Button
                   size="sm"
                   onClick={handleWager}

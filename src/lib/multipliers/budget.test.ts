@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  allocatedMultiplierTotal,
   budgetTotal,
   isValidMultiplierValue,
   MultiplierAllocation,
@@ -31,6 +32,32 @@ describe("budgetTotal", () => {
   it("is one point per event", () => {
     expect(budgetTotal(8)).toBe(8);
     expect(budgetTotal(9)).toBe(9);
+  });
+});
+
+describe("allocatedMultiplierTotal", () => {
+  const events = [{ id: "e1" }, { id: "e2" }, { id: "e3" }];
+
+  it("sums saved rows for the player", () => {
+    const rows = [
+      { player_id: "p1", event_id: "e1", value: 1.4 },
+      { player_id: "p1", event_id: "e2", value: 0.8 },
+      { player_id: "p1", event_id: "e3", value: 0.8 },
+    ];
+    expect(allocatedMultiplierTotal(events, rows, "p1")).toBeCloseTo(3.0, 5);
+  });
+
+  it("defaults an event with no saved row to MULTIPLIER_DEFAULT (1.0), not 0", () => {
+    // p1 only ever saved e1 — e2/e3 are implicitly still at the default,
+    // same as /multipliers shows them. The naive .filter().reduce() bug
+    // this guards against would sum to 1.4 here instead of 3.4.
+    const rows = [{ player_id: "p1", event_id: "e1", value: 1.4 }];
+    expect(allocatedMultiplierTotal(events, rows, "p1")).toBeCloseTo(3.4, 5);
+  });
+
+  it("ignores other players' rows", () => {
+    const rows = [{ player_id: "someone-else", event_id: "e1", value: 1.5 }];
+    expect(allocatedMultiplierTotal(events, rows, "p1")).toBeCloseTo(3.0, 5);
   });
 });
 

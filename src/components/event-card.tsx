@@ -336,7 +336,7 @@ export function EventCard({
         </div>
       </div>
 
-      <Tabs defaultValue="results">
+      <Tabs defaultValue={event.status === "planned" ? "odds" : "results"}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TabsList className="bevel-sunken h-auto w-fit gap-1 rounded-md bg-transparent p-1">
             <TabsTrigger

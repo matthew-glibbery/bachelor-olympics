@@ -2,6 +2,63 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-18 (3) — Real bug: reserve mismatch between screens, Odds tab table polish
+
+User caught a real discrepancy: `/multipliers` showed 0 available to
+wager, but the Odds tab showed 2.0 available for the same player at the
+same moment. 150 tests (3 new, `allocatedMultiplierTotal` in
+`budget.test.ts`), lint/typecheck/build all green, dev-server smoke test
+of `/`, `/events`, `/bets`, `/multipliers` (clean compiles, 200s).
+
+- **Root cause, a genuine bug**: `bettingReserve`'s `allocatedToEvents`
+  argument was computed two different ways in two places.
+  `/multipliers` (`src/app/multipliers/page.tsx`) correctly defaults an
+  event with no saved `multipliers` row yet to `MULTIPLIER_DEFAULT` (1.0)
+  — a player who never touched a slider is implicitly still at the
+  default, not 0. But `/bets` and the Odds tab (`events/page.tsx`) both
+  summed via `multipliers.filter(...).reduce((sum, m) => sum + m.value,
+  0)` — which only sums rows that actually exist in the table, silently
+  treating an unsaved-but-default event as contributing 0 instead of 1.0.
+  For a player with 2 events never explicitly saved, that's exactly a 2.0
+  undercount — which is exactly the discrepancy reported. Fixed with a new
+  shared pure helper, **`allocatedMultiplierTotal`**
+  (`src/lib/multipliers/budget.ts`, +3 tests), used by both `/bets` and
+  `/events` now instead of each hand-rolling the wrong version.
+  `/multipliers`' own calc is intentionally untouched — it correctly mixes
+  live draft values (for still-unlocked events) with committed ones, which
+  the generic helper doesn't model.
+- **Odds tab now defaults to the Odds tab** for any event that hasn't
+  started yet (`event-card.tsx`: `defaultValue={event.status === "planned"
+  ? "odds" : "results"}`) — Results stays the default once there's
+  something to show there.
+- **Odds table reworked into a real two-column table**
+  (`event-odds-betting.tsx`): a header row now labels the right-hand
+  columns "Win" and "Place" (was unlabeled), the odds figure and its
+  button are merged into one (the button's own label is the payout, e.g.
+  "2.3x", instead of a separate plain-text odds span next to a
+  same-labeled "Win"/"Place" button), and the gap between the two columns
+  widened (`gap-4`, was `gap-1.5`) per the explicit "more space" ask. Both
+  columns are a fixed width (`w-16`) so they stay aligned under their
+  headers regardless of digit count.
+- **Clicking a Win/Place button now focuses (and selects) the wager
+  input** — a new `wagerInputRef` passed to the (previously plain,
+  non-forwardRef) `Input` component. This works via React 19's native
+  ref-as-a-prop support: `Input` doesn't need `forwardRef` because the
+  `ref` key rides through its own `...props` spread onto the underlying
+  `<input>`, which is a host element and always honors `ref` however it
+  arrives — confirmed by a clean `tsc` pass, this repo's first use of a
+  ref on this component.
+  - The payout preview is now a labeled stat ("Payout" / "12.4 (2.3×)"),
+    matching the label-over-value pattern the Betting Reserve card on
+    `/multipliers` already uses, instead of being written out as a
+    sentence ("pays 12.4 if correct (2.3×)").
+- **Not independently screenshot-verified** — no browser driver in this
+  environment, standing limitation. Worth a real look at the new table's
+  column alignment on a phone (buttons vs. plain-text odds cells use the
+  same fixed width, but worth confirming they actually line up visually)
+  and whether the auto-focus/select on the wager field feels right rather
+  than jarring.
+
 ## 2026-08-18 (2) — Odds tab polish: replay placement, bet edit/cancel, separation
 
 Follow-up feedback on the just-merged "per-event betting on the Odds tab"
