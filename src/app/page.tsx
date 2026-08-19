@@ -22,7 +22,11 @@ import { useSessionStore } from "@/store/sessionStore";
 import { cn } from "@/lib/utils";
 
 const MEDAL_COLOR = ["var(--medal-gold)", "var(--medal-silver)", "var(--medal-bronze)"];
-const PODIUM_HEIGHT = ["min-h-28 sm:h-36", "min-h-22 sm:h-28", "min-h-18 sm:h-28"];
+// 1st / 2nd / 3rd step heights. 2nd and 3rd were both `sm:h-28`, so above
+// the `sm` breakpoint the podium had two equal-height steps and stopped
+// reading as a podium at all — the one shape this whole section exists to
+// make. Each step is now visibly shorter than the one before it.
+const PODIUM_HEIGHT = ["min-h-28 sm:h-36", "min-h-22 sm:h-28", "min-h-18 sm:h-22"];
 
 /**
  * The leaderboard (docs/VISUAL_SPEC.md — renamed from "medal table" per a
