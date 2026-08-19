@@ -2,6 +2,91 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-19 (2) — Multiplier autosave, /select confirm flow, locked-event clarity, "You" highlighting, mobile autoplay
+
+Same-day follow-up on the batch below, after a real look at what shipped.
+153 tests (+1, the degenerate-first-event `upcomingCatchUp` case),
+lint/typecheck/build all green. Live-verified against the real Supabase
+project via headless Chrome + CDP — including scripting an actual slider
+click with **no button clicked afterward** to prove autosave, and a full
+preview-then-confirm click sequence on `/select`.
+
+- **Multipliers now autosave — no Save button.** `handleSave` fires from a
+  debounced `useEffect` keyed on `draft` (`multipliers/page.tsx`) instead of
+  a click handler: every slider move (or Reset to even) reschedules a
+  500ms timer, and whichever edit is the last one in a burst is the one
+  that actually writes — same debounce shape as `gameStore.ts`'s realtime
+  refetch from earlier today, for the same reason (don't fire a write per
+  click). Runs from an effect specifically so the closure that fires always
+  has that render's fresh `draft`/`validation`, not a stale one captured by
+  a handler-local timer. A hydrate-triggered `draft` change (mount, or
+  switching player) safely no-ops since `handleSave`'s existing diff-only
+  logic finds nothing changed to write. The A-button binding that used to
+  trigger a manual save is gone; D-pad up/down (row picking) still works.
+  Verified live: clicked a segment with no button anywhere on screen,
+  watched the status line go idle → "Saving…" → "Saved ✓" and the DB row
+  actually change, with no click after the slider itself.
+- **Removed "Available to wager"** from `/multipliers` — it's the same
+  number as Budget Remaining once anything's saved (both derive from the
+  same committed-multiplier math, see `reserve.ts`), so showing both was
+  the same fact twice. Kept "Tied up in open wagers" — that one's genuinely
+  different information.
+- **Event multiplier list now sits in a `Panel`** (title "Event
+  multipliers", `Sliders` icon — same icon `AppNav` already uses for this
+  tab) instead of a bare `bevel-sunken` list straight on the page
+  background, matching the bevel-consistency fix applied to the leaderboard
+  earlier today.
+- **Locked vs. unlocked events are now unmistakable**, not just a faded
+  row + small icon: locked rows get an explicit "LOCKED" text badge (not
+  icon-only) and their filled segments render in a flat desaturated grey
+  instead of the player's own colour — colour reads as "live, mine, can
+  still move" everywhere else in this app, so a full-colour locked bar was
+  undercutting its own lock icon.
+- **Catch-up bonus preview no longer disappears** when nothing's currently
+  being scored — `/events`' new section (added earlier today) is now
+  always rendered with three states (an active preview with names/badges;
+  "scoring X now, nobody qualifies yet"; "nothing being scored right now")
+  instead of only rendering in the first case. Also fixed a real edge-case
+  bug while in there: `upcomingCatchUp` previewed a bonus for *nearly
+  everyone* on the very first event ever scored, because with zero
+  resolved history every player is trivially tied at 0 and
+  `catchUpBonuses` on a fully-tied field hands the bonus to the whole tied
+  group. Now mirrors the same "no bonus on the very first resolved event"
+  guard the real scoring path already had.
+- **Leaderboard and progress chart now clearly mark "your" row/line.** The
+  table row got a left border + background tint in the player's own
+  colour (same colour as their rank badge and chart line) plus a "You"
+  tag — the previous `bg-card/70` tint was barely distinguishable from the
+  zebra striping already on the table. The chart line for the session
+  player is thicker (3.5 vs 2), full-opacity while every other line dims
+  to 0.55, drawn last so it's never buried under a crossing line, and its
+  markers are slightly larger; the legend entry is bold with its own "You"
+  tag. New optional `currentPlayerId` prop on `ProgressChart`.
+- **Mobile boot-video autoplay fixed** (`/start`) — `autoPlay`/`muted` as
+  JSX attributes alone aren't reliable on mobile Safari/Chrome (a known gap
+  between the DOM attribute and the property autoplay policies actually
+  check). Switched to the same ref + imperative `video.muted = true` +
+  `.play().catch(() => {})` pattern `character-render.tsx` already used for
+  character clips — applied to the boot video and, since it's the same
+  bug, `/select`'s confirm-clip video too.
+- **`/select`'s confirm flow, actually fixed, not just described.** Two
+  real gaps: (1) the visible "← Back" link is gone (explicit ask) — the
+  underlying B-button/gamepad back-to-`/start` behavior is untouched, only
+  the on-screen link is removed; (2) **clicking a roster tile no longer
+  instantly confirms your pick.** It used to — `useMenuNav`'s default
+  `onClick` both moves the cursor *and* calls `onConfirm`, which is a
+  reasonable "hover previews, click commits" model for a mouse but leaves
+  a touch user with no preview step and, after this session's earlier
+  legend removal, no visible hint that tapping = committing. Tiles now
+  override `onClick` to only call `setIndex` (preview only, same as
+  hover/D-pad); a new explicit **"Let's go ▶" button** below the focused
+  character (visible whenever one's focused) is the one deliberate confirm
+  action for every input method, calling the same `onConfirm` A/Enter
+  already triggered — plays the player's confirm clip if they have one,
+  same as before. Verified live: tapped a different roster tile (stayed on
+  `/select`, previewed correctly), then tapped "Let's go" (routed away) —
+  a real click-sequence test, not just reading the code.
+
 ## 2026-08-19 — Catch-up bonus targeting fix + section move, save-speed fix, leaderboard bevel, column spacing, Power Move removed
 
 Follow-up batch the day after (5), same PR pattern: a short punch list plus

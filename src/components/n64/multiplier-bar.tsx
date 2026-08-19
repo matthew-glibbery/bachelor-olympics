@@ -113,7 +113,15 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
     >
       <div className="flex items-center justify-between gap-2 sm:contents">
         <span className="font-display flex min-w-0 shrink items-center gap-1.5 text-xs tracking-wider uppercase sm:w-28 sm:shrink-0">
-          {locked ? <Lock className="text-muted-foreground size-3 shrink-0" /> : null}
+          {/* An explicit text badge, not just a small icon — an icon alone
+              next to the row's own reduced opacity read as "slightly
+              faded," not "this can no longer be changed." */}
+          {locked ? (
+            <span className="bg-muted text-muted-foreground inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-[9px] tracking-wider uppercase">
+              <Lock className="size-2.5" />
+              Locked
+            </span>
+          ) : null}
           <span className="truncate">{label}</span>
         </span>
         {/* The value rides beside the name on the stacked mobile layout and
@@ -161,9 +169,19 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
               style={
                 filled
                   ? {
-                      // Past the baseline the segment turns gold: this is
+                      // Locked segments are desaturated to a flat grey
+                      // instead of the player's colour or the gold
+                      // above-baseline treatment — colour reads as "live and
+                      // editable" everywhere else in this app, so a locked
+                      // bar keeping full colour undercut the point of also
+                      // labelling it locked. Past the baseline on an
+                      // unlocked bar the segment turns gold: that's
                       // borrowed multiplier, and it should look like it.
-                      backgroundColor: aboveBaseline ? "var(--primary)" : color,
+                      backgroundColor: locked
+                        ? "var(--muted-foreground)"
+                        : aboveBaseline
+                          ? "var(--primary)"
+                          : color,
                     }
                   : undefined
               }

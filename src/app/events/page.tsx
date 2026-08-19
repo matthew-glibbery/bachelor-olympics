@@ -201,33 +201,48 @@ export default function EventsPage() {
               ) : null}
             </ul>
 
-            {/* Catch-up bonus — its own section, between the strip and the
-                focused event's detail, rather than living inside whichever
-                event card happens to be focused (it used to). It always
-                targets the event actually being scored right now
-                (upcomingCatchUp, src/lib/scoring/fromRows.ts), not
-                whichever tile the cursor is on, so it stays visible and
-                correct regardless of what's focused above. */}
-            {previewEvent && preview && preview.bonuses.size > 0 ? (
-              <Panel title="Catch-up bonus" icon={Flame}>
+            {/* Catch-up bonus — its own section, always present, between
+                the strip and the focused event's detail, rather than living
+                inside whichever event card happens to be focused (it used
+                to, and would disappear/reappear depending on cursor
+                position). Always targets the event actually being scored
+                right now (upcomingCatchUp, src/lib/scoring/fromRows.ts),
+                not whichever tile the cursor is on — three states below,
+                not just "has bonuses / hidden", so the section not
+                rendering never reads as a missing feature. */}
+            <Panel title="Catch-up bonus" icon={Flame}>
+              {previewEvent && preview && preview.bonuses.size > 0 ? (
+                <>
+                  <p className="text-muted-foreground -mt-1 text-xs">
+                    Applies to <span className="text-foreground font-medium">{previewEvent.name}</span>,
+                    the event currently being scored.
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {[...preview.bonuses.entries()].map(([playerId, bonus]) => {
+                      const p = players.find((pl) => pl.id === playerId);
+                      if (!p) return null;
+                      return (
+                        <span key={playerId} className="flex items-center justify-between gap-2 text-sm">
+                          <PlayerName name={p.name} size="sm" />
+                          <CatchUpBadge bonus={bonus} />
+                        </span>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : previewEvent ? (
                 <p className="text-muted-foreground -mt-1 text-xs">
-                  Applies to <span className="text-foreground font-medium">{previewEvent.name}</span>,
-                  the event currently being scored.
+                  Scoring <span className="text-foreground font-medium">{previewEvent.name}</span> now — no
+                  catch-up bonus applies this time (it only kicks in once someone&apos;s actually behind).
                 </p>
-                <div className="flex flex-col gap-1.5">
-                  {[...preview.bonuses.entries()].map(([playerId, bonus]) => {
-                    const p = players.find((pl) => pl.id === playerId);
-                    if (!p) return null;
-                    return (
-                      <span key={playerId} className="flex items-center justify-between gap-2 text-sm">
-                        <PlayerName name={p.name} size="sm" />
-                        <CatchUpBadge bonus={bonus} />
-                      </span>
-                    );
-                  })}
-                </div>
-              </Panel>
-            ) : null}
+              ) : (
+                <p className="text-muted-foreground -mt-1 text-xs">
+                  Nothing&apos;s being scored right now. Whoever&apos;s trailing gets +30%/+20%/+10% on
+                  whichever event starts next, however it&apos;s reached — this section will show who as
+                  soon as it starts.
+                </p>
+              )}
+            </Panel>
 
             {/* Focused tile's full detail — the real event's card, or the
                 bonus-events card, never both at once. */}

@@ -128,6 +128,15 @@ export function deriveScoreLines(
  * returns null until an event actually enters scoring. If somehow more than
  * one is mid-scoring at once (not a normal flow, but not prevented by a DB
  * constraint either), `sort_order` breaks the tie deterministically.
+ *
+ * No preview (empty bonuses map) until at least one event has actually
+ * resolved — same "no catch-up bonus on the very first resolved event" rule
+ * `deriveScoreLinesWithStandings` applies to real scoring, for the same
+ * reason: with zero history every player is trivially tied at 0, and
+ * `catchUpBonuses` on a fully-tied field hands out a bonus to the *whole*
+ * group (they're all "tied for last" together), not just the bottom three.
+ * Without this guard the very first event started would preview a bonus for
+ * nearly everyone instead of nobody.
  */
 export function upcomingCatchUp(
   events: EventRow[],
@@ -140,6 +149,11 @@ export function upcomingCatchUp(
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order)[0];
   if (!target) return null;
+
+  const hasAnyResolvedResults = resolvedOrder(events).some((e) =>
+    results.some((r) => r.event_id === e.id),
+  );
+  if (!hasAnyResolvedResults) return { eventId: target.id, bonuses: new Map() };
 
   const { finalTotals } = deriveScoreLinesWithStandings(events, results, multipliers, playerIds);
   return { eventId: target.id, bonuses: catchUpBonuses(finalTotals) };

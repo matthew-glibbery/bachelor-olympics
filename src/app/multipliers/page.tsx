@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Sliders } from "lucide-react";
 
 import { CharacterRender } from "@/components/n64/character-render";
 import { GameScreen } from "@/components/n64/game-screen";
 import { MultiplierBar } from "@/components/n64/multiplier-bar";
 import { Nameplate } from "@/components/n64/nameplate";
+import { Panel } from "@/components/n64/panel";
 import { useGameInput } from "@/hooks/use-game-input";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { bettingReserve } from "@/lib/betting/reserve";
@@ -138,6 +139,23 @@ export default function MultipliersPage() {
     return () => window.clearTimeout(t);
   }, [justSaved]);
 
+  // Autosave: every change to `draft` (a slider move, or Reset to even)
+  // reschedules a debounced write, so there's nothing left to click. The
+  // debounce is what stops a burst of segment clicks from firing a save per
+  // click; `handleSave` itself already only writes the sliders that ended
+  // up differing from `committed`, so a hydrate-triggered `draft` change (on
+  // mount, or switching player) that leaves everything equal to `committed`
+  // is a harmless no-op here, not a real write. Runs from an effect (not a
+  // handler-local timer) specifically so the closure it fires always has
+  // this render's fresh `draft`/`validation`, not a stale one from whichever
+  // render happened to call `setDraft`.
+  useEffect(() => {
+    if (!player || !validation.valid) return;
+    const t = window.setTimeout(() => void handleSave(), 500);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, player, validation.valid]);
+
   // ── D-pad row cursor ──
   const unlockedIndices = useMemo(
     () => events.flatMap((e, i) => (e.status === "planned" ? [i] : [])),
@@ -166,25 +184,6 @@ export default function MultipliersPage() {
     [cursor, unlockedIndices],
   );
 
-  // Deliberately NOT memoised. It was a useCallback keyed on
-  // [validation.valid], which silently broke saving outright: useCallback
-  // freezes the `handleSave` closure from the render where the dep last
-  // changed, and `validation.valid` is already `true` on the very first
-  // render (no events loaded yet -> nothing allocated -> nothing over
-  // budget). So confirmSave permanently held the mount-time handleSave,
-  // which had closed over `player === undefined` (the store hadn't loaded)
-  // and bailed at its own first line — no write, no error, not even a
-  // "Saving…" flicker. useGameInput keeps its handlers in a ref and
-  // re-reads them every event, so a stable identity buys nothing here.
-  function confirmSave() {
-    if (!validation.valid) {
-      playSfx("deny");
-      return;
-    }
-    playSfx("lock");
-    void handleSave();
-  }
-
   useGameInput({
     enabled: Boolean(player),
     onDirection: (dir) => {
@@ -192,7 +191,6 @@ export default function MultipliersPage() {
       else if (dir === "down") moveCursor(1);
       // Left/right belong to the focused bar, which handles them itself.
     },
-    onConfirm: confirmSave,
   });
 
   // Both pre-content states keep the full screen shell rather than a bare
@@ -294,17 +292,13 @@ export default function MultipliersPage() {
 
             {/* Betting reserve — same sunken-readout shape as the budget
                 counter above, and in the same column, instead of a
-                differently-styled full-width panel further down the page. */}
+                differently-styled full-width panel further down the page.
+                Only "tied up" is shown: "available to wager" is always
+                exactly the budget-remaining figure above once everything's
+                saved (same underlying number, see reserve.ts), so showing
+                both was just the same fact printed twice. */}
             {reserve ? (
               <>
-                <div className="bevel-sunken bg-sunken w-full rounded-md px-4 py-3 text-center">
-                  <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
-                    Available to wager
-                  </p>
-                  <p className="font-score text-primary text-3xl tabular-nums">
-                    {reserve.available.toFixed(1)}
-                  </p>
-                </div>
                 <div className="bevel-sunken bg-sunken w-full rounded-md px-4 py-3 text-center">
                   <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
                     Tied up in open wagers
@@ -322,47 +316,63 @@ export default function MultipliersPage() {
             ) : null}
           </aside>
 
-          {/* Event rows. */}
+          {/* Event rows. In its own raised-card Panel — this used to be a
+              bare sunken list straight on the page background, a different
+              bevel treatment than every other section of the app. */}
           <section className="flex flex-col gap-3">
-            <div className="bevel-sunken bg-sunken rounded-md py-2">
-              <ul>
-                {events.map((e, i) => {
-                  const locked = e.status !== "planned";
-                  const value = (locked ? committed[e.id] : draft[e.id]) ?? MULTIPLIER_DEFAULT;
-                  return (
-                    <li
-                      key={e.id}
-                      ref={(el) => {
-                        // The focusable element is the bar inside, so hold
-                        // the row and reach in when moving the cursor.
-                        rowRefs.current[i] = el?.querySelector<HTMLElement>('[role="slider"]') ?? null;
-                      }}
-                      className={cn(
-                        "border-b-2 border-bevel-dark/40 last:border-b-0",
-                        i === cursor && !locked && "bg-card/60",
-                      )}
-                    >
-                      <MultiplierBar
-                        label={e.name}
-                        value={value}
-                        color={playerColor}
-                        locked={locked}
-                        onChange={(next) => {
-                          setDraft((d) => ({ ...d, [e.id]: next }));
-                          setCursor(i);
-                          setReactionKey((k) => k + 1);
-                          setJustSaved(false);
+            <Panel
+              title="Event multipliers"
+              icon={Sliders}
+              action={
+                <span className="font-display text-muted-foreground text-[10px] tracking-wider uppercase">
+                  {saving
+                    ? "Saving…"
+                    : justSaved
+                      ? "Saved ✓"
+                      : !validation.valid
+                        ? "Not saved — over budget"
+                        : "Autosaves as you adjust"}
+                </span>
+              }
+            >
+              <div className="bevel-sunken bg-sunken rounded-md py-2">
+                <ul>
+                  {events.map((e, i) => {
+                    const locked = e.status !== "planned";
+                    const value = (locked ? committed[e.id] : draft[e.id]) ?? MULTIPLIER_DEFAULT;
+                    return (
+                      <li
+                        key={e.id}
+                        ref={(el) => {
+                          // The focusable element is the bar inside, so hold
+                          // the row and reach in when moving the cursor.
+                          rowRefs.current[i] = el?.querySelector<HTMLElement>('[role="slider"]') ?? null;
                         }}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+                        className={cn(
+                          "border-b-2 border-bevel-dark/40 last:border-b-0",
+                          locked ? "bg-black/25" : i === cursor && "bg-card/60",
+                        )}
+                      >
+                        <MultiplierBar
+                          label={e.name}
+                          value={value}
+                          color={playerColor}
+                          locked={locked}
+                          onChange={(next) => {
+                            setDraft((d) => ({ ...d, [e.id]: next }));
+                            setCursor(i);
+                            setReactionKey((k) => k + 1);
+                            setJustSaved(false);
+                          }}
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
 
-            {error ? <p className="text-destructive text-sm">{error}</p> : null}
+              {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => {
@@ -375,37 +385,14 @@ export default function MultipliersPage() {
                     return next;
                   });
                   setReactionKey((k) => k + 1);
-                  // Same as adjusting a bar: this leaves unsaved changes on
-                  // screen, so the button must stop claiming "Saved ✓".
                   setJustSaved(false);
                 }}
-                className="bevel-raised bg-card font-display flex items-center gap-2 rounded-md px-4 py-2 text-xs tracking-wider uppercase focus-visible:is-cursor focus-visible:outline-none"
+                className="bevel-raised bg-card font-display flex w-fit items-center gap-2 rounded-md px-4 py-2 text-xs tracking-wider uppercase focus-visible:is-cursor focus-visible:outline-none"
               >
                 <RotateCcw className="size-3.5" />
                 Reset to even
               </button>
-
-              <button
-                type="button"
-                onClick={confirmSave}
-                disabled={saving}
-                aria-disabled={!validation.valid}
-                className={cn(
-                  "font-display rounded-md px-6 py-2.5 text-sm tracking-widest uppercase focus-visible:outline-none",
-                  validation.valid
-                    ? "bevel-raised is-cursor bg-primary text-primary-foreground"
-                    : "bevel-sunken bg-sunken text-muted-foreground cursor-not-allowed",
-                )}
-              >
-                {saving
-                  ? "Saving…"
-                  : justSaved
-                    ? "Saved ✓"
-                    : validation.valid
-                      ? "Save multipliers ▶"
-                      : "Over budget — adjust first"}
-              </button>
-            </div>
+            </Panel>
           </section>
         </div>
     </GameScreen>

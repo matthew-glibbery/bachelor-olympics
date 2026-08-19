@@ -218,6 +218,19 @@ describe("upcomingCatchUp", () => {
     expect(preview?.eventId).toBe("e2");
   });
 
+  it("previews no bonuses (not a bonus for everyone) when the very first event is being scored", () => {
+    // With zero resolved history every player is trivially tied at 0 —
+    // catchUpBonuses on a fully-tied field would otherwise hand a bonus to
+    // the whole tied group, not just the bottom three, which reads as "the
+    // leader gets a catch-up bonus too" on the very first event.
+    const events: EventRow[] = [
+      { ...baseEvent, id: "e1", scoring_mode: "placement", status: "scoring", sort_order: 0 },
+    ];
+    const preview = upcomingCatchUp(events, [], [], ["p1", "p2", "p3"]);
+    expect(preview?.eventId).toBe("e1");
+    expect(preview?.bonuses.size).toBe(0);
+  });
+
   it("returns null when every event is already resolved", () => {
     const events: EventRow[] = [
       { ...baseEvent, id: "e1", scoring_mode: "placement", status: "resolved" },

@@ -14,6 +14,7 @@ import {
 
 import { assignPlayerColors } from "@/lib/chartColors";
 import { PlayerName } from "@/components/player-name";
+import { cn } from "@/lib/utils";
 import type { SeriesPoint } from "@/lib/scoring/cumulativeSeries";
 import type { PlayerRow } from "@/lib/data/database.types";
 
@@ -68,9 +69,14 @@ interface ChartRow {
 export interface ProgressChartProps {
   players: PlayerRow[];
   series: SeriesPoint[];
+  /** The session's own player, if any — its line renders thicker, on top
+   *  of every other line (draw order, not just z-index), and at full
+   *  opacity while the rest dim slightly, the chart's version of the
+   *  leaderboard table's "You" row highlight. */
+  currentPlayerId?: string | null;
 }
 
-export function ProgressChart({ players, series }: ProgressChartProps) {
+export function ProgressChart({ players, series, currentPlayerId = null }: ProgressChartProps) {
   const playerById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
 
   const colorByPlayer = useMemo(() => {
@@ -80,6 +86,17 @@ export function ProgressChart({ players, series }: ProgressChartProps) {
       "dark",
     );
   }, [players]);
+
+  // Draw the current player's line last so it paints on top wherever it
+  // crosses another line — insertion order would otherwise decide that by
+  // accident, sometimes burying the one line someone actually came to look
+  // for under whoever happens to be listed after them.
+  const orderedPlayers = useMemo(() => {
+    if (!currentPlayerId) return players;
+    const mine = players.filter((p) => p.id === currentPlayerId);
+    const rest = players.filter((p) => p.id !== currentPlayerId);
+    return [...rest, ...mine];
+  }, [players, currentPlayerId]);
 
   const data = useMemo<ChartRow[]>(
     () => {
@@ -143,30 +160,35 @@ export function ProgressChart({ players, series }: ProgressChartProps) {
                 />
               )}
             />
-            {players.map((p) => (
-              <Line
-                key={p.id}
-                dataKey={p.id}
-                stroke={colorByPlayer[p.id]}
-                strokeWidth={2}
-                connectNulls={false}
-                isAnimationActive={false}
-                dot={(dotProps) => (
-                  <PlayerDot
-                    key={`${p.id}-${dotProps.index}`}
-                    {...dotProps}
-                    player={p}
-                    color={colorByPlayer[p.id]!}
-                  />
-                )}
-                activeDot={false}
-              />
-            ))}
+            {orderedPlayers.map((p) => {
+              const isYou = p.id === currentPlayerId;
+              return (
+                <Line
+                  key={p.id}
+                  dataKey={p.id}
+                  stroke={colorByPlayer[p.id]}
+                  strokeWidth={isYou ? 3.5 : 2}
+                  strokeOpacity={currentPlayerId && !isYou ? 0.55 : 1}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                  dot={(dotProps) => (
+                    <PlayerDot
+                      key={`${p.id}-${dotProps.index}`}
+                      {...dotProps}
+                      player={p}
+                      color={colorByPlayer[p.id]!}
+                      emphasize={isYou}
+                    />
+                  )}
+                  activeDot={false}
+                />
+              );
+            })}
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      <ProgressLegend players={players} colorByPlayer={colorByPlayer} />
+      <ProgressLegend players={players} colorByPlayer={colorByPlayer} currentPlayerId={currentPlayerId} />
     </div>
   );
 }
@@ -177,11 +199,13 @@ function PlayerDot(props: {
   value?: number | null;
   player: PlayerRow;
   color: string;
+  /** Slightly larger marker for the session's own player — see ProgressChart. */
+  emphasize?: boolean;
 }) {
-  const { cx, cy, value, player, color } = props;
+  const { cx, cy, value, player, color, emphasize } = props;
   if (cx == null || cy == null || value == null) return null;
 
-  const r = DOT_SIZE / 2;
+  const r = (emphasize ? DOT_SIZE + 4 : DOT_SIZE) / 2;
   const clipId = `dot-clip-${player.id}-${Math.round(cx)}-${Math.round(cy)}`;
 
   return (
@@ -240,22 +264,30 @@ function PlayerDot(props: {
 function ProgressLegend({
   players,
   colorByPlayer,
+  currentPlayerId,
 }: {
   players: PlayerRow[];
   colorByPlayer: Record<string, string>;
+  currentPlayerId?: string | null;
 }) {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-2">
-      {players.map((p) => (
-        <span key={p.id} className="inline-flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className="h-0.5 w-4 shrink-0 rounded-full"
-            style={{ backgroundColor: colorByPlayer[p.id] }}
-          />
-          <PlayerName name={p.name} state={p.state ?? "??"} photoUrl={p.photo_url} size="sm" />
-        </span>
-      ))}
+      {players.map((p) => {
+        const isYou = p.id === currentPlayerId;
+        return (
+          <span key={p.id} className={cn("inline-flex items-center gap-1.5", isYou && "font-semibold")}>
+            <span
+              aria-hidden
+              className="w-4 shrink-0 rounded-full"
+              style={{ backgroundColor: colorByPlayer[p.id], height: isYou ? 3 : 2 }}
+            />
+            <PlayerName name={p.name} state={p.state ?? "??"} photoUrl={p.photo_url} size="sm" />
+            {isYou ? (
+              <span className="text-primary font-display text-[9px] tracking-widest uppercase">You</span>
+            ) : null}
+          </span>
+        );
+      })}
     </div>
   );
 }
