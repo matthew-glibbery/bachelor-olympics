@@ -2,6 +2,71 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-18 (5) — Legend removal, starfield everywhere, leaderboard reorder, chart rank-change bug, reserve restyle
+
+Follow-up batch after (4), same day: a UI cleanup list plus a re-report of
+the multipliers save bug that (4) claimed to have fixed. 150 tests
+(unchanged), lint/typecheck/build all green. **Screenshot- and live-DB-
+verified**, not just reasoned about — headless Chrome via CDP
+(`scripts/devtools/`) against the real Supabase project, credentials
+copied in from the main checkout's `.env.local` and removed again after.
+
+- **Bottom controller-action legend removed everywhere** (`ButtonLegend`
+  deleted, `GameScreen`'s `legend` prop removed) — the explicit ask was to
+  drop things like "A · Change competitor" along the bottom of every
+  screen. This also meant `/select`'s own separate `ButtonLegend` call
+  (Choose/Confirm/Back) came out too.
+- **Starfield background on every screen**: `GameScreen` (the shared shell
+  for `/`, `/events`, `/multipliers`, `/bets`, `/setup`) now renders the
+  same drifting-dot `Starfield` component `/select`/`/start` already had,
+  at the same `opacity-60`. Those two screens build their own layout
+  outside `GameScreen` and already had it, so this covers the app.
+- **`/select` heading → "Choose your character"** (was "Select Your
+  Competitor" — a different string than what an earlier, since-reverted
+  handoff entry claimed was already live; confirmed against the actual
+  file, not the old note).
+- **Real bug, found by reasoning through `cumulativeSeries.ts` +
+  `progress-chart.tsx` together**: the chart's synthetic "start" point has
+  every player tied at 0, so competition-ranking gives everyone rank #1
+  there. The tooltip's rank-change diff used that as "previous" for the
+  first real event, so anyone except the actual leader showed a
+  manufactured ▼ (prevRank 1 vs. their real rank) — exactly the "a lot of
+  people show -1 place when they didn't actually move" the user reported.
+  Fixed in `ProgressTooltip` (`src/components/progress-chart.tsx`):
+  rank-change is now `null` (renders nothing) when the previous point is
+  the `"start"` baseline, since there was no real prior ranking to have
+  moved from. Points-gained is untouched — gaining points from a real zero
+  is a genuine, correct number.
+- **Progress chart moved below the leaderboard** on `/` — was above the
+  podium/standings table, now after it, per explicit ask.
+- **`/multipliers` betting reserve restyled**: the two reserve figures
+  (Available to wager / Tied up in open wagers) previously lived in a
+  separate full-width `Panel` below the two-column grid, styled with the
+  generic `Stat` component (small figure, side-by-side). Now they're two
+  more sunken boxes in the same left-hand aside column as the Budget
+  Remaining counter, using that counter's own exact markup shape (uppercase
+  label, big `font-score` number) — same look, same column, addressing
+  both the "style it like budget remaining" and "why is one in the left
+  column and the other full-width" complaints at once. `Panel`, `Stat`,
+  and the `Coins` icon import are gone from this page as a result — nothing
+  else on the page still used them.
+- **Multipliers save bug re-investigated, not re-fixed — confirmed already
+  fixed**: the user reported the exact symptom (4) describes as fixed
+  ("adjustments don't save, no funds show up in Events after"). Read
+  `confirmSave`/`handleSave` line by line — the useCallback that caused the
+  original bug is genuinely gone, `grep` for `useCallback`/`useMemo`
+  confirms nothing wraps the save path anymore. Then verified for real
+  rather than trusting the read: a scripted CDP session loaded
+  `/multipliers` against the live project, clicked a slider segment,
+  clicked Save, and the write round-tripped — DB row went `1 → 0.5`,
+  button showed "Saved ✓", zero console errors. Restored the row to `1`
+  afterward via a direct PATCH. **If this is still happening for the user
+  in practice, it's very likely a stale Vercel deploy** (this fix and
+  today's are both only on this branch / the just-merged (4) branch, not
+  necessarily what's live) rather than a code bug — worth confirming the
+  Vercel deployment has actually picked up `main` before looking for
+  another cause.
+
 ## 2026-08-18 (4) — Multipliers save bug + a real N64 UI consistency pass
 
 Two asks: "the adjustments on the multipliers page aren't saving", and a
