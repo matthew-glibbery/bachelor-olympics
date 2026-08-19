@@ -190,7 +190,7 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-destructive"
+                  className="text-muted-foreground hover:text-destructive"
                   onClick={() => setConfirmingRemove(true)}
                 >
                   <Trash2 className="size-4" />

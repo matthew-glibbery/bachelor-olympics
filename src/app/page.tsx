@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { TrendingUp } from "lucide-react";
 import Link from "next/link";
 
-import { AppNav } from "@/components/app-nav";
-import { ButtonLegend } from "@/components/n64/button-legend";
 import { CharacterRender } from "@/components/n64/character-render";
+import { GameScreen } from "@/components/n64/game-screen";
+import { Panel } from "@/components/n64/panel";
 import { PlayerName } from "@/components/player-name";
 import { ProgressChart } from "@/components/progress-chart";
 import { useGameInput } from "@/hooks/use-game-input";
@@ -22,7 +22,11 @@ import { useSessionStore } from "@/store/sessionStore";
 import { cn } from "@/lib/utils";
 
 const MEDAL_COLOR = ["var(--medal-gold)", "var(--medal-silver)", "var(--medal-bronze)"];
-const PODIUM_HEIGHT = ["min-h-28 sm:h-36", "min-h-22 sm:h-28", "min-h-18 sm:h-28"];
+// 1st / 2nd / 3rd step heights. 2nd and 3rd were both `sm:h-28`, so above
+// the `sm` breakpoint the podium had two equal-height steps and stopped
+// reading as a podium at all — the one shape this whole section exists to
+// make. Each step is now visibly shorter than the one before it.
+const PODIUM_HEIGHT = ["min-h-28 sm:h-36", "min-h-22 sm:h-28", "min-h-18 sm:h-22"];
 
 /**
  * The leaderboard (docs/VISUAL_SPEC.md — renamed from "medal table" per a
@@ -87,18 +91,28 @@ export default function Home() {
 
   const podium = ranked.slice(0, 3);
 
-  return (
-    <main className="relative min-h-dvh px-4 py-6 pb-28 sm:px-8 sm:pb-6">
-      <div className="mx-auto flex max-w-4xl flex-col gap-5">
-        <header className="flex flex-col items-center gap-3 text-center">
-          <h1 className="text-extruded text-extruded-gold text-xl sm:text-2xl">Leaderboard</h1>
-          <p className="font-display text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
-            Eight events · Eight competitors · One leaderboard
-          </p>
-          <AppNav />
-        </header>
+  // One predicate for "is the real content on screen", so the control legend
+  // can't drift out of sync with it. Previously the legend keyed off
+  // `players.length > 0` alone, which meant a realtime error arriving after
+  // data had loaded rendered the error line *and* a legend offering
+  // navigation for a screen showing nothing.
+  const showingContent = !error && !(!ready && loading) && players.length > 0;
 
-        {error ? (
+  return (
+    <GameScreen
+      title="Leaderboard"
+      tone="gold"
+      subtitle="Eight events · Eight competitors · One leaderboard"
+      legend={
+        showingContent
+          ? [
+              { button: "A", action: "Change competitor", tone: "a" },
+              { button: "B", action: "Multipliers", tone: "b" },
+            ]
+          : undefined
+      }
+    >
+      {error ? (
           <p className="text-destructive text-center text-sm">{error}</p>
         ) : !ready && loading ? (
           <p className="text-muted-foreground text-center text-sm">Loading…</p>
@@ -113,16 +127,13 @@ export default function Home() {
         ) : (
           <>
             {/* Progress panel — same ProgressChart as before, reskinned frame. */}
-            <div className="bevel-raised bg-card rounded-md p-4">
-              <p className="font-display flex items-center gap-2 text-sm tracking-wide uppercase">
-                <TrendingUp className="text-primary size-4" />
-                Progress
-              </p>
-              <p className="text-muted-foreground mt-1 mb-3 text-xs">
-                Cumulative points after each event or bonus event, in the order they actually happened.
-              </p>
+            <Panel
+              title="Progress"
+              icon={TrendingUp}
+              description="Cumulative points after each event or bonus event, in the order they actually happened."
+            >
               <ProgressChart players={players} series={series} />
-            </div>
+            </Panel>
 
             {/* Podium. Order is 2–1–3 so first place stands in the middle. */}
             <section className="flex items-end justify-center gap-2 sm:gap-4" aria-label="Top three">
@@ -165,9 +176,15 @@ export default function Home() {
               })}
             </section>
 
-            {/* Full standings. */}
-            <div className="bevel-sunken overflow-x-auto rounded-md">
-              <table className="w-full min-w-[30rem] border-collapse">
+            {/* Full standings. The table used to be `min-w-[30rem]` inside a
+                horizontal scroller, which on a 390–430px phone — the device
+                this is actually used on — pushed "Adjusted" off the right
+                edge. That's the one number that decides the game, hidden
+                behind a sideways scroll nobody would think to try. "Raw" is
+                the expendable column (it's only interesting next to the
+                adjusted figure), so it drops out below `sm` instead. */}
+            <div className="bevel-sunken bg-sunken rounded-md">
+              <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-bevel-dark border-b-2">
                     {["", "Competitor", "Raw", "Adjusted"].map((h, i) => (
@@ -177,6 +194,7 @@ export default function Home() {
                         className={cn(
                           "font-display text-muted-foreground px-3 py-2 text-[10px] tracking-[0.15em] uppercase",
                           i >= 2 ? "text-right" : "text-left",
+                          i === 2 && "hidden sm:table-cell",
                         )}
                       >
                         {h}
@@ -216,11 +234,18 @@ export default function Home() {
                             photoUrl={player.photo_url}
                           />
                         </td>
-                        <td className="font-score text-muted-foreground px-3 py-2 text-right text-sm tabular-nums">
-                          {Math.round(total.raw * 10) / 10}
+                        {/* Whole numbers, not 1dp. PRODUCT_SPEC.md →
+                            Scoring is explicit that "no scoring currency in
+                            this app ever shows a fraction, full stop" — and
+                            the same figure already rendered as a whole
+                            number on the event card, so the leaderboard was
+                            both off-spec and disagreeing with another
+                            screen about the same player's score. */}
+                        <td className="font-score text-muted-foreground hidden px-3 py-2 text-right text-sm tabular-nums sm:table-cell">
+                          {Math.round(total.raw)}
                         </td>
                         <td className="font-score text-primary px-3 py-2 text-right text-base tabular-nums">
-                          {Math.round(total.adjusted * 10) / 10}
+                          {Math.round(total.adjusted)}
                         </td>
                       </tr>
                     );
@@ -233,15 +258,8 @@ export default function Home() {
               Adjusted = raw points × that event&apos;s multiplier, plus any bonus-event or overall-bet points
             </p>
 
-            <ButtonLegend
-              entries={[
-                { button: "A", action: "Change competitor", tone: "a" },
-                { button: "B", action: "Multipliers", tone: "b" },
-              ]}
-            />
           </>
-        )}
-      </div>
-    </main>
+      )}
+    </GameScreen>
   );
 }

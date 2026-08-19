@@ -53,7 +53,10 @@ const SURFACE = "#141b40"; // --card / --popover
 const STATUS_GOOD = "#4cd676";
 const STATUS_BAD = "#ff6759";
 
-const DOT_SIZE = 22;
+// 22px markers fused into an unreadable clump wherever several players were
+// close on points — which is most of a tight leaderboard. 16 still carries a
+// recognisable face/initial while letting neighbouring lines resolve.
+const DOT_SIZE = 16;
 
 interface ChartRow {
   key: string;
@@ -79,14 +82,26 @@ export function ProgressChart({ players, series }: ProgressChartProps) {
   }, [players]);
 
   const data = useMemo<ChartRow[]>(
-    () =>
-      series.map((point, i) => ({
+    () => {
+      const rows: ChartRow[] = series.map((point, i) => ({
         key: point.key,
         label: point.label,
         tick: i === 0 ? "" : String(i),
         ...point.totals,
-      })),
-    [series],
+      }));
+      // `cumulativeSeries` deliberately trails every not-yet-resolved event at
+      // the end of the series (see its own docs), which meant the chart
+      // reserved an x-column for each one and drew nothing in it — with 3 of
+      // 8 events played, over half the plot was empty columns and it read as
+      // a broken chart rather than an unfinished weekend. Drop trailing rows
+      // where no player has a value yet; the moment one resolves it comes
+      // back on its own. Display-only — the pure series function is untouched.
+      const playerIds = players.map((p) => p.id);
+      let end = rows.length;
+      while (end > 2 && playerIds.every((id) => rows[end - 1]![id] == null)) end--;
+      return rows.slice(0, end);
+    },
+    [series, players],
   );
 
   if (players.length === 0 || series.length < 2) {
@@ -193,7 +208,31 @@ function PlayerDot(props: {
             preserveAspectRatio="xMidYMid slice"
           />
         </>
-      ) : null}
+      ) : (
+        // Players without a photo used to get a bare coloured disc, leaving
+        // identity carried by hue alone. Eight simultaneous categorical
+        // series is past what a palette can keep separable — checked by
+        // running this app's own line colours (src/lib/chartColors.ts,
+        // DARK_HEX) through the dataviz skill's validate_palette.js in its
+        // strict `--pairs all` mode, which fails on colour-vision-deficient
+        // separation; re-stepping to evenly spaced hues fails it too, so
+        // it's a limit rather than a bad palette. Hence a letter as well as
+        // a colour: the secondary encoding that skill requires whenever
+        // separation is at its floor. Re-run the validator before changing
+        // these colours.
+        <text
+          x={cx}
+          y={cy}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={r}
+          fontWeight={700}
+          fill={SURFACE}
+          style={{ fontFamily: "var(--font-display)", pointerEvents: "none" }}
+        >
+          {player.name.slice(0, 1).toUpperCase()}
+        </text>
+      )}
     </g>
   );
 }

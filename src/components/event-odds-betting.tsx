@@ -238,7 +238,7 @@ export function EventOddsBetting({
       </div>
 
       {myBet || showForm ? (
-        <div className="bevel-sunken flex flex-col gap-2 rounded-md p-3">
+        <div className="bevel-sunken bg-sunken flex flex-col gap-2 rounded-md p-3">
           <span className="font-display text-muted-foreground text-[10px] tracking-wide uppercase">
             {myBet ? "Your bet" : "Place a bet"}
           </span>

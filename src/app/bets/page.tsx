@@ -2,21 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Coins, Percent } from "lucide-react";
+import { Coins, Percent, Users } from "lucide-react";
 
-import { AppNav } from "@/components/app-nav";
-import { PageHeading } from "@/components/page-heading";
+import { GameScreen } from "@/components/n64/game-screen";
+import { Panel } from "@/components/n64/panel";
+import { Stat } from "@/components/n64/stat";
 import { PlayerName } from "@/components/player-name";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -40,8 +34,18 @@ import {
 import { allocatedMultiplierTotal, MULTIPLIER_STEP } from "@/lib/multipliers/budget";
 import type { OverallBetRow, PerEventBetRow } from "@/lib/data/database.types";
 
+// A native <select> can't be beveled convincingly (the popup is the OS's),
+// but the closed control is ours — so it gets the same recessed well every
+// other input-shaped thing in this app sits in, rather than the flat
+// hairline border it had, which was the last visibly-shadcn control left on
+// this screen.
+// `outline`, not `ring`: a ring is a box-shadow, and it would replace the
+// sunken bevel wholesale on focus, so the control visibly changed shape as
+// you tabbed onto it. An outline sits outside the box and leaves the bevel
+// alone. `text-foreground` is explicit because a native select over a dark
+// fill otherwise inherits the OS's own (often black) option colour.
 const SELECT_CLASS =
-  "border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+  "bevel-sunken bg-sunken text-foreground h-9 w-full rounded-md border-0 px-3 text-sm outline-none focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2";
 
 const OVERALL_BET_TYPES: { type: OverallBetType; label: string; description: string }[] = [
   { type: "win", label: "Win outright", description: "Pick the overall winner." },
@@ -267,46 +271,43 @@ export default function BetsPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
-      <header className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <PageHeading>Bets</PageHeading>
-          <p className="text-muted-foreground text-sm">
-            Overall picks and per-event wagers, with the odds right next to
-            where you place them.
-          </p>
-        </div>
-        <AppNav />
-      </header>
-
+    <GameScreen
+      title="Bets"
+      subtitle="Overall picks and per-event wagers, odds right where you place them"
+      // Both these screens are stacked prose-and-form panels, not a grid —
+      // they were `max-w-2xl` before the shared shell existed and reading
+      // measure is the reason, so keep it rather than inheriting the
+      // leaderboard's wider default.
+      width="narrow"
+    >
       {!ready ? (
-        <p className="text-muted-foreground text-sm">Loading…</p>
+        <p className="text-muted-foreground text-center text-sm">Loading…</p>
       ) : !player ? (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-center text-sm">
           Pick who you are on the{" "}
-          <Link href="/setup" className="underline">
+          <Link href="/setup" className="text-foreground underline">
             Setup
           </Link>{" "}
           screen first.
         </p>
       ) : (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Coins className="text-primary size-5" />
-                Overall bets
-              </CardTitle>
-              <CardDescription>
+          <Panel
+            title="Overall bets"
+            icon={Coins}
+            contentClassName="gap-4"
+            description={
+              <>
                 Flat 100 points for a win pick, 20 for top 3, whoever you
                 choose. Switching a pick after it&apos;s eliminated halves
                 the payout each time.{" "}
                 {weekendStarted
                   ? "New picks are closed — the weekend's underway."
                   : "Locks once the first event starts."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+              </>
+            }
+          >
+            <>
               {overallError ? <p className="text-destructive text-sm">{overallError}</p> : null}
               {!overallProbabilities || !overallPayouts ? (
                 <p className="text-muted-foreground text-sm">
@@ -422,19 +423,16 @@ export default function BetsPage() {
                   </div>
                 );
               })}
-            </CardContent>
-          </Card>
+            </>
+          </Panel>
 
           {weekendStarted ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Everyone&apos;s overall bets</CardTitle>
-                <CardDescription>
-                  No suspense here — visible to everyone once the weekend
-                  starts.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+            <Panel
+              title="Everyone's overall bets"
+              icon={Users}
+              description="No suspense here — visible to everyone once the weekend starts."
+            >
+              <>
                 {overallBets.length === 0 ? (
                   <p className="text-muted-foreground text-sm">No bets were placed.</p>
                 ) : (
@@ -475,34 +473,37 @@ export default function BetsPage() {
                     })}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </>
+            </Panel>
           ) : null}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Percent className="text-primary size-5" />
-                Per-event bets
-              </CardTitle>
-              <CardDescription>
+          <Panel
+            title="Per-event bets"
+            icon={Percent}
+            contentClassName="gap-4"
+            description={
+              <>
                 Wager a slice of your unallocated multiplier budget on any
                 player&apos;s win/place outcome in an upcoming event — closes
                 once that event starts.{" "}
-                {reserve ? (
-                  <>
-                    You have <strong>{reserve.available.toFixed(1)}</strong>{" "}
-                    available ({reserve.tiedUp.toFixed(1)} tied up in open
-                    wagers) —{" "}
-                    <Link href="/multipliers" className="underline">
-                      see the breakdown on Multipliers
-                    </Link>
-                    .
-                  </>
-                ) : null}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+                <Link href="/multipliers" className="text-foreground underline">
+                  See the breakdown on Multipliers
+                </Link>
+                .
+              </>
+            }
+          >
+            {reserve ? (
+              <div className="flex gap-3">
+                <Stat
+                  label="Available to wager"
+                  value={reserve.available.toFixed(1)}
+                  tone="primary"
+                />
+                <Stat label="Tied up in open wagers" value={reserve.tiedUp.toFixed(1)} />
+              </div>
+            ) : null}
+            <>
               {perEventError ? <p className="text-destructive text-sm">{perEventError}</p> : null}
               {bettableEvents.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
@@ -646,10 +647,10 @@ export default function BetsPage() {
                   );
                 })
               )}
-            </CardContent>
-          </Card>
+            </>
+          </Panel>
         </>
       )}
-    </main>
+    </GameScreen>
   );
 }

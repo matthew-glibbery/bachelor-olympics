@@ -11,13 +11,9 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CalendarCog } from "lucide-react";
+
+import { Panel } from "@/components/n64/panel";
 import { ManageEventRow } from "@/components/manage-event-row";
 import { AddEventRow } from "@/components/add-event-row";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -66,30 +62,26 @@ export function ManageEventsCard({ events }: { events: EventRow[] }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Manage events</CardTitle>
-        <CardDescription>
-          Add, edit, delete, or drag to reorder. The order here is the order
-          every screen shows events in.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <AddEventRow nextSortOrder={events.length} />
-        {events.length > 0 ? (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
-              <div className="flex flex-col">
-                {orderedIds.map((id) => {
-                  const event = eventsById.get(id);
-                  if (!event) return null;
-                  return <ManageEventRow key={id} event={event} />;
-                })}
-              </div>
-            </SortableContext>
-          </DndContext>
-        ) : null}
-      </CardContent>
-    </Card>
+    <Panel
+      title="Manage events"
+      icon={CalendarCog}
+      description="Add, edit, delete, or drag to reorder. The order here is the order every screen shows events in."
+      contentClassName="gap-2"
+    >
+      <AddEventRow nextSortOrder={events.length} />
+      {events.length > 0 ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
+            <div className="flex flex-col">
+              {orderedIds.map((id) => {
+                const event = eventsById.get(id);
+                if (!event) return null;
+                return <ManageEventRow key={id} event={event} />;
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : null}
+    </Panel>
   );
 }

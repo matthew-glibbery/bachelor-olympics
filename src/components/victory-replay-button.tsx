@@ -43,11 +43,12 @@ export function VictoryReplayButton({
       </Button>
       <DialogContent
         showCloseButton={false}
-        // shadow-none cancels DialogContent's default bevel-raised — this is
-        // a full-bleed video, not a plate, and the box-shadow would otherwise
-        // still show through since bevel-raised isn't a Tailwind utility
-        // that a "later" class here would automatically supersede.
-        className="inset-0 top-0 left-0 h-dvh w-dvw max-w-none translate-x-0 translate-y-0 rounded-none bg-black p-0 shadow-none"
+        // `bevel-none!`, not `shadow-none`: this is a full-bleed video, not a
+        // plate, and DialogContent applies `bevel-raised` by default. All
+        // three are utilities of equal specificity in one layer and Tailwind
+        // emits `.bevel-none` before `.bevel-raised`, so the important
+        // modifier is what actually wins here — see globals.css.
+        className="bevel-none! inset-0 top-0 left-0 h-dvh w-dvw max-w-none translate-x-0 translate-y-0 rounded-none bg-black p-0"
       >
         <DialogTitle className="sr-only">
           {winner.name} wins {event.name}

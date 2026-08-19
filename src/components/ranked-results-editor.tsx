@@ -57,7 +57,7 @@ export function RankedResultsEditor({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={order} strategy={verticalListSortingStrategy}>
-        <div className="bevel-sunken flex flex-col gap-1.5 rounded-md p-2">
+        <div className="bevel-sunken bg-sunken flex flex-col gap-1.5 rounded-md p-2">
           {order.map((playerId, i) => {
             const player = players.get(playerId);
             if (!player) return null;

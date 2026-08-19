@@ -107,7 +107,7 @@ export default function SelectPage() {
             <ArrowLeft className="size-3.5" />
             Back
           </Link>
-          <h1 className="text-extruded text-lg sm:text-2xl">Select Your Competitor</h1>
+          <h1 className="extruded text-lg sm:text-2xl">Select Your Competitor</h1>
           <span className="w-10" aria-hidden />
         </div>
 

@@ -91,12 +91,39 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
 
   const delta = value - MULTIPLIER_DEFAULT;
 
+  const valueClass = cn(
+    "font-score shrink-0 text-right text-sm tabular-nums",
+    delta > 0 && "text-primary",
+    delta < 0 && "text-muted-foreground",
+  );
+
+  // Below `sm` this is a two-row layout — name and value on one line, the
+  // bar full-width underneath — because at `w-28` beside the bar, real
+  // event names ("Super Smash Bros. (N64)", "Nine Holes of Golf") truncated
+  // to "SUPER SMAS…", so the row you were adjusting was the one row you
+  // couldn't identify. From `sm` up it's the original single row, where
+  // 112px is enough for the longest name.
   return (
-    <div className={cn("flex items-center gap-3 px-3 py-2", locked && "opacity-70", className)}>
-      <span className="font-display flex w-28 shrink-0 items-center gap-1.5 text-xs tracking-wider uppercase">
-        {locked ? <Lock className="text-muted-foreground size-3 shrink-0" /> : null}
-        <span className="truncate">{label}</span>
-      </span>
+    <div
+      className={cn(
+        "flex flex-col gap-1.5 px-3 py-2 sm:flex-row sm:items-center sm:gap-3",
+        locked && "opacity-70",
+        className,
+      )}
+    >
+      <div className="flex items-center justify-between gap-2 sm:contents">
+        <span className="font-display flex min-w-0 shrink items-center gap-1.5 text-xs tracking-wider uppercase sm:w-28 sm:shrink-0">
+          {locked ? <Lock className="text-muted-foreground size-3 shrink-0" /> : null}
+          <span className="truncate">{label}</span>
+        </span>
+        {/* The value rides beside the name on the stacked mobile layout and
+            moves to the end of the row on `sm` — `sm:contents` drops this
+            wrapper out of the layout so the parent flex row lays out the
+            name, bar and value as siblings, in that order. */}
+        <span className={cn(valueClass, "sm:hidden")}>
+          {value.toFixed(1)}×
+        </span>
+      </div>
 
       <div
         role="slider"
@@ -109,7 +136,7 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
         aria-disabled={locked || undefined}
         onKeyDown={onKeyDown}
         className={cn(
-          "bevel-sunken flex flex-1 gap-[3px] rounded-sm p-[3px]",
+          "bevel-sunken bg-sunken flex flex-1 gap-[3px] rounded-sm p-[3px]",
           !locked && "cursor-pointer focus-visible:is-cursor focus-visible:outline-none",
         )}
       >
@@ -145,13 +172,7 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
         })}
       </div>
 
-      <span
-        className={cn(
-          "font-score w-16 shrink-0 text-right text-sm tabular-nums",
-          delta > 0 && "text-primary",
-          delta < 0 && "text-muted-foreground",
-        )}
-      >
+      <span className={cn(valueClass, "hidden w-16 sm:block")}>
         ×{value.toFixed(1)}
       </span>
     </div>

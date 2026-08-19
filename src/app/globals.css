@@ -61,6 +61,11 @@
   */
   --bevel-light: oklch(0.78 0.09 268);
   --bevel-dark: oklch(0.14 0.05 274);
+  /* Fill for a recessed well — see the `bevel-sunken` utility. A named
+     colour rather than a hardcoded `background-color` inside that utility,
+     so it behaves like every other `bg-*` in the cascade and in
+     tailwind-merge. */
+  --sunken: color-mix(in oklch, var(--card) 55%, var(--bevel-dark));
 
   /*
     ── Console game-feel layer ──────────────────────────────────────────
@@ -119,6 +124,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-bevel-light: var(--bevel-light);
   --color-bevel-dark: var(--bevel-dark);
+  --color-sunken: var(--sunken);
   --color-glow: var(--glow);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -148,71 +154,110 @@
   }
 }
 
+/*
+  These are `@utility`, not `@layer components`, specifically so they work
+  behind a variant — `sm:bevel-raised`, `data-[state=active]:bevel-raised`.
+  Tailwind v4 only generates variants for things it knows are utilities; a
+  plain class in `@layer components` silently produces nothing when
+  prefixed, which had already bitten this codebase once: the event card's
+  active tab asked for `data-[state=active]:bevel-raised` and never got it,
+  with no error anywhere to say so. Verified by grepping the built CSS in
+  .next/static/css for the prefixed selectors, not assumed.
+*/
+
+/*
+  Raised bevel: light edge top-left, dark edge bottom-right, plus a chunky
+  drop shadow so plates feel physically stacked rather than flat. Applied
+  directly inside button.tsx/card.tsx (see those files) so every Button and
+  Card in the app gets it automatically — this is the one CSS
+  implementation every "chunky plate" surface shares, including the
+  freestanding Plate component (src/components/ui/plate.tsx) for anything
+  that isn't already a Card.
+*/
+@utility bevel-raised {
+  box-shadow:
+    inset 2px 2px 0 0 var(--bevel-light),
+    inset -2px -2px 0 0 var(--bevel-dark),
+    0 3px 0 0 var(--bevel-dark),
+    0 6px 14px -4px oklch(0 0 0 / 55%);
+}
+
+/* The inverse — a recessed well, for anything that should read as a slot
+   rather than a raised plate (e.g. a sunken stat readout).
+
+   Shadow only. The recessed fill is a real theme colour (`bg-sunken`, from
+   `--color-sunken` above) rather than a `background-color` baked in here,
+   and every call site pairs the two: `bevel-sunken bg-sunken`. That split
+   matters because both this and any `bg-*` are now utilities of equal
+   specificity, so whichever Tailwind happens to emit later would win —
+   which is precisely how the event card's tab strip ended up painting
+   `bg-muted` (inherited from shadcn's Tabs base) over this fill. As a real
+   colour utility, `bg-sunken` is something tailwind-merge understands and
+   resolves properly instead of two rules silently racing. */
+@utility bevel-sunken {
+  box-shadow:
+    inset -2px -2px 0 0 var(--bevel-light),
+    inset 2px 2px 0 0 var(--bevel-dark);
+}
+
+/* Cancels a bevel a primitive applies by default — e.g. DialogContent is a
+   raised plate, but the full-bleed victory video inside it is not.
+
+   Use it as `bevel-none!` (the v4 important modifier). Plain `bevel-none`
+   is not enough and neither is `shadow-none`: all three are now utilities of
+   equal specificity in one layer, and Tailwind emits them in its own sorted
+   order, not source order — `.bevel-none` lands *before* `.bevel-raised` in
+   the output, so unmodified it loses. Verified by grepping byte offsets in
+   .next/static/css after a build. */
+@utility bevel-none {
+  box-shadow: none;
+}
+
+/* Gold "cursor is here" state for a menu item under useMenuNav (roster
+   strip, and any future menu screen) — .bevel-raised plus a glowing ring,
+   since a plain hover state doesn't read on a screen driven by a D-pad
+   rather than a pointer. */
+@utility is-cursor {
+  box-shadow:
+    inset 2px 2px 0 0 var(--bevel-light),
+    inset -2px -2px 0 0 var(--bevel-dark),
+    0 3px 0 0 var(--bevel-dark),
+    0 0 0 3px var(--glow),
+    0 0 18px 2px color-mix(in oklch, var(--glow) 55%, transparent);
+}
+
+/* Chunky extruded lettering for the title screen (game-logo.tsx renders
+   the actual logo as SVG; this is for any surrounding headline type that
+   needs to match it). Stacked shadows fake the extrusion.
+
+   Named `extruded`, NOT `text-extruded` — don't rename it back. `cn()` runs
+   tailwind-merge, which reads any `text-*` class as a member of Tailwind's
+   own text group and keeps only the last one it sees. With the old names,
+   `cn("text-extruded", "text-extruded-gold")` silently resolved to just
+   `text-extruded-gold`, dropping the font, uppercasing and the entire
+   extrusion — no error, and only visible by inspecting the rendered
+   className. Staying outside the `text-` namespace makes the pair
+   impossible to merge away. */
+@utility extruded {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  text-shadow:
+    1px 1px 0 var(--bevel-dark),
+    2px 2px 0 var(--bevel-dark),
+    3px 3px 0 var(--bevel-dark),
+    4px 4px 0 var(--bevel-dark),
+    5px 5px 6px oklch(0 0 0 / 45%);
+}
+
+/* Gold variant of .extruded, for a heading that should read as the
+   trophy/prestige color rather than plain chrome (the leaderboard title). */
+@utility extruded-gold {
+  color: var(--primary);
+}
+
 @layer components {
-  /*
-    Raised bevel: light edge top-left, dark edge bottom-right, plus a chunky
-    drop shadow so plates feel physically stacked rather than flat. Applied
-    directly inside button.tsx/card.tsx (see those files) so every Button and
-    Card in the app gets it automatically — this is the one CSS
-    implementation every "chunky plate" surface shares, including the
-    freestanding Plate component (src/components/ui/plate.tsx) for anything
-    that isn't already a Card.
-  */
-  .bevel-raised {
-    box-shadow:
-      inset 2px 2px 0 0 var(--bevel-light),
-      inset -2px -2px 0 0 var(--bevel-dark),
-      0 3px 0 0 var(--bevel-dark),
-      0 6px 14px -4px oklch(0 0 0 / 55%);
-  }
-
-  /* The inverse — a recessed well, for anything that should read as a slot
-     rather than a raised plate (e.g. a sunken stat readout). Not wired into
-     any primitive by default; opt in with this class where it's wanted. */
-  .bevel-sunken {
-    /* A recessed well needs its own fill — without one this reads as
-       floating on the page background instead of a distinct panel. */
-    background-color: color-mix(in oklch, var(--card) 55%, var(--bevel-dark));
-    box-shadow:
-      inset -2px -2px 0 0 var(--bevel-light),
-      inset 2px 2px 0 0 var(--bevel-dark);
-  }
-
-  /* Gold "cursor is here" state for a menu item under useMenuNav (roster
-     strip, and any future menu screen) — .bevel-raised plus a glowing ring,
-     since a plain hover state doesn't read on a screen driven by a D-pad
-     rather than a pointer. */
-  .is-cursor {
-    box-shadow:
-      inset 2px 2px 0 0 var(--bevel-light),
-      inset -2px -2px 0 0 var(--bevel-dark),
-      0 3px 0 0 var(--bevel-dark),
-      0 0 0 3px var(--glow),
-      0 0 18px 2px color-mix(in oklch, var(--glow) 55%, transparent);
-  }
-
-  /* Chunky extruded lettering for the title screen (game-logo.tsx renders
-     the actual logo as SVG; this is for any surrounding headline type that
-     needs to match it). Stacked shadows fake the extrusion. */
-  .text-extruded {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: var(--foreground);
-    text-shadow:
-      1px 1px 0 var(--bevel-dark),
-      2px 2px 0 var(--bevel-dark),
-      3px 3px 0 var(--bevel-dark),
-      4px 4px 0 var(--bevel-dark),
-      5px 5px 6px oklch(0 0 0 / 45%);
-  }
-
-  /* Gold variant of .text-extruded, for a heading that should read as the
-     trophy/prestige color rather than plain chrome (the leaderboard title). */
-  .text-extruded-gold {
-    color: var(--primary);
-  }
-
   /* CRT vignette, painted over the whole app (layout.tsx), never
      interactive. (The scanline pass was dropped — it read as literal
      lines across the screen rather than a screen-filter texture.) */

@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock, RotateCcw, ShieldCheck } from "lucide-react";
+import {
+  Clapperboard,
+  Dices,
+  Lock,
+  RotateCcw,
+  ShieldCheck,
+  TriangleAlert,
+  UserRound,
+  Users,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -21,8 +23,8 @@ import { ManageEventsCard } from "@/components/manage-events-card";
 import { EventOddsEditor } from "@/components/event-odds-editor";
 import { PowerMoveCard } from "@/components/power-move-card";
 import { BootVideoUploader } from "@/components/boot-video-uploader";
-import { AppNav } from "@/components/app-nav";
-import { PageHeading } from "@/components/page-heading";
+import { GameScreen } from "@/components/n64/game-screen";
+import { Panel } from "@/components/n64/panel";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -72,25 +74,20 @@ export default function SetupPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 pt-12 pb-28 sm:pb-12">
-      <header className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <PageHeading>Player Settings</PageHeading>
-          <p className="text-muted-foreground text-sm">
-            Pick which competitor this device is acting as, or add a player.
-          </p>
-        </div>
-        <AppNav />
-      </header>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Who are you?</CardTitle>
-          <CardDescription>
-            {ready ? `${players.length} competitor${players.length === 1 ? "" : "s"} set up so far.` : "Loading…"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+    <GameScreen
+      title="Player Settings"
+      subtitle="Pick which competitor this device is acting as, or add a player"
+      width="narrow"
+    >
+      <Panel
+        title="Who are you?"
+        icon={UserRound}
+        description={
+          ready
+            ? `${players.length} competitor${players.length === 1 ? "" : "s"} set up so far.`
+            : "Loading…"
+        }
+      >
           {selectedPlayer ? (
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm">
@@ -131,26 +128,17 @@ export default function SetupPage() {
               ) : null}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </Panel>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {groomUnlocked ? (
-              <ShieldCheck className="text-primary size-4" />
-            ) : (
-              <Lock className="text-muted-foreground size-4" />
-            )}
-            Groom tools
-          </CardTitle>
-          <CardDescription>
-            {groomUnlocked
-              ? "Unlocked on this device."
-              : "Enter the groom PIN to add or manage players and events."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+      <Panel
+        title="Groom tools"
+        icon={groomUnlocked ? ShieldCheck : Lock}
+        description={
+          groomUnlocked
+            ? "Unlocked on this device — manage players and events below."
+            : "Enter the groom PIN to add or manage players and events."
+        }
+      >
           {!groomUnlocked ? (
             <div className="flex items-end gap-2">
               <div className="flex flex-col gap-1.5">
@@ -171,78 +159,61 @@ export default function SetupPage() {
                 <Badge variant="destructive">Wrong PIN</Badge>
               ) : null}
             </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              Unlocked. Manage players and events below.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+          ) : null}
+      </Panel>
 
       {groomUnlocked ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Manage players</CardTitle>
-            <CardDescription>Add, edit, or remove a competitor.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <AddPlayerRow />
-            {[...players]
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((p) => (
-                <ManagePlayerRow key={p.id} player={p} />
-              ))}
-          </CardContent>
-        </Card>
+        <Panel
+          title="Manage players"
+          icon={Users}
+          description="Add, edit, or remove a competitor."
+          contentClassName="gap-2"
+        >
+          <AddPlayerRow />
+          {[...players]
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((p) => (
+              <ManagePlayerRow key={p.id} player={p} />
+            ))}
+        </Panel>
       ) : null}
 
       {groomUnlocked ? <ManageEventsCard events={events} /> : null}
 
       {groomUnlocked ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Set the odds</CardTitle>
-            <CardDescription>
-              Rank all competitors strongest-to-weakest for one event at a
-              time — private, drives that event&apos;s bet odds plus the
-              overall win/top3 odds. Locks once the event starts.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EventOddsEditor players={players} events={events} eventRankings={eventRankings} />
-          </CardContent>
-        </Card>
+        <Panel
+          title="Set the odds"
+          icon={Dices}
+          description="Rank all competitors strongest-to-weakest for one event at a time — private, drives that event's bet odds plus the overall win/top3 odds. Locks once the event starts."
+        >
+          <EventOddsEditor players={players} events={events} eventRankings={eventRankings} />
+        </Panel>
       ) : null}
 
       {groomUnlocked ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Boot video</CardTitle>
-            <CardDescription>
-              Plays once on the N64-style start screen, before character
-              select. One shared clip for the whole app.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BootVideoUploader currentUrl={appSettings?.boot_video_url ?? null} />
-          </CardContent>
-        </Card>
+        <Panel
+          title="Boot video"
+          icon={Clapperboard}
+          description="Plays once on the N64-style start screen, before character select. One shared clip for the whole app."
+        >
+          <BootVideoUploader currentUrl={appSettings?.boot_video_url ?? null} />
+        </Panel>
       ) : null}
 
       {groomUnlocked ? <PowerMoveCard powerMove={powerMove} /> : null}
 
       {groomUnlocked ? (
-        <Card className="border-destructive/40">
-          <CardHeader>
-            <CardTitle className="text-destructive">Danger zone</CardTitle>
-            <CardDescription>
-              Resetting per event happens on the Events screen. This wipes the
-              whole weekend — every result, multiplier, bet, bonus event, the
-              power move, and every event&apos;s ranking — back to a fresh
-              start. Players and the theme are kept. No undo.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
+        <Panel
+          title={<span className="text-destructive">Danger zone</span>}
+          icon={TriangleAlert}
+          iconClassName="text-destructive"
+          // A border, not a ring: `ring-*` is implemented as box-shadow,
+          // which the panel's own `bevel-raised` already owns at the same
+          // specificity — the ring silently rendered nothing.
+          className="border-destructive/50 border-2"
+          description="Resetting per event happens on the Events screen. This wipes the whole weekend — every result, multiplier, bet, bonus event, the power move, and every event's ranking — back to a fresh start. Players are kept. No undo."
+        >
+          <>
             {resetError ? <p className="text-destructive text-sm">{resetError}</p> : null}
             {confirmingReset ? (
               <div className="flex flex-wrap items-center gap-2">
@@ -274,9 +245,9 @@ export default function SetupPage() {
                 Reset the weekend
               </Button>
             )}
-          </CardContent>
-        </Card>
+          </>
+        </Panel>
       ) : null}
-    </main>
+    </GameScreen>
   );
 }
