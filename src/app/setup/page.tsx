@@ -21,7 +21,6 @@ import { ManagePlayerRow } from "@/components/manage-player-row";
 import { AddPlayerRow } from "@/components/add-player-row";
 import { ManageEventsCard } from "@/components/manage-events-card";
 import { EventOddsEditor } from "@/components/event-odds-editor";
-import { PowerMoveCard } from "@/components/power-move-card";
 import { BootVideoUploader } from "@/components/boot-video-uploader";
 import { GameScreen } from "@/components/n64/game-screen";
 import { Panel } from "@/components/n64/panel";
@@ -31,7 +30,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { resetWeekend } from "@/lib/data/mutations";
 
 export default function SetupPage() {
-  const { players, events, eventRankings, appSettings, powerMove, connect, ready } = useGameStore();
+  const { players, events, eventRankings, appSettings, connect, ready } = useGameStore();
   const {
     selectedPlayerId,
     groomUnlocked,
@@ -200,8 +199,6 @@ export default function SetupPage() {
         </Panel>
       ) : null}
 
-      {groomUnlocked ? <PowerMoveCard powerMove={powerMove} /> : null}
-
       {groomUnlocked ? (
         <Panel
           title={<span className="text-destructive">Danger zone</span>}
@@ -211,7 +208,7 @@ export default function SetupPage() {
           // which the panel's own `bevel-raised` already owns at the same
           // specificity — the ring silently rendered nothing.
           className="border-destructive/50 border-2"
-          description="Resetting per event happens on the Events screen. This wipes the whole weekend — every result, multiplier, bet, bonus event, the power move, and every event's ranking — back to a fresh start. Players are kept. No undo."
+          description="Resetting per event happens on the Events screen. This wipes the whole weekend — every result, multiplier, bet, bonus event, and every event's ranking — back to a fresh start. Players are kept. No undo."
         >
           <>
             {resetError ? <p className="text-destructive text-sm">{resetError}</p> : null}

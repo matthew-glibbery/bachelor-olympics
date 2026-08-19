@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { CalendarDays, PartyPopper } from "lucide-react";
+import { CalendarDays, Flame, PartyPopper } from "lucide-react";
 import Image from "next/image";
 
 import { BonusEventsCard } from "@/components/bonus-events-card";
-import { EventCard } from "@/components/event-card";
+import { CatchUpBadge, EventCard } from "@/components/event-card";
 import { GameScreen } from "@/components/n64/game-screen";
+import { Panel } from "@/components/n64/panel";
+import { PlayerName } from "@/components/player-name";
 import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -89,6 +91,7 @@ export default function EventsPage() {
   if (preview && preview.bonuses.size > 0) {
     catchUpByEvent.set(preview.eventId, preview.bonuses);
   }
+  const previewEvent = preview ? (events.find((e) => e.id === preview.eventId) ?? null) : null;
 
   // The bonus-events tile is one more strip entry, appended after the real
   // events — only offered once there's a roster to award points to, same
@@ -197,6 +200,34 @@ export default function EventsPage() {
                 </li>
               ) : null}
             </ul>
+
+            {/* Catch-up bonus — its own section, between the strip and the
+                focused event's detail, rather than living inside whichever
+                event card happens to be focused (it used to). It always
+                targets the event actually being scored right now
+                (upcomingCatchUp, src/lib/scoring/fromRows.ts), not
+                whichever tile the cursor is on, so it stays visible and
+                correct regardless of what's focused above. */}
+            {previewEvent && preview && preview.bonuses.size > 0 ? (
+              <Panel title="Catch-up bonus" icon={Flame}>
+                <p className="text-muted-foreground -mt-1 text-xs">
+                  Applies to <span className="text-foreground font-medium">{previewEvent.name}</span>,
+                  the event currently being scored.
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {[...preview.bonuses.entries()].map(([playerId, bonus]) => {
+                    const p = players.find((pl) => pl.id === playerId);
+                    if (!p) return null;
+                    return (
+                      <span key={playerId} className="flex items-center justify-between gap-2 text-sm">
+                        <PlayerName name={p.name} size="sm" />
+                        <CatchUpBadge bonus={bonus} />
+                      </span>
+                    );
+                  })}
+                </div>
+              </Panel>
+            ) : null}
 
             {/* Focused tile's full detail — the real event's card, or the
                 bonus-events card, never both at once. */}

@@ -113,11 +113,21 @@ export function deriveScoreLines(
 }
 
 /**
- * The catch-up bonus that will apply to whichever not-yet-resolved event is
- * next up (lowest `sort_order` among "planned"/"scoring" events), based on
- * current standings — for showing the bonus on that event's card *before*
- * it resolves, same rate it'll actually score with once it does. Null if
- * there's no such event, or nobody currently qualifies.
+ * The catch-up bonus that will apply to whichever event is actually being
+ * entered next, based on current standings — for showing the bonus *before*
+ * that event resolves, at the same rate it'll actually score with once it
+ * does.
+ *
+ * Deliberately targets `status === "scoring"`, not the lowest `sort_order`
+ * among not-yet-resolved events: the real play order at the party routinely
+ * diverges from however events happen to be listed, and "scoring" is the
+ * one unambiguous signal for "this is the event actually being played right
+ * now" (set when the groom hits Start on it, `event-card.tsx`'s
+ * `startScoring`). Nothing is reliably "next" before that — a merely
+ * "planned" event might not be the one played next at all — so this
+ * returns null until an event actually enters scoring. If somehow more than
+ * one is mid-scoring at once (not a normal flow, but not prevented by a DB
+ * constraint either), `sort_order` breaks the tie deterministically.
  */
 export function upcomingCatchUp(
   events: EventRow[],
@@ -126,7 +136,7 @@ export function upcomingCatchUp(
   playerIds: string[],
 ): { eventId: string; bonuses: Map<string, number> } | null {
   const target = events
-    .filter((e) => e.status === "planned" || e.status === "scoring")
+    .filter((e) => e.status === "scoring")
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order)[0];
   if (!target) return null;

@@ -2,6 +2,82 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-19 — Catch-up bonus targeting fix + section move, save-speed fix, leaderboard bevel, column spacing, Power Move removed
+
+Follow-up batch the day after (5), same PR pattern: a short punch list plus
+one real logic bug. 152 tests (+2, both `upcomingCatchUp`), lint/typecheck/
+build all green. Screenshot- and live-DB-verified via headless Chrome + CDP
+against the real Supabase project, same approach as prior sessions —
+credentials copied in and removed again after.
+
+- **Real bug, the catch-up bonus preview was targeting the wrong event.**
+  `upcomingCatchUp` (`src/lib/scoring/fromRows.ts`) used to pick "whichever
+  not-yet-resolved event has the lowest `sort_order`" as the one about to
+  score next. The user pointed out real play order routinely doesn't match
+  the configured list order — the groom might start event 6 before event 2.
+  Now it targets `status === "scoring"` specifically (set the instant the
+  groom hits Start on an event, `event-card.tsx`'s `startScoring`) — the one
+  unambiguous "this is actually being played right now" signal. If nothing
+  is currently being scored, it returns `null` rather than guessing at a
+  "planned" event, since there's genuinely no reliable way to know which one
+  comes next until it's started. Verified live: set a *higher-sort_order*
+  event to `"scoring"` while a lower-sort_order event sat `"planned"`, and
+  the preview correctly followed the scoring one, not the list order.
+- **Catch-up bonus moved to its own section** on `/events`
+  (`src/app/events/page.tsx`), between the event tile strip and the focused
+  event's detail card — previously it lived inside whichever `EventCard`
+  happened to be focused (gated on `event.status === "planned"`, removed
+  from `event-card.tsx`), so it disappeared/changed depending on cursor
+  position and could show on the wrong card entirely. Now it's decoupled
+  from focus: always shows (when something's being scored) which event and
+  which players get it, independent of what's on screen below. Exported
+  `CatchUpBadge` from `event-card.tsx` so the new section reuses the same
+  badge rather than a second copy.
+- **"Saving is slow" — a real, structural cause, not just perception.**
+  `gameStore.ts`'s realtime subscription refetches *all 8 tables* on every
+  single `postgres_changes` message, and Postgres/Supabase Realtime fires
+  one message *per row* a write touches — so saving multipliers (which
+  previously wrote every "planned" event's row on every click, changed or
+  not) could fire 6-8 concurrent full refetches for one Save click. Two
+  fixes, both in this PR: (1) `handleSave` (`multipliers/page.tsx`) now only
+  upserts sliders that actually moved, diffed against `committed`, instead
+  of rewriting every planned event unconditionally; (2) `gameStore.ts`'s
+  realtime handler is now debounced 300ms (`scheduleRefetch`) so a burst of
+  change events — from this or any other multi-row write, e.g.
+  `setEventRanking`'s wipe-then-insert — collapses into one refetch instead
+  of piling up. Re-verified the save itself still round-trips correctly
+  end-to-end against live Supabase after both changes.
+- **Leaderboard's standings table now sits inside a `Panel`**
+  (`src/app/page.tsx`, titled "Standings", `ListOrdered` icon) — it used to
+  be a bare `bevel-sunken` table straight on the page background, a
+  different bevel treatment than the `Panel`-wrapped Progress chart sitting
+  right below it on the same screen. Same raised-card frame now, same
+  screen.
+- **Event results table: more space between Pts / × / Total**
+  (`event-card.tsx`). Real `gap-x` isn't an option here — the existing
+  comment explains why: rows are `display: contents` so the zebra stripe is
+  painted per-cell, and a real grid gap leaves an unpainted, unstriped
+  seam. Added two thin spacer grid columns (hidden below `sm`, matching the
+  columns they separate) instead, so the numbers get breathing room without
+  breaking the stripe.
+- **Power Move removed** — component, `spendPowerMove`/`fetchPowerMove`,
+  the `powerMove` store field and its `PowerMoveRow` type, and the
+  `PowerMoveCard` render on `/setup`, per explicit ask ("doesn't seem like
+  that does anything"). `PRODUCT_SPEC.md`'s two mentions updated to match
+  (source-of-truth doc, so a real product decision like this belongs there
+  too, not just in code). Deliberately left `power_move` alone in the DB:
+  `resetWeekend` still clears that table as part of a full reset, and the
+  table/migration itself is untouched — removing the UI doesn't require a
+  schema change, and dropping a live table wasn't asked for.
+- **Confirm clip vs. fullbody clip, answered inline (no code change)**:
+  `character_fullbody_video_url` is the idle loop — plays continuously
+  while a character is on screen (the focused render on `/select`, the
+  aura'd character on `/multipliers`). `character_confirm_video_url` is a
+  one-shot "you're now playing as ___" cutscene that plays exactly once,
+  full-bleed, right after hitting "Let's go" on `/select`, before routing
+  into the app (`ConfirmClip` in `select/page.tsx`) — distinct clip, distinct
+  moment, not a variant of the idle one.
+
 ## 2026-08-18 (5) — Legend removal, starfield everywhere, leaderboard reorder, chart rank-change bug, reserve restyle
 
 Follow-up batch after (4), same day: a UI cleanup list plus a re-report of

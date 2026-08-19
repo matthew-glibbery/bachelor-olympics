@@ -661,22 +661,6 @@ export async function removeBonusEvent(
   if (error) throw new Error(`removeBonusEvent: ${error.message}`);
 }
 
-/**
- * Spend the groom's one-time power move — PRODUCT_SPEC.md → Extras. A
- * manual, freeform admin action (the spec deliberately keeps the mechanic
- * undefined — "the fun is in the surprise and timing"): this just records
- * that it happened, with a note for what the groom did, and when. Can only
- * be used once — the UI is responsible for checking `used` first and
- * hiding the control once it's true.
- */
-export async function spendPowerMove(client: SupabaseClient, note: string): Promise<void> {
-  const { error } = await client
-    .from("power_move")
-    .update({ used: true, note: note || null, used_at: new Date().toISOString() })
-    .eq("id", 1);
-  if (error) throw new Error(`spendPowerMove: ${error.message}`);
-}
-
 /** Set the shared boot-screen video (docs/VISUAL_SPEC.md) — one asset for the whole app. */
 export async function setBootVideo(client: SupabaseClient, url: string | null): Promise<void> {
   const { error } = await client
