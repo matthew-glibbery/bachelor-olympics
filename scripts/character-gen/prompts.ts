@@ -1,5 +1,5 @@
 /**
- * Prompt templates. The solo portrait prompt is docs/VISUAL_SPEC.md's Nano
+ * Prompt templates. The full-body prompt is docs/VISUAL_SPEC.md's Nano
  * Banana template, split by subject kind (player/guest use the human
  * version, Bailey the dog gets a dog-appropriate variant of the same
  * style). Solo clip prompts (select/fullbody) translate the spec's
@@ -10,9 +10,7 @@
  */
 import type { SubjectKind } from "./subjects";
 
-export type MatteBackground = "white" | "black";
-
-/** Appended to every portrait/headshot prompt. Iterated three times against
+/** Appended to every full-body/headshot prompt. Iterated four times against
  * real renders before landing here:
  *   1. "official video game box" framing caused Nano Banana to bake in an
  *      actual "NINTENDO 64" logo watermark, and the result read as flat 2D
@@ -27,11 +25,21 @@ export type MatteBackground = "white" | "black";
  *      shaded polygons, adjacent faces just meet at a hard color change with
  *      no line. Named that explicitly; asking for "no outline" alone wasn't
  *      enough to stop it drawing seams *between* facets.
- * `background` is parameterized (not hardcoded white) so the same prompt
- * can render on white and on black for difference matting (matte.ts) —
- * Gemini's image models have no alpha channel, this is how a real
- * transparent cutout gets recovered after the fact. */
-function renderStyle(background: MatteBackground): string {
+ *   4. A "full body" generation drifted into a shoulders-up crop with no
+ *      legs/shoes visible — nearly identical to the headshot it was meant
+ *      to seed — and the likeness read as a generic handsome face, not the
+ *      actual person. "Full body, neutral standing pose" alone wasn't
+ *      explicit enough about what counts as a full-body violation, and
+ *      "preserve recognizable features" wasn't strong enough to stop the
+ *      model idealizing the face. Both addressed directly below.
+ * `background` is the full descriptive sentence (background.ts), not a
+ * bare color — plain white read badly once live in the app (a stray white
+ * halo behind every render); default is now a radial gradient from the
+ * player's own chart color into the app's dark navy, matching what the
+ * procedural fallback already looks like. White/black are still used, but
+ * only by the opt-in `matte` command's difference-matting technique
+ * (matte.ts) — unrelated to what the *shipped* asset looks like. */
+function renderStyle(background: string): string {
   return `This must read as a genuinely low-polygon 3D-rendered video game
 character model from actual N64-era hardware — not a modern "low-poly art
 style" indie game, not 2D artwork, and absolutely not a comic/vector
@@ -51,8 +59,8 @@ no ink lines, no comic-style panel borders, no dark edge on the polygon
 boundaries themselves. Directional shading that implies real volume and
 depth purely from those flat color facets. Saturated primary colors,
 chunky exaggerated proportions, slightly oversized head-to-body ratio.
-Plain solid ${background} background, nothing else in frame — no text, no
-logos, no watermarks, no game-box framing or UI chrome of any kind.`;
+${background} No text, no logos, no watermarks, no game-box framing or UI
+chrome of any kind.`;
 }
 
 /** When more than one reference photo is attached (players.ts's `image`
@@ -65,11 +73,36 @@ function referencePhotosLine(photoCount: number): string {
   return "reference photos — use all of them together: likeness (face, hairstyle, skin tone) from whichever shows the face most clearly, and outfit/accessory details from any of the others that show them better";
 }
 
-export function portraitPrompt(
+/** Likeness is a real, named requirement, not just "don't be
+ * photorealistic" — a render that's technically well-styled but reads as a
+ * generic handsome/attractive face rather than the actual person in the
+ * photo is a failed render, not a stylistic choice. */
+const LIKENESS_LINE = `This must be immediately recognizable as the specific
+person in the reference photo(s), not a generic idealized face in this art
+style — match their exact hairstyle (cut, length, texture, and how it's
+parted or styled, not a different haircut), face shape, eye spacing, nose
+shape, and the specific character of their smile (open/toothy vs. closed,
+how wide) as closely as the low-poly faceted style allows. Prioritize
+recognizability over making the face conventionally symmetrical or
+idealized.`;
+
+/** The single most common failure mode seen in practice: the render
+ * quietly crops to the chest/shoulders instead of showing the whole body,
+ * which then makes the downstream headshot crop (headshotPrompt) barely
+ * different from this image at all. Named as an explicit pass/fail check,
+ * not just "full body" as one adjective among many. */
+const FULL_BODY_LINE = `This is a FULL BODY image: the entire character must
+be visible from the top of the head all the way down to their feet/shoes,
+with both full legs clearly shown — not cropped at the waist, chest, or
+shoulders. If any part of the body below the chest is cut off or not
+visible in the frame, the image is wrong and must include more of the
+body, even if that means the character appears smaller within the frame.`;
+
+export function fullBodyPrompt(
   name: string,
   kind: SubjectKind,
-  outfit?: string,
-  background: MatteBackground = "white",
+  outfit: string | undefined,
+  background: string,
   photoCount = 1,
 ): string {
   const photosLine = referencePhotosLine(photoCount);
@@ -79,31 +112,35 @@ export function portraitPrompt(
 ${photosLine} of ${name}, in the style of late-1990s N64-era video game
 creature models (think Diddy Kong Racing's animal characters). Preserve
 ${name}'s recognizable breed, coat color/pattern, and markings from the
-reference photo(s), but do not aim for photorealism.${outfitLine} Full
-body, standing pose, front 3/4 view.
+reference photo(s), but do not aim for photorealism.${outfitLine} Standing
+pose, front 3/4 view.
+
+${FULL_BODY_LINE}
 
 ${renderStyle(background)}`;
   }
   const outfitLine = outfit ? ` Dress the character in ${outfit}.` : "";
   return `Create a stylized 3D-rendered character based on the attached
 ${photosLine} of ${name}, in the style of late-1990s N64-era video game
-character models (think Ready 2 Rumble Boxing, Diddy Kong Racing).
-Preserve recognizable facial features, hairstyle, and skin tone from the
-reference photo(s), but do not aim for photorealism.${outfitLine} Full
-body, neutral standing pose, front 3/4 view.
+character models (think Ready 2 Rumble Boxing, Diddy Kong Racing).${outfitLine}
+Neutral standing pose, front 3/4 view.
+
+${LIKENESS_LINE}
+
+${FULL_BODY_LINE}
 
 ${renderStyle(background)}`;
 }
 
 /**
- * Shoulders-up crop of an already-approved full-body portrait — the
+ * Shoulders-up crop of an already-approved full-body image — the
  * selection-screen render, and the seed for the `select` hover clip
  * (start AND end frame, so it loops on the actual framing that clip plays
- * at, not the full-body one). Generated from the full-body portrait itself
+ * at, not the full-body one). Generated from the full-body image itself
  * (Nano Banana edit mode) rather than a plain image crop, since a naive
  * crop can cut off hair/accessories the full-body framing left room for.
  */
-export function headshotPrompt(name: string, background: MatteBackground = "white"): string {
+export function headshotPrompt(name: string, background: string): string {
   return `Using the attached full-body character image of ${name}, reframe it as a
 shoulders-up headshot: same character, same face, hair, outfit, and
 proportions, exactly as already rendered — just recomposed to frame from
@@ -113,7 +150,7 @@ the whole head has clear space above it — do not crop into the hair, ears,
 or any part of the head, and do not push the face toward one edge. The
 face should be turned to look directly into the camera, straight-on, not
 angled to one side in a 3/4 profile — this is a head-on selection-screen
-headshot, unlike the full-body portrait's 3/4 stance. Keep the same
+headshot, unlike the full-body image's 3/4 stance. Keep the same
 expression as the source image exactly. Do not change anything else about
 the character itself.
 
@@ -122,54 +159,55 @@ ${renderStyle(background)}`;
 
 export type ClipType = "select" | "fullbody" | "confirm" | "victory";
 
-/** Solo clip prompts — apply to the plain single-subject portrait, no
- * Cassandra/Bailey. Used for select/fullbody always, and for confirm/
- * victory only as a fallback when no composite scene has been generated
- * yet (see cli.ts's `clip` command). */
-const soloClipPrompts: Record<ClipType, (name: string) => string> = {
-  select: (name) => `Using the attached stylized 3D character image of ${name} as both the
+/** Solo clip prompts — apply to the plain single-subject full-body image
+ * (or headshot, for `select`), no Cassandra/Bailey. Used for select/
+ * fullbody always, and for confirm/victory only as a fallback when no
+ * composite scene has been generated yet (see cli.ts's `clip` command). */
+const soloClipPrompts: Record<ClipType, (name: string, background: string) => string> = {
+  select: (name, background) => `Using the attached stylized 3D character image of ${name} as both the
 starting frame and the ending frame, animate a short, energetic idle
 gesture in between them — a quick eager bounce or a wave toward camera —
 that departs from and returns to that exact pose, so the clip loops
-perfectly on hover. Plain white background, same low-poly N64-era
-character-select style as the reference image throughout. No camera
-movement.`,
+perfectly on hover. ${background} Same low-poly N64-era character-select
+style as the reference image throughout. No camera movement.`,
 
-  fullbody: (name) => `Using the attached stylized 3D character image of ${name}, generate a
-subtle, seamlessly loopable idle animation: gentle breathing motion and a
-small weight shift from foot to foot, like a character standing on a video
-game select screen waiting to be picked. Minimal, continuous, no distinct
-start or end pose — should read as alive, not static. Plain white
-background, same low-poly N64-era character-select style as the reference
-image. No camera movement.`,
+  fullbody: (name, background) => `Using the attached stylized 3D character image of ${name}, generate a
+short, silly, seamlessly loopable animation related to their outfit/
+character (e.g. a trick, a flex, a signature move that fits who they are)
+— starting and ending in the exact same pose so it loops with no visible
+seam. Should read as alive and a little funny, not a static idle. ${background}
+Same low-poly N64-era character-select style as the reference image. No
+camera movement.`,
 
-  confirm: (name) => `Using the attached stylized 3D character image of ${name}, generate a
-short one-shot (non-looping) confirmation animation: the character strikes
-a confident, hype "I'm ready" pose — a fist pump, a point at the camera, or
-a thumbs up — as if just chosen on a video game character-select screen.
-Plain white background, same low-poly N64-era character-select style as
-the reference image. Simple push-in camera move for emphasis.`,
+  confirm: (name, background) => `Using the attached stylized 3D character image of ${name}, generate a
+short one-shot (non-looping) confirmation animation: the character
+celebrates being selected/chosen — a confident, hype reaction, a fist
+pump, a point at the camera, or a thumbs up — as if just picked on a video
+game character-select screen. ${background} Same low-poly N64-era
+character-select style as the reference image. Simple push-in camera move
+for emphasis.`,
 
-  victory: (name) => `Using the attached stylized 3D character image of ${name}'s low-poly
+  victory: (name, background) => `Using the attached stylized 3D character image of ${name}'s low-poly
 N64-era character, generate a video: ${name}'s character performs a
 triumphant, comedic victory move, then playfully stomps/squashes a small
 group of generic same-style opposing characters, who comically flatten
-like inflatable toys and pop back up dazed. Setting: a colorful, stylized
-arena matching a late-1990s video game aesthetic, bright primary-color
-lighting, medal/trophy accents in the background. Simple dynamic camera,
-one push-in on the winning character. Cartoon physics, upbeat and silly,
-not aggressive or realistic — this is a celebratory gag, not a fight.`,
+like inflatable toys and pop back up dazed. ${background} Cartoon physics,
+upbeat and silly, not aggressive or realistic — this is a celebratory gag,
+not a fight.`,
 };
 
-export function soloClipPrompt(type: ClipType, name: string): string {
-  return soloClipPrompts[type](name);
+export function soloClipPrompt(type: ClipType, name: string, background: string): string {
+  return soloClipPrompts[type](name, background);
 }
 
-/** Composite *scene image* prompts — combine several existing portraits
+/** Composite *scene image* prompts — combine several existing images
  * (Nano Banana, multi-image input) into one still frame before it's handed
  * to Veo as a single seed image. Keeps every character's likeness anchored
  * to its own reference rather than asking Veo to invent Cassandra/Bailey
- * from a text description alone. */
+ * from a text description alone. Still on the original "arena" background
+ * language — docs/VISUAL_SPEC.md's newer Lake Tahoe beach direction for
+ * victory/boot hasn't been threaded through here yet, deliberately lowest
+ * priority (see that doc's per-player-clip generation order). */
 export function victoryScenePrompt(playerName: string): string {
   return `Using the attached stylized N64-style character images — ${playerName}'s
 character, Cassandra's character (the bride), and Bailey's character (the

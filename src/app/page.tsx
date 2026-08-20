@@ -128,6 +128,7 @@ export default function Home() {
                         name={player.name}
                         nickname={player.nickname}
                         photoUrl={player.photo_url}
+                        videoUrl={player.character_fullbody_video_url}
                         color={color}
                         pose="full"
                         idle={place === 1}

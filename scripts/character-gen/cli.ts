@@ -15,19 +15,20 @@
  *   pnpm run gen:char:boot-upload
  *
  * Deliberately staged rather than one big "do everything" command — per
- * docs/VISUAL_SPEC.md, the portrait needs sign-off before spending Veo calls
- * on clips, and clips need a local look before they're pushed live. Cassandra
- * (the bride) and Bailey (the dog) are portrait-only guests (subjects.ts) —
- * they never get their own select/fullbody/confirm/victory clip, only a
- * portrait used as extra reference material when composing the victory,
- * confirm, and boot scenes that include everyone.
+ * docs/VISUAL_SPEC.md, the full-body image needs sign-off before spending
+ * Veo calls on clips, and clips need a local look before they're pushed
+ * live. Cassandra (the bride) and Bailey (the dog) are image-only guests
+ * (subjects.ts) — they never get their own select/fullbody/confirm/victory
+ * clip, only an image used as extra reference material when composing the
+ * victory, confirm, and boot scenes that include everyone.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import { generateImage, generateVideo } from "./gemini";
 import { differenceMatte } from "./matte";
+import { backgroundDescription, matteBackgroundDescription, playerColorByKey } from "./background";
 import {
-  portraitPrompt,
+  fullBodyPrompt,
   headshotPrompt,
   soloClipPrompt,
   victoryScenePrompt,
@@ -69,22 +70,31 @@ function readAsset(subject: Subject, filename: string): { base64: string; mimeTy
   return { base64: readFileSync(file).toString("base64"), mimeType: "image/png" };
 }
 
-function readPortrait(subject: Subject): { base64: string; mimeType: string } {
-  const asset = readAsset(subject, "portrait.png");
+function readFullBody(subject: Subject): { base64: string; mimeType: string } {
+  const asset = readAsset(subject, "fullbody.png");
   if (!asset) {
-    throw new Error(`No portrait.png for ${subject.name} yet — run gen:char:image "${subject.name}" <reference-photo> first.`);
+    throw new Error(`No fullbody.png for ${subject.name} yet — run gen:char:image "${subject.name}" <reference-photo> first.`);
   }
   return asset;
+}
+
+/** A player's own chart color, gradient-into-navy (background.ts); guests
+ * get a flat navy instead — they have no chart color, since they're not
+ * competing players. */
+async function backgroundFor(subject: Subject): Promise<string> {
+  if (subject.kind !== "player") return backgroundDescription();
+  const hex = await playerColorByKey(subject.key);
+  return backgroundDescription(hex);
 }
 
 async function cmdStatus() {
   const subjects = await allSubjects();
   for (const s of subjects) {
     const dir = assetDir(s.key);
-    const portrait = existsSync(path.join(dir, "portrait.png"));
+    const fullbody = existsSync(path.join(dir, "fullbody.png"));
     const headshot = existsSync(path.join(dir, "headshot.png"));
     if (s.kind !== "player") {
-      console.log(`${s.name.padEnd(10)} (${s.kind})  portrait:${portrait ? "yes" : "no "}  headshot:${headshot ? "yes" : "no "}`);
+      console.log(`${s.name.padEnd(10)} (${s.kind})  fullbody:${fullbody ? "yes" : "no "}  headshot:${headshot ? "yes" : "no "}`);
       continue;
     }
     const player = s.player!;
@@ -95,7 +105,7 @@ async function cmdStatus() {
       const localTag = live ? "LIVE" : local ? "local" : scene ? "scene-only" : "-";
       return `${t}:${localTag}`;
     });
-    console.log(`${s.name.padEnd(10)} portrait:${portrait ? "yes" : "no "}  headshot:${headshot ? "yes" : "no "}  ${clips.join("  ")}`);
+    console.log(`${s.name.padEnd(10)} fullbody:${fullbody ? "yes" : "no "}  headshot:${headshot ? "yes" : "no "}  ${clips.join("  ")}`);
   }
   const bootScene = existsSync(path.join(BOOT_DIR, "scene.png"));
   const bootClip = existsSync(path.join(BOOT_DIR, "clip.mp4"));
@@ -109,14 +119,15 @@ async function cmdImage(nameOrId: string, referencePaths: string[]) {
     base64: readFileSync(p).toString("base64"),
     mimeType: mimeFromExt(p),
   }));
-  console.log(`Generating N64 portrait for ${subject.name} (${subject.kind}) from ${referencePaths.join(", ")}...`);
+  const background = await backgroundFor(subject);
+  console.log(`Generating N64 full-body image for ${subject.name} (${subject.kind}) from ${referencePaths.join(", ")}...`);
   const { base64 } = await generateImage(
-    portraitPrompt(subject.name, subject.kind, subject.outfit, "white", references.length),
+    fullBodyPrompt(subject.name, subject.kind, subject.outfit, background, references.length),
     references,
   );
-  const out = path.join(dir, "portrait.png");
+  const out = path.join(dir, "fullbody.png");
   writeFileSync(out, Buffer.from(base64, "base64"));
-  console.log(`Wrote ${out} — review it before generating clips.`);
+  console.log(`Wrote ${out} — review it before generating clips. Check it's actually full body (head to feet) before moving on.`);
 }
 
 async function cmdHeadshot(nameOrId: string) {
@@ -127,22 +138,23 @@ async function cmdHeadshot(nameOrId: string) {
     );
   }
   const dir = assetDir(subject.key);
-  const portrait = readPortrait(subject);
-  console.log(`Generating shoulders-up headshot for ${subject.name} from the approved full-body portrait...`);
-  const { base64 } = await generateImage(headshotPrompt(subject.name), [portrait]);
+  const fullbody = readFullBody(subject);
+  const background = await backgroundFor(subject);
+  console.log(`Generating shoulders-up headshot for ${subject.name} from the approved full-body image...`);
+  const { base64 } = await generateImage(headshotPrompt(subject.name, background), [fullbody]);
   const out = path.join(dir, "headshot.png");
   writeFileSync(out, Buffer.from(base64, "base64"));
   console.log(`Wrote ${out} — this is what the select-screen render and the hover-loop clip will use.`);
 }
 
-function guestPortraits(): Array<{ base64: string; mimeType: string }> {
-  return SPECIAL_SUBJECTS.map((s) => readPortrait(s));
+function guestFullBodies(): Array<{ base64: string; mimeType: string }> {
+  return SPECIAL_SUBJECTS.map((s) => readFullBody(s));
 }
 
 async function cmdComposite(kind: string, nameOrId?: string) {
   if (kind === "boot") {
     const subjects = await allSubjects();
-    const images = subjects.map((s) => readPortrait(s));
+    const images = subjects.map((s) => readFullBody(s));
     console.log(`Generating boot group scene with ${subjects.map((s) => s.name).join(", ")}...`);
     const { base64 } = await generateImage(
       bootScenePrompt(subjects.map((s) => s.name)),
@@ -171,7 +183,7 @@ async function cmdComposite(kind: string, nameOrId?: string) {
     );
   }
 
-  const images = [readPortrait(subject), ...guestPortraits()];
+  const images = [readFullBody(subject), ...guestFullBodies()];
   const prompt = kind === "victory" ? victoryScenePrompt(subject.name) : confirmScenePrompt(subject.name);
   console.log(`Generating ${kind} scene for ${subject.name} with Cassandra + Bailey...`);
   const { base64 } = await generateImage(prompt, images);
@@ -188,6 +200,7 @@ async function cmdClip(nameOrId: string, type: string) {
   const subject = await resolveSubject(nameOrId);
   if (subject.kind !== "player") throw new Error(`Only players get their own clips — "${nameOrId}" is a ${subject.kind}`);
   const dir = assetDir(subject.key);
+  const background = await backgroundFor(subject);
 
   let seed: { base64: string; mimeType: string };
   let prompt: string;
@@ -197,24 +210,24 @@ async function cmdClip(nameOrId: string, type: string) {
       seed = { base64: readFileSync(scenePath).toString("base64"), mimeType: "image/png" };
       prompt = clipType === "victory" ? victorySceneClipPrompt(subject.name) : confirmSceneClipPrompt(subject.name);
     } else {
-      console.log(`No ${clipType}-scene.png for ${subject.name} — falling back to the solo portrait (no Cassandra/Bailey). Run gen:char:composite -- ${clipType} "${subject.name}" first if you want them in it.`);
-      seed = readPortrait(subject);
-      prompt = soloClipPrompt(clipType, subject.name);
+      console.log(`No ${clipType}-scene.png for ${subject.name} — falling back to the solo full-body image (no Cassandra/Bailey). Run gen:char:composite -- ${clipType} "${subject.name}" first if you want them in it.`);
+      seed = readFullBody(subject);
+      prompt = soloClipPrompt(clipType, subject.name, background);
     }
   } else if (clipType === "select") {
-    // Selection-screen framing (shoulders-up), not the full-body portrait —
+    // Selection-screen framing (shoulders-up), not the full-body image —
     // this is the clip that plays small, in the roster strip, on hover.
     const headshot = readAsset(subject, "headshot.png");
     if (headshot) {
       seed = headshot;
     } else {
-      console.log(`No headshot.png for ${subject.name} — falling back to the full-body portrait for this hover clip. Run gen:char:headshot "${subject.name}" first if you want it framed shoulders-up.`);
-      seed = readPortrait(subject);
+      console.log(`No headshot.png for ${subject.name} — falling back to the full-body image for this hover clip. Run gen:char:headshot "${subject.name}" first if you want it framed shoulders-up.`);
+      seed = readFullBody(subject);
     }
-    prompt = soloClipPrompt(clipType, subject.name);
+    prompt = soloClipPrompt(clipType, subject.name, background);
   } else {
-    seed = readPortrait(subject);
-    prompt = soloClipPrompt(clipType, subject.name);
+    seed = readFullBody(subject);
+    prompt = soloClipPrompt(clipType, subject.name, background);
   }
 
   // The hover-loop clip pins its own seed image as both the first AND last
@@ -265,13 +278,13 @@ async function cmdUploadPhoto(nameOrId: string) {
  * Opt-in — not run automatically by `image`/`headshot`, since it doubles
  * the Nano Banana cost per asset and nothing in the app currently consumes
  * a transparent still (the live surfaces are all video clips, which can't
- * be matted this way — see matte.ts and the README's transparency section
- * for the video-side recommendation instead). Use this only if a specific
- * static transparent asset is actually needed somewhere.
+ * be matted this way — see matte.ts and background.ts for the video-side
+ * approach instead). Use this only if a specific static transparent asset
+ * is actually needed somewhere.
  */
 async function cmdMatte(nameOrId: string, which: string) {
-  if (which !== "portrait" && which !== "headshot") {
-    throw new Error(`usage: gen:char:matte -- <player|Cassandra|Bailey> <portrait|headshot>`);
+  if (which !== "fullbody" && which !== "headshot") {
+    throw new Error(`usage: gen:char:matte -- <player|Cassandra|Bailey> <fullbody|headshot>`);
   }
   const subject = await resolveSubject(nameOrId);
   const dir = assetDir(subject.key);
@@ -280,12 +293,15 @@ async function cmdMatte(nameOrId: string, which: string) {
 
   console.log(`Generating a black-background twin of ${subject.name}'s ${which} for difference matting...`);
   const prompt =
-    which === "portrait"
-      ? portraitPrompt(subject.name, subject.kind, subject.outfit, "black")
-      : headshotPrompt(subject.name, "black");
+    which === "fullbody"
+      ? fullBodyPrompt(subject.name, subject.kind, subject.outfit, matteBackgroundDescription("black"))
+      : headshotPrompt(subject.name, matteBackgroundDescription("black"));
   // Edit mode: pass the white-background render itself as the reference so
   // the black version stays pixel-aligned with it (a fresh generation
-  // wouldn't be) — matte.ts's math depends on that alignment.
+  // wouldn't be) — matte.ts's math depends on that alignment. Note this
+  // means `which`'s existing .png must itself have been generated on white
+  // for this to work — regenerate it with matteBackgroundDescription("white")
+  // first if it's already on the gradient background.
   const { base64 } = await generateImage(prompt, [onWhite]);
   const onBlack = Buffer.from(base64, "base64");
 
@@ -338,7 +354,7 @@ async function main() {
     }
     case "matte": {
       const [a, b] = args;
-      if (!a || !b) throw new Error("usage: gen:char:matte -- <player|Cassandra|Bailey> <portrait|headshot>");
+      if (!a || !b) throw new Error("usage: gen:char:matte -- <player|Cassandra|Bailey> <fullbody|headshot>");
       return cmdMatte(a, b);
     }
     case "composite": {
