@@ -26,8 +26,26 @@ export const OUTFITS: Record<string, string> = {
  * doing a wheelie, Joe twirling like he's about to draw). Keyed by slug,
  * same as OUTFITS. Optional — soloClipPrompt falls back to a generic
  * "trick/flex/signature move" line for anyone not listed here yet.
+ *
+ * DRAFT — everyone but Matthew below is a first pass, not yet generated or
+ * reviewed. Edit freely in place; nothing here goes live until
+ * `gen:char:clip -- <player> fullbody` actually runs against it.
  */
 export const FULLBODY_ACTIONS: Record<string, string> = {
   matthew:
-    "a suave, classy beat: a sharp, confident half-turn toward camera, straightening his tuxedo cuff/lapel with one smooth motion, then a cool, composed half-smile — debonair and in full control of the room, not silly or exaggerated",
+    "a classy, well-dressed beat: smooths down his tuxedo lapel with one hand, straightens his boutonnière, then gives a warm, confident smile — elegant and composed, not silly or exaggerated",
+  andrew:
+    "a relaxed, beachy beat: an easy shoulder-roll stretch, adjusting his bandana with one hand, then a laid-back, confident nod toward camera — chill and unbothered",
+  josh:
+    "a quick trail-runner's beat: a couple of light on-the-spot high-knees or a bouncy jog-in-place, glancing down to check his running watch, then a determined nod",
+  joe:
+    "a cowboy swagger beat: spins on one boot heel, hooks his thumbs into his big belt buckle, then tips his cowboy hat toward camera with a sly grin, toothpick still in his mouth",
+  isaac:
+    "a cycling flex beat: hops in place like popping a quick wheelie, hair flowing out from under the helmet, then flexes one arm toward camera",
+  adam:
+    "a business-suit beat: confidently straightens his jacket lapel and cuffs, then gives a sharp, satisfied nod — like he just closed a deal",
+  anthony:
+    "a ski-hype beat: a couple of small hops in his ski boots with a quick fist pump, then pushes his goggles up onto his helmet with a grin",
+  tyler:
+    "a warm, easygoing beat: a friendly wave, tucking one hand into his flannel pocket, then an approachable head-tilt and grin",
 };

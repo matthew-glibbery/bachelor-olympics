@@ -174,9 +174,15 @@ style as the reference image throughout. No camera movement.`,
   fullbody: (name, background, action) => `Using the attached stylized 3D character image of ${name}, generate a
 short, seamlessly loopable animation: ${action ?? "a silly, signature move related to their outfit/character (e.g. a trick, a flex, a move that fits who they are)"}
 — starting and ending in the exact same pose so it loops with no visible
-seam. Should read as alive and distinctly them, not a static idle. ${background}
-Same low-poly N64-era character-select style as the reference image. No
-camera movement.`,
+seam. The move itself should be quick, well under the clip's full length:
+perform it, settle back into the exact starting pose with time to spare,
+and hold there for the remainder of the clip rather than stretching the
+motion out to fill the whole duration. Should read as alive and distinctly
+them, not a static idle. ${background} Same low-poly N64-era
+character-select style as the reference image. The camera is completely
+static and locked off for the entire clip — it must not pan, orbit,
+rotate, dolly, or zoom, not even slightly; only the character moves, the
+camera frame never changes.`,
 
   confirm: (name, background) => `Using the attached stylized 3D character image of ${name}, generate a
 short one-shot (non-looping) confirmation animation: the character
