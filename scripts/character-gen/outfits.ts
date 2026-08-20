@@ -19,3 +19,15 @@ export const OUTFITS: Record<string, string> = {
   cassandra: "a white wedding dress with a big, full, voluminous skirt (a large ballgown-style silhouette), carrying a wildflower bouquet, and a wedding veil worn back over/behind her hair so it does NOT cover her face — her face should be fully visible",
   bailey: "get her proportions right: short legs, a long body, scruffy fur, and a little white mohawk of fur on top of her head",
 };
+
+/**
+ * Per-player signature move for the `fullbody` clip (VISUAL_SPEC's "a
+ * short, silly animation related to the character's outfit" — e.g. Isaac
+ * doing a wheelie, Joe twirling like he's about to draw). Keyed by slug,
+ * same as OUTFITS. Optional — soloClipPrompt falls back to a generic
+ * "trick/flex/signature move" line for anyone not listed here yet.
+ */
+export const FULLBODY_ACTIONS: Record<string, string> = {
+  matthew:
+    "a suave, classy beat: a sharp, confident half-turn toward camera, straightening his tuxedo cuff/lapel with one smooth motion, then a cool, composed half-smile — debonair and in full control of the room, not silly or exaggerated",
+};

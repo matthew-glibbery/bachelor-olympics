@@ -163,7 +163,7 @@ export type ClipType = "select" | "fullbody" | "confirm" | "victory";
  * (or headshot, for `select`), no Cassandra/Bailey. Used for select/
  * fullbody always, and for confirm/victory only as a fallback when no
  * composite scene has been generated yet (see cli.ts's `clip` command). */
-const soloClipPrompts: Record<ClipType, (name: string, background: string) => string> = {
+const soloClipPrompts: Record<ClipType, (name: string, background: string, action?: string) => string> = {
   select: (name, background) => `Using the attached stylized 3D character image of ${name} as both the
 starting frame and the ending frame, animate a short, energetic idle
 gesture in between them — a quick eager bounce or a wave toward camera —
@@ -171,11 +171,10 @@ that departs from and returns to that exact pose, so the clip loops
 perfectly on hover. ${background} Same low-poly N64-era character-select
 style as the reference image throughout. No camera movement.`,
 
-  fullbody: (name, background) => `Using the attached stylized 3D character image of ${name}, generate a
-short, silly, seamlessly loopable animation related to their outfit/
-character (e.g. a trick, a flex, a signature move that fits who they are)
+  fullbody: (name, background, action) => `Using the attached stylized 3D character image of ${name}, generate a
+short, seamlessly loopable animation: ${action ?? "a silly, signature move related to their outfit/character (e.g. a trick, a flex, a move that fits who they are)"}
 — starting and ending in the exact same pose so it loops with no visible
-seam. Should read as alive and a little funny, not a static idle. ${background}
+seam. Should read as alive and distinctly them, not a static idle. ${background}
 Same low-poly N64-era character-select style as the reference image. No
 camera movement.`,
 
@@ -196,8 +195,8 @@ upbeat and silly, not aggressive or realistic — this is a celebratory gag,
 not a fight.`,
 };
 
-export function soloClipPrompt(type: ClipType, name: string, background: string): string {
-  return soloClipPrompts[type](name, background);
+export function soloClipPrompt(type: ClipType, name: string, background: string, action?: string): string {
+  return soloClipPrompts[type](name, background, action);
 }
 
 /** Composite *scene image* prompts — combine several existing images
