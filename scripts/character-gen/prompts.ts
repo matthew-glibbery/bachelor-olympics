@@ -12,8 +12,8 @@ import type { SubjectKind } from "./subjects";
 
 export type MatteBackground = "white" | "black";
 
-/** Appended to every portrait/headshot prompt. Iterated twice against a
- * real render before landing here:
+/** Appended to every portrait/headshot prompt. Iterated three times against
+ * real renders before landing here:
  *   1. "official video game box" framing caused Nano Banana to bake in an
  *      actual "NINTENDO 64" logo watermark, and the result read as flat 2D
  *      vector art with no sense of a 3D model at all — rewrote to name the
@@ -21,6 +21,12 @@ export type MatteBackground = "white" | "black";
  *   2. That fix still had a black outline stroke and looked too smooth/
  *      high-poly for real N64 hardware — dropped the outline entirely and
  *      pushed much harder on genuinely low vertex-count geometry.
+ *   3. Silhouette outline was gone, but every internal facet boundary
+ *      still had a thin black seam drawn along it (comic/vector-illustration
+ *      "inked panels" look) — that's not how a GPU actually rasterizes flat-
+ *      shaded polygons, adjacent faces just meet at a hard color change with
+ *      no line. Named that explicitly; asking for "no outline" alone wasn't
+ *      enough to stop it drawing seams *between* facets.
  * `background` is parameterized (not hardcoded white) so the same prompt
  * can render on white and on black for difference matting (matte.ts) —
  * Gemini's image models have no alpha channel, this is how a real
@@ -28,19 +34,25 @@ export type MatteBackground = "white" | "black";
 function renderStyle(background: MatteBackground): string {
   return `This must read as a genuinely low-polygon 3D-rendered video game
 character model from actual N64-era hardware — not a modern "low-poly art
-style" indie game, not 2D artwork. Real N64 games ran on a tiny vertex
-budget: large, clearly visible flat triangular/quad facets on every
-surface, faceted/angular heads and shoulders rather than smoothly rounded
-ones, blocky low-resolution textures with no fine detail or smooth
-gradients. It should look primitive and a little rough on purpose, the way
-actual N64 hardware looked, not polished. Directional shading that implies
-real volume and depth from those flat facets. Saturated primary colors,
-chunky exaggerated proportions, slightly oversized head-to-body ratio. No
-outline or stroke around the silhouette at all — separation from the
-background comes purely from color and lighting contrast, the way an
-actual rendered 3D model has no outline. Plain solid ${background}
-background, nothing else in frame — no text, no logos, no watermarks, no
-game-box framing or UI chrome of any kind.`;
+style" indie game, not 2D artwork, and absolutely not a comic/vector
+illustration. Real N64 games ran on a tiny vertex budget: large, clearly
+visible flat triangular/quad facets on every surface, faceted/angular heads
+and shoulders rather than smoothly rounded ones, blocky low-resolution
+textures with no fine detail or smooth gradients. It should look primitive
+and a little rough on purpose, the way actual N64 hardware looked, not
+polished. Adjacent facets meet at a hard, sharp color change ONLY — like a
+GPU rasterizing flat-shaded polygons, where two faces at different angles
+to the light are simply two different flat colors sitting next to each
+other. Do not draw any line, stroke, seam, or outline along ANY edge,
+anywhere — not around the silhouette, and not between individual facets
+either. The only thing that should ever separate one facet from its
+neighbor is a direct color-to-color boundary with zero stroke of any kind;
+no ink lines, no comic-style panel borders, no dark edge on the polygon
+boundaries themselves. Directional shading that implies real volume and
+depth purely from those flat color facets. Saturated primary colors,
+chunky exaggerated proportions, slightly oversized head-to-body ratio.
+Plain solid ${background} background, nothing else in frame — no text, no
+logos, no watermarks, no game-box framing or UI chrome of any kind.`;
 }
 
 export function portraitPrompt(name: string, kind: SubjectKind, outfit?: string, background: MatteBackground = "white"): string {
