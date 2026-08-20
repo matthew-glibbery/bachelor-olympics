@@ -25,8 +25,10 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import { generateImage, generateVideo } from "./gemini";
+import { differenceMatte } from "./matte";
 import {
   portraitPrompt,
+  headshotPrompt,
   soloClipPrompt,
   victoryScenePrompt,
   victorySceneClipPrompt,
@@ -61,12 +63,18 @@ function mimeFromExt(file: string): string {
   throw new Error(`Unrecognized reference photo extension: ${ext}`);
 }
 
+function readAsset(subject: Subject, filename: string): { base64: string; mimeType: string } | undefined {
+  const file = path.join(assetDir(subject.key), filename);
+  if (!existsSync(file)) return undefined;
+  return { base64: readFileSync(file).toString("base64"), mimeType: "image/png" };
+}
+
 function readPortrait(subject: Subject): { base64: string; mimeType: string } {
-  const file = path.join(assetDir(subject.key), "portrait.png");
-  if (!existsSync(file)) {
+  const asset = readAsset(subject, "portrait.png");
+  if (!asset) {
     throw new Error(`No portrait.png for ${subject.name} yet — run gen:char:image "${subject.name}" <reference-photo> first.`);
   }
-  return { base64: readFileSync(file).toString("base64"), mimeType: "image/png" };
+  return asset;
 }
 
 async function cmdStatus() {
@@ -74,8 +82,9 @@ async function cmdStatus() {
   for (const s of subjects) {
     const dir = assetDir(s.key);
     const portrait = existsSync(path.join(dir, "portrait.png"));
+    const headshot = existsSync(path.join(dir, "headshot.png"));
     if (s.kind !== "player") {
-      console.log(`${s.name.padEnd(10)} (${s.kind})  portrait:${portrait ? "yes" : "no "}`);
+      console.log(`${s.name.padEnd(10)} (${s.kind})  portrait:${portrait ? "yes" : "no "}  headshot:${headshot ? "yes" : "no "}`);
       continue;
     }
     const player = s.player!;
@@ -86,7 +95,7 @@ async function cmdStatus() {
       const localTag = live ? "LIVE" : local ? "local" : scene ? "scene-only" : "-";
       return `${t}:${localTag}`;
     });
-    console.log(`${s.name.padEnd(10)} portrait:${portrait ? "yes" : "no "}  ${clips.join("  ")}`);
+    console.log(`${s.name.padEnd(10)} portrait:${portrait ? "yes" : "no "}  headshot:${headshot ? "yes" : "no "}  ${clips.join("  ")}`);
   }
   const bootScene = existsSync(path.join(BOOT_DIR, "scene.png"));
   const bootClip = existsSync(path.join(BOOT_DIR, "clip.mp4"));
@@ -104,6 +113,17 @@ async function cmdImage(nameOrId: string, referencePath: string) {
   const out = path.join(dir, "portrait.png");
   writeFileSync(out, Buffer.from(base64, "base64"));
   console.log(`Wrote ${out} — review it before generating clips.`);
+}
+
+async function cmdHeadshot(nameOrId: string) {
+  const subject = await resolveSubject(nameOrId);
+  const dir = assetDir(subject.key);
+  const portrait = readPortrait(subject);
+  console.log(`Generating shoulders-up headshot for ${subject.name} from the approved full-body portrait...`);
+  const { base64 } = await generateImage(headshotPrompt(subject.name), [portrait]);
+  const out = path.join(dir, "headshot.png");
+  writeFileSync(out, Buffer.from(base64, "base64"));
+  console.log(`Wrote ${out} — this is what the select-screen render and the hover-loop clip will use.`);
 }
 
 function guestPortraits(): Array<{ base64: string; mimeType: string }> {
@@ -163,6 +183,17 @@ async function cmdClip(nameOrId: string, type: string) {
       seed = readPortrait(subject);
       prompt = soloClipPrompt(clipType, subject.name);
     }
+  } else if (clipType === "select") {
+    // Selection-screen framing (shoulders-up), not the full-body portrait —
+    // this is the clip that plays small, in the roster strip, on hover.
+    const headshot = readAsset(subject, "headshot.png");
+    if (headshot) {
+      seed = headshot;
+    } else {
+      console.log(`No headshot.png for ${subject.name} — falling back to the full-body portrait for this hover clip. Run gen:char:headshot "${subject.name}" first if you want it framed shoulders-up.`);
+      seed = readPortrait(subject);
+    }
+    prompt = soloClipPrompt(clipType, subject.name);
   } else {
     seed = readPortrait(subject);
     prompt = soloClipPrompt(clipType, subject.name);
@@ -195,6 +226,41 @@ async function cmdUpload(nameOrId: string, type: string) {
   const buffer = readFileSync(clipPath);
   const url = await uploadClipAndSet(subject.player!.id, CLIP_FIELD[clipType], buffer);
   console.log(`${subject.name}.${CLIP_FIELD[clipType]} -> ${url}`);
+}
+
+/**
+ * Opt-in — not run automatically by `image`/`headshot`, since it doubles
+ * the Nano Banana cost per asset and nothing in the app currently consumes
+ * a transparent still (the live surfaces are all video clips, which can't
+ * be matted this way — see matte.ts and the README's transparency section
+ * for the video-side recommendation instead). Use this only if a specific
+ * static transparent asset is actually needed somewhere.
+ */
+async function cmdMatte(nameOrId: string, which: string) {
+  if (which !== "portrait" && which !== "headshot") {
+    throw new Error(`usage: gen:char:matte -- <player|Cassandra|Bailey> <portrait|headshot>`);
+  }
+  const subject = await resolveSubject(nameOrId);
+  const dir = assetDir(subject.key);
+  const onWhite = readAsset(subject, `${which}.png`);
+  if (!onWhite) throw new Error(`No ${which}.png for ${subject.name} yet — generate it first.`);
+
+  console.log(`Generating a black-background twin of ${subject.name}'s ${which} for difference matting...`);
+  const prompt =
+    which === "portrait"
+      ? portraitPrompt(subject.name, subject.kind, subject.outfit, "black")
+      : headshotPrompt(subject.name, "black");
+  // Edit mode: pass the white-background render itself as the reference so
+  // the black version stays pixel-aligned with it (a fresh generation
+  // wouldn't be) — matte.ts's math depends on that alignment.
+  const { base64 } = await generateImage(prompt, [onWhite]);
+  const onBlack = Buffer.from(base64, "base64");
+
+  console.log("Computing per-pixel alpha from the white/black pair...");
+  const transparent = await differenceMatte(Buffer.from(onWhite.base64, "base64"), onBlack);
+  const out = path.join(dir, `${which}-transparent.png`);
+  writeFileSync(out, transparent);
+  console.log(`Wrote ${out}.`);
 }
 
 async function cmdBootClip() {
@@ -230,6 +296,16 @@ async function main() {
       if (!a || !b) throw new Error("usage: gen:char:image -- <player|Cassandra|Bailey> <reference-photo-path>");
       return cmdImage(a, b);
     }
+    case "headshot": {
+      const [a] = args;
+      if (!a) throw new Error("usage: gen:char:headshot -- <player|Cassandra|Bailey>");
+      return cmdHeadshot(a);
+    }
+    case "matte": {
+      const [a, b] = args;
+      if (!a || !b) throw new Error("usage: gen:char:matte -- <player|Cassandra|Bailey> <portrait|headshot>");
+      return cmdMatte(a, b);
+    }
     case "composite": {
       const [a, b] = args;
       if (!a) throw new Error("usage: gen:char:composite -- <victory|confirm> <player>  |  gen:char:composite -- boot");
@@ -250,7 +326,7 @@ async function main() {
     case "boot-upload":
       return cmdBootUpload();
     default:
-      throw new Error(`Unknown command "${cmd ?? ""}" — expected status | image | composite | clip | upload | boot-clip | boot-upload`);
+      throw new Error(`Unknown command "${cmd ?? ""}" — expected status | image | headshot | matte | composite | clip | upload | boot-clip | boot-upload`);
   }
 }
 

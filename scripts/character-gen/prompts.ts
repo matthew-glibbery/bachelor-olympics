@@ -10,25 +10,40 @@
  */
 import type { SubjectKind } from "./subjects";
 
-/** Appended to every portrait prompt. Two real failures showed up in the
- * first test render (a fully flat 2D vector look with no sense of a 3D
- * model, and an unprompted "NINTENDO 64" logo baked into the image) — both
- * traced back to "should look like an official ... video game box" reading
- * as "add real game-box branding." Named the actual 3D-render qualities
- * instead of leaning on a box-art comparison, and explicitly banned any
- * text/logo/watermark. */
-const RENDER_STYLE = `This must read as a 3D-rendered video game character model, not 2D
-artwork: hard-edged low-poly geometry with visible flat-shaded polygon
-facets (especially on the face and clothing folds), a distinct rim/outline
-only where geometry edges would actually catch light, and directional
-shading that implies real volume and depth — not a flat vector
-illustration, not a smooth cartoon drawing, not a comic-style cel shade.
-Saturated primary colors, chunky exaggerated proportions, slightly
-oversized head-to-body ratio, thick dark outline only around the
-silhouette. Plain solid white background, nothing else in frame — no text,
-no logos, no watermarks, no game-box framing or UI chrome of any kind.`;
+export type MatteBackground = "white" | "black";
 
-export function portraitPrompt(name: string, kind: SubjectKind, outfit?: string): string {
+/** Appended to every portrait/headshot prompt. Iterated twice against a
+ * real render before landing here:
+ *   1. "official video game box" framing caused Nano Banana to bake in an
+ *      actual "NINTENDO 64" logo watermark, and the result read as flat 2D
+ *      vector art with no sense of a 3D model at all — rewrote to name the
+ *      actual 3D-render qualities and explicitly ban text/logos.
+ *   2. That fix still had a black outline stroke and looked too smooth/
+ *      high-poly for real N64 hardware — dropped the outline entirely and
+ *      pushed much harder on genuinely low vertex-count geometry.
+ * `background` is parameterized (not hardcoded white) so the same prompt
+ * can render on white and on black for difference matting (matte.ts) —
+ * Gemini's image models have no alpha channel, this is how a real
+ * transparent cutout gets recovered after the fact. */
+function renderStyle(background: MatteBackground): string {
+  return `This must read as a genuinely low-polygon 3D-rendered video game
+character model from actual N64-era hardware — not a modern "low-poly art
+style" indie game, not 2D artwork. Real N64 games ran on a tiny vertex
+budget: large, clearly visible flat triangular/quad facets on every
+surface, faceted/angular heads and shoulders rather than smoothly rounded
+ones, blocky low-resolution textures with no fine detail or smooth
+gradients. It should look primitive and a little rough on purpose, the way
+actual N64 hardware looked, not polished. Directional shading that implies
+real volume and depth from those flat facets. Saturated primary colors,
+chunky exaggerated proportions, slightly oversized head-to-body ratio. No
+outline or stroke around the silhouette at all — separation from the
+background comes purely from color and lighting contrast, the way an
+actual rendered 3D model has no outline. Plain solid ${background}
+background, nothing else in frame — no text, no logos, no watermarks, no
+game-box framing or UI chrome of any kind.`;
+}
+
+export function portraitPrompt(name: string, kind: SubjectKind, outfit?: string, background: MatteBackground = "white"): string {
   if (kind === "pet") {
     const outfitLine = outfit ? ` Make sure to ${outfit}.` : "";
     return `Create a stylized 3D-rendered dog character based on the attached
@@ -38,7 +53,7 @@ ${name}'s recognizable breed, coat color/pattern, and markings from the
 reference photo, but do not aim for photorealism.${outfitLine} Full body,
 standing pose, front 3/4 view.
 
-${RENDER_STYLE}`;
+${renderStyle(background)}`;
   }
   const outfitLine = outfit ? ` Dress the character in ${outfit}.` : "";
   return `Create a stylized 3D-rendered character based on the attached reference
@@ -48,7 +63,25 @@ recognizable facial features, hairstyle, and skin tone from the reference
 photo, but do not aim for photorealism.${outfitLine} Full body, neutral
 standing pose, front 3/4 view.
 
-${RENDER_STYLE}`;
+${renderStyle(background)}`;
+}
+
+/**
+ * Shoulders-up crop of an already-approved full-body portrait — the
+ * selection-screen render, and the seed for the `select` hover clip
+ * (start AND end frame, so it loops on the actual framing that clip plays
+ * at, not the full-body one). Generated from the full-body portrait itself
+ * (Nano Banana edit mode) rather than a plain image crop, since a naive
+ * crop can cut off hair/accessories the full-body framing left room for.
+ */
+export function headshotPrompt(name: string, background: MatteBackground = "white"): string {
+  return `Using the attached full-body character image of ${name}, reframe it as a
+shoulders-up headshot: same character, same face, hair, outfit, and
+proportions, exactly as already rendered — just recomposed to frame from
+the shoulders up, centered, filling most of the frame. Do not change
+anything about the character itself.
+
+${renderStyle(background)}`;
 }
 
 export type ClipType = "select" | "fullbody" | "confirm" | "victory";
