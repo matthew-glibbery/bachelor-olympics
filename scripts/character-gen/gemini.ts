@@ -97,7 +97,7 @@ export async function generateVideo(
   image: { base64: string; mimeType: string },
   opts: {
     aspectRatio?: AspectRatio;
-    durationSeconds?: "4" | "6" | "8";
+    durationSeconds?: 4 | 6 | 8;
     /** Pin the closing frame too (Veo 3.1 only) — pass the same image as
      * `image` to force a hard, exact loop instead of relying on the prompt
      * asking the model to "return to the starting pose." */
@@ -106,10 +106,10 @@ export async function generateVideo(
 ): Promise<Buffer> {
   const instance: Record<string, unknown> = {
     prompt,
-    image: { inlineData: { mimeType: image.mimeType, data: image.base64 } },
+    image: { bytesBase64Encoded: image.base64, mimeType: image.mimeType },
   };
   if (opts.lastFrame) {
-    instance.lastFrame = { inlineData: { mimeType: opts.lastFrame.mimeType, data: opts.lastFrame.base64 } };
+    instance.lastFrame = { bytesBase64Encoded: opts.lastFrame.base64, mimeType: opts.lastFrame.mimeType };
   }
 
   const startRes = await fetch(`${BASE_URL}/models/${VIDEO_MODEL}:predictLongRunning`, {
@@ -119,7 +119,7 @@ export async function generateVideo(
       instances: [instance],
       parameters: {
         aspectRatio: opts.aspectRatio ?? "9:16",
-        durationSeconds: opts.durationSeconds ?? "8",
+        durationSeconds: opts.durationSeconds ?? 8,
       },
     }),
   });
