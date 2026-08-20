@@ -107,8 +107,11 @@ export function headshotPrompt(name: string, background: MatteBackground = "whit
   return `Using the attached full-body character image of ${name}, reframe it as a
 shoulders-up headshot: same character, same face, hair, outfit, and
 proportions, exactly as already rendered — just recomposed to frame from
-the shoulders up, centered, filling most of the frame. Do not change
-anything about the character itself.
+the shoulders up. The face must be centered horizontally in the frame with
+roughly equal empty margin on the left and right sides, and positioned so
+the whole head has clear space above it — do not crop into the hair, ears,
+or any part of the head, and do not push the face toward one edge. Do not
+change anything about the character itself.
 
 ${renderStyle(background)}`;
 }
