@@ -68,9 +68,23 @@ export function CharacterRender({
       {photoUrl ? (
         /* Uploaded player photo — intrinsic size unknown ahead of time and
            there's a handful of these at most, so next/image's optimizer
-           buys nothing; a plain <img> is the right call. */
+           buys nothing; a plain <img> is the right call.
+
+           Faded out while the video is actively showing, not just left
+           opaque underneath it: character-clip-mask (globals.css) fades the
+           video's own edges to transparency so it blends into whatever's
+           behind it — but with the photo always fully opaque here, those
+           faded edges revealed the *photo* instead (a different framing/
+           crop than the video, white background), showing up as a ghosted
+           double-exposure. Hiding the photo while the video plays means the
+           mask's transparent edges reveal the real page background, which
+           is the point of it. */
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={photoUrl} alt={name} className="h-full w-full object-cover" />
+        <img
+          src={photoUrl}
+          alt={name}
+          className={cn("h-full w-full object-cover transition-opacity duration-300", showVideo ? "opacity-0" : "opacity-100")}
+        />
       ) : (
         <ProceduralBust
           name={name}
