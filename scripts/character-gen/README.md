@@ -50,8 +50,8 @@ worth its own one-off check since it's a different prompt.
 pnpm run gen:char:status
 
 # --- step 1: nail the style on one subject first ---
-pnpm run gen:char:image -- "Josh" reference-photos/josh.jpg
-open character-assets/josh/portrait.png
+pnpm run gen:char:image -- "Matthew" reference-photos/matthew.jpg
+open character-assets/matthew/portrait.png
 # iterate on the prompt in prompts.ts (portraitPrompt) and re-run until the
 # style/likeness is right, *then* move on to the rest of the roster.
 
@@ -62,26 +62,26 @@ pnpm run gen:char:image -- "Bailey" reference-photos/bailey.jpg
 
 # --- step 3: solo clips (select/fullbody always solo; confirm/victory can
 #     be solo too if you skip step 4) ---
-pnpm run gen:char:clip -- "Josh" select
-pnpm run gen:char:clip -- "Josh" fullbody
-open character-assets/josh/select.mp4   # review each before uploading
+pnpm run gen:char:clip -- "Matthew" select
+pnpm run gen:char:clip -- "Matthew" fullbody
+open character-assets/matthew/select.mp4   # review each before uploading
 
 # --- step 4: composite scenes for confirm/victory, so Cassandra + Bailey
 #     appear in them (skip this per-player if you're fine with solo clips) ---
-pnpm run gen:char:composite -- victory "Josh"
-open character-assets/josh/victory-scene.png   # review the STILL first —
+pnpm run gen:char:composite -- victory "Matthew"
+open character-assets/matthew/victory-scene.png   # review the STILL first —
                                                 # cheaper to catch a bad
                                                 # composite here than after
                                                 # spending a Veo call on it
-pnpm run gen:char:clip -- "Josh" victory        # picks up victory-scene.png
+pnpm run gen:char:clip -- "Matthew" victory        # picks up victory-scene.png
                                                  # automatically if present
 
-pnpm run gen:char:composite -- confirm "Josh"
-pnpm run gen:char:clip -- "Josh" confirm
+pnpm run gen:char:composite -- confirm "Matthew"
+pnpm run gen:char:clip -- "Matthew" confirm
 
 # --- step 5: push an approved clip to Supabase Storage + the player row ---
-pnpm run gen:char:upload -- "Josh" select
-pnpm run gen:char:upload -- "Josh" victory
+pnpm run gen:char:upload -- "Matthew" select
+pnpm run gen:char:upload -- "Matthew" victory
 # ...repeat clip/upload for confirm, fullbody, and the rest of the roster
 
 # --- step 6: the shared boot/start-screen clip, everyone in one scene ---

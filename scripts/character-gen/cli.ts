@@ -3,13 +3,13 @@
  * scripts/character-gen/README.md for the full workflow — short version:
  *
  *   pnpm run gen:char:status
- *   pnpm run gen:char:image     -- "Josh" reference-photos/josh.jpg
+ *   pnpm run gen:char:image     -- "Matthew" reference-photos/matthew.jpg
  *   pnpm run gen:char:image     -- "Cassandra" reference-photos/cassandra.jpg
  *   pnpm run gen:char:image     -- "Bailey" reference-photos/bailey.jpg
- *   pnpm run gen:char:clip      -- "Josh" select
- *   pnpm run gen:char:composite -- victory "Josh"
- *   pnpm run gen:char:clip      -- "Josh" victory
- *   pnpm run gen:char:upload    -- "Josh" victory
+ *   pnpm run gen:char:clip      -- "Matthew" select
+ *   pnpm run gen:char:composite -- victory "Matthew"
+ *   pnpm run gen:char:clip      -- "Matthew" victory
+ *   pnpm run gen:char:upload    -- "Matthew" victory
  *   pnpm run gen:char:composite -- boot
  *   pnpm run gen:char:boot-clip
  *   pnpm run gen:char:boot-upload
