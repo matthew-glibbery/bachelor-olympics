@@ -110,8 +110,12 @@ proportions, exactly as already rendered — just recomposed to frame from
 the shoulders up. The face must be centered horizontally in the frame with
 roughly equal empty margin on the left and right sides, and positioned so
 the whole head has clear space above it — do not crop into the hair, ears,
-or any part of the head, and do not push the face toward one edge. Do not
-change anything about the character itself.
+or any part of the head, and do not push the face toward one edge. The
+face should be turned to look directly into the camera, straight-on, not
+angled to one side in a 3/4 profile — this is a head-on selection-screen
+headshot, unlike the full-body portrait's 3/4 stance. Keep the same
+expression as the source image exactly. Do not change anything else about
+the character itself.
 
 ${renderStyle(background)}`;
 }
