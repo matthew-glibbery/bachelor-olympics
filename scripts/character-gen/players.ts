@@ -45,25 +45,44 @@ export async function findPlayer(nameOrId: string): Promise<PlayerRow> {
   return match;
 }
 
-/** Upload a local video file to the `videos` bucket and set it on a player's
- * given clip field — the same bucket/RLS/mutation shape
- * `src/lib/supabase/storage.ts` and `ManagePlayerRow` use from the app, just
- * driven from Node with a Buffer instead of a browser `File`. */
-export async function uploadClipAndSet(playerId: string, field: string, buffer: Buffer, ext = "mp4"): Promise<string> {
+async function uploadAndSet(
+  bucket: "videos" | "photos",
+  playerId: string,
+  field: string,
+  buffer: Buffer,
+  ext: string,
+  contentType: string,
+): Promise<string> {
   const client = supabase();
   const path = `players/${playerId}-${Date.now()}.${ext}`;
-  const { error: uploadError } = await client.storage.from("videos").upload(path, buffer, {
-    contentType: ext === "mp4" ? "video/mp4" : "application/octet-stream",
+  const { error: uploadError } = await client.storage.from(bucket).upload(path, buffer, {
+    contentType,
     cacheControl: "3600",
     upsert: false,
   });
   if (uploadError) throw new Error(`upload: ${uploadError.message}`);
 
-  const { data } = client.storage.from("videos").getPublicUrl(path);
+  const { data } = client.storage.from(bucket).getPublicUrl(path);
   const url = data.publicUrl;
 
   const { error: updateError } = await client.from("players").update({ [field]: url }).eq("id", playerId);
   if (updateError) throw new Error(`update player.${field}: ${updateError.message}`);
 
   return url;
+}
+
+/** Upload a local video file to the `videos` bucket and set it on a player's
+ * given clip field — the same bucket/RLS/mutation shape
+ * `src/lib/supabase/storage.ts` and `ManagePlayerRow` use from the app, just
+ * driven from Node with a Buffer instead of a browser `File`. */
+export async function uploadClipAndSet(playerId: string, field: string, buffer: Buffer, ext = "mp4"): Promise<string> {
+  return uploadAndSet("videos", playerId, field, buffer, ext, ext === "mp4" ? "video/mp4" : "application/octet-stream");
+}
+
+/** Upload a local PNG (the stylized N64 headshot) to the `photos` bucket and
+ * set it as `photo_url` — per explicit product decision, the headshot is
+ * now the canonical "photo" shown everywhere (PlayerName, medal table,
+ * event cards, roster strip), superseding whatever real photo was there. */
+export async function uploadPhotoAndSet(playerId: string, buffer: Buffer): Promise<string> {
+  return uploadAndSet("photos", playerId, "photo_url", buffer, "png", "image/png");
 }

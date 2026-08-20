@@ -22,6 +22,7 @@
     "gen:char:composite": "tsx scripts/character-gen/cli.ts composite",
     "gen:char:clip": "tsx scripts/character-gen/cli.ts clip",
     "gen:char:upload": "tsx scripts/character-gen/cli.ts upload",
+    "gen:char:upload-photo": "tsx scripts/character-gen/cli.ts upload-photo",
     "gen:char:boot-clip": "tsx scripts/character-gen/cli.ts boot-clip",
     "gen:char:boot-upload": "tsx scripts/character-gen/cli.ts boot-upload"
   },

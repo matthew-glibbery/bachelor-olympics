@@ -40,7 +40,7 @@ import {
   CLIP_FIELD,
   type ClipType,
 } from "./prompts";
-import { uploadClipAndSet } from "./players";
+import { uploadClipAndSet, uploadPhotoAndSet } from "./players";
 import { uploadBootClipAndSet } from "./appSettings";
 import { resolveSubject, allSubjects, SPECIAL_SUBJECTS, type Subject } from "./subjects";
 
@@ -246,6 +246,21 @@ async function cmdUpload(nameOrId: string, type: string) {
   console.log(`${subject.name}.${CLIP_FIELD[clipType]} -> ${url}`);
 }
 
+/** Push the approved headshot live as `photo_url` — per explicit product
+ * decision, the stylized N64 headshot is now the canonical "photo" shown
+ * everywhere (PlayerName, medal table, event cards, roster strip), not a
+ * real uploaded photo. */
+async function cmdUploadPhoto(nameOrId: string) {
+  const subject = await resolveSubject(nameOrId);
+  if (subject.kind !== "player") throw new Error(`Only players have a photo_url — "${nameOrId}" is a ${subject.kind}`);
+  const headshotPath = path.join(assetDir(subject.key), "headshot.png");
+  if (!existsSync(headshotPath)) {
+    throw new Error(`No local headshot.png for ${subject.name} — run gen:char:headshot first.`);
+  }
+  const url = await uploadPhotoAndSet(subject.player!.id, readFileSync(headshotPath));
+  console.log(`${subject.name}.photo_url -> ${url}`);
+}
+
 /**
  * Opt-in — not run automatically by `image`/`headshot`, since it doubles
  * the Nano Banana cost per asset and nothing in the app currently consumes
@@ -341,12 +356,17 @@ async function main() {
       if (!a || !b) throw new Error("usage: gen:char:upload -- <player> <select|fullbody|confirm|victory>");
       return cmdUpload(a, b);
     }
+    case "upload-photo": {
+      const [a] = args;
+      if (!a) throw new Error("usage: gen:char:upload-photo -- <player>");
+      return cmdUploadPhoto(a);
+    }
     case "boot-clip":
       return cmdBootClip();
     case "boot-upload":
       return cmdBootUpload();
     default:
-      throw new Error(`Unknown command "${cmd ?? ""}" — expected status | image | headshot | matte | composite | clip | upload | boot-clip | boot-upload`);
+      throw new Error(`Unknown command "${cmd ?? ""}" — expected status | image | headshot | matte | composite | clip | upload | upload-photo | boot-clip | boot-upload`);
   }
 }
 
