@@ -1,12 +1,28 @@
 /**
- * Prompt templates, one per pipeline step. The portrait prompt is
- * docs/VISUAL_SPEC.md's Nano Banana template verbatim; the four clip prompts
- * translate its Seedance victory-clip template to Veo's image-to-video
- * input, split by clip type per the media slots on `players`
- * (0011_character_media.sql / 0012_character_confirm_video.sql).
+ * Prompt templates. The solo portrait prompt is docs/VISUAL_SPEC.md's Nano
+ * Banana template, split by subject kind (player/guest use the human
+ * version, Bailey the dog gets a dog-appropriate variant of the same
+ * style). Solo clip prompts (select/fullbody) translate the spec's
+ * Seedance victory-clip template to Veo's image-to-video input; the
+ * composite scenes (victory/confirm/boot) are a deliberate extension past
+ * the original spec, per explicit ask, to fold Cassandra and Bailey into
+ * those three moments without giving them their own player-style clip set.
  */
+import type { SubjectKind } from "./subjects";
 
-export function portraitPrompt(name: string): string {
+export function portraitPrompt(name: string, kind: SubjectKind): string {
+  if (kind === "pet") {
+    return `Create a stylized 3D-rendered dog character based on the attached
+reference photo of ${name}. Style: chunky, exaggerated proportions in the
+style of late-1990s N64-era video game character/creature models (think
+Diddy Kong Racing's animal characters) — thick outlines, low-poly faceted
+shading, saturated primary colors, slightly oversized head relative to
+body. Preserve ${name}'s recognizable breed, coat color/pattern, and
+markings from the reference photo, but do not aim for photorealism. Full
+body, standing pose, plain white background, front 3/4 view. Should look
+like an official character-select portrait from a 1998 sports video game
+box.`;
+  }
   return `Create a stylized 3D-rendered character based on the attached reference
 photo of ${name}. Style: chunky, exaggerated proportions in the style of
 late-1990s N64-era video game character models (think Ready 2 Rumble
@@ -20,9 +36,11 @@ character-select portrait from a 1998 sports video game box.`;
 
 export type ClipType = "select" | "fullbody" | "confirm" | "victory";
 
-const clipPrompts: Record<ClipType, (name: string) => string> = {
-  // character_select_video_url — short loop, plays on hover/tap in the
-  // roster strip. Needs a clean loop point, so keep the motion small.
+/** Solo clip prompts — apply to the plain single-subject portrait, no
+ * Cassandra/Bailey. Used for select/fullbody always, and for confirm/
+ * victory only as a fallback when no composite scene has been generated
+ * yet (see cli.ts's `clip` command). */
+const soloClipPrompts: Record<ClipType, (name: string) => string> = {
   select: (name) => `Using the attached stylized 3D character image of ${name}, generate a
 short, seamlessly loopable video: the character stands in place doing a
 small, energetic idle gesture — a quick eager bounce or a wave toward
@@ -30,9 +48,6 @@ camera — that returns to its exact starting pose by the end of the clip so
 it can loop invisibly. Plain white background, same low-poly N64-era
 character-select style as the reference image. No camera movement.`,
 
-  // character_fullbody_video_url — idle loop while the player is choosing
-  // and while adjusting multipliers. VISUAL_SPEC: "a breathing loop, a
-  // little shift of weight."
   fullbody: (name) => `Using the attached stylized 3D character image of ${name}, generate a
 subtle, seamlessly loopable idle animation: gentle breathing motion and a
 small weight shift from foot to foot, like a character standing on a video
@@ -41,8 +56,6 @@ start or end pose — should read as alive, not static. Plain white
 background, same low-poly N64-era character-select style as the reference
 image. No camera movement.`,
 
-  // character_confirm_video_url — one-shot "you're playing as ___" cutscene
-  // right after hitting "Let's go," before routing into the app.
   confirm: (name) => `Using the attached stylized 3D character image of ${name}, generate a
 short one-shot (non-looping) confirmation animation: the character strikes
 a confident, hype "I'm ready" pose — a fist pump, a point at the camera, or
@@ -50,10 +63,6 @@ a thumbs up — as if just chosen on a video game character-select screen.
 Plain white background, same low-poly N64-era character-select style as
 the reference image. Simple push-in camera move for emphasis.`,
 
-  // character_victory_video_url — one clip per player, played whenever they
-  // win any event. VISUAL_SPEC scopes this to one generic-opponent clip,
-  // not per-matchup. Multi-character squash gag — the riskiest of the four
-  // per the earlier Seedance-vs-Veo tradeoff noted in VISUAL_SPEC.md.
   victory: (name) => `Using the attached stylized 3D character image of ${name}'s low-poly
 N64-era character, generate a video: ${name}'s character performs a
 triumphant, comedic victory move, then playfully stomps/squashes a small
@@ -65,8 +74,83 @@ one push-in on the winning character. Cartoon physics, upbeat and silly,
 not aggressive or realistic — this is a celebratory gag, not a fight.`,
 };
 
-export function clipPrompt(type: ClipType, name: string): string {
-  return clipPrompts[type](name);
+export function soloClipPrompt(type: ClipType, name: string): string {
+  return soloClipPrompts[type](name);
+}
+
+/** Composite *scene image* prompts — combine several existing portraits
+ * (Nano Banana, multi-image input) into one still frame before it's handed
+ * to Veo as a single seed image. Keeps every character's likeness anchored
+ * to its own reference rather than asking Veo to invent Cassandra/Bailey
+ * from a text description alone. */
+export function victoryScenePrompt(playerName: string): string {
+  return `Using the attached stylized N64-style character images — ${playerName}'s
+character, Cassandra's character (the bride), and Bailey's character (the
+dog) — compose a single wide victory scene. Keep every character's face,
+proportions, outfit, and (for Bailey) breed/markings identical to their own
+reference image. ${playerName}'s character stands center, triumphant, arms
+raised, a medal around their neck. Cassandra and Bailey stand to the side,
+visibly cheering and celebrating for ${playerName} — not part of the
+victory gag, just happy spectators. Leave room in the composition for a
+small group of generic, same-style rival characters off to ${playerName}'s
+other side, since the video step will animate them getting comically
+squashed. Colorful stylized N64-era sports-game arena background, medal/
+trophy accents, bright primary-color lighting. Full body, every character
+fully visible, front-facing.`;
+}
+
+export function victorySceneClipPrompt(playerName: string): string {
+  return `Using the attached composite scene image (${playerName} at center with
+Cassandra and Bailey cheering beside them, and room for rival characters),
+animate it into a video: ${playerName}'s character performs a triumphant,
+comedic victory move, then playfully stomps/squashes the small group of
+generic rival characters, who comically flatten like inflatable toys and
+pop back up dazed — while Cassandra and Bailey, unharmed, cheer and
+celebrate the whole time. Simple dynamic camera, one push-in on
+${playerName}. Cartoon physics, upbeat and silly, not aggressive or
+realistic — a celebratory gag, not a fight.`;
+}
+
+export function confirmScenePrompt(playerName: string): string {
+  return `Using the attached stylized N64-style character images — ${playerName}'s
+character, Cassandra's character (the bride), and Bailey's character (the
+dog) — compose a single character-select confirmation scene. Keep every
+character's face, proportions, outfit, and (for Bailey) breed/markings
+identical to their own reference image. ${playerName}'s character stands
+center-front in a confident "I'm ready to play" pose. Cassandra and Bailey
+are positioned just behind/beside them, smiling and supportive — Cassandra
+giving a thumbs up, Bailey alert and happy. Plain bold background suitable
+for a video game "you're playing as ___" confirmation screen. Full body,
+every character fully visible.`;
+}
+
+export function confirmSceneClipPrompt(playerName: string): string {
+  return `Using the attached composite scene image (${playerName} with Cassandra
+and Bailey supporting them), animate it into a short one-shot (non-looping)
+video: ${playerName}'s character strikes their confident "I'm ready" pose
+— a fist pump or point at camera — while Cassandra gives an enthusiastic
+thumbs up and Bailey wags happily beside them. Simple push-in camera on
+${playerName} for emphasis.`;
+}
+
+export function bootScenePrompt(names: string[]): string {
+  return `Using the attached stylized N64-style character images — ${names.join(", ")}
+— compose a single wide group scene, like the opening cast shot of a 1998
+sports video game box. Keep every character's face, proportions, outfit,
+and (for Bailey the dog) breed/markings identical to their own reference
+image. Arrange everyone left to right in a triumphant group pose, all
+fully visible, facing camera, evenly spaced. Colorful stylized N64-era
+sports-game arena background, bright primary-color lighting, medal/trophy
+accents. This is a title-card image, not an action shot.`;
+}
+
+export function bootSceneClipPrompt(names: string[]): string {
+  return `Using the attached composite group scene image (${names.join(", ")}
+standing together), animate it into a short video game boot/title
+sequence: the whole group does a synchronized cheer or wave, like the cast
+intro of a 1998 sports game, camera slowly pushes in on the group. Upbeat,
+energetic, all characters visible and in motion at once. No dialogue
+needed.`;
 }
 
 export const CLIP_TYPES: ClipType[] = ["select", "fullbody", "confirm", "victory"];

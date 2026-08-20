@@ -51,16 +51,18 @@ function findImageData(node: unknown): string | undefined {
 
 /**
  * Generate (or edit) a stylized character image. Pass a reference photo to
- * anchor likeness; omit it to iterate on a previous generation instead.
- * Returns raw PNG/JPEG bytes as a base64 string plus the mime type reported
- * back, since Nano Banana doesn't always return the same format it was given.
+ * anchor likeness; pass several to compose a scene from multiple existing
+ * character portraits (the victory/confirm/boot composites in
+ * composites.ts). Returns raw PNG/JPEG bytes as a base64 string plus the
+ * mime type reported back, since Nano Banana doesn't always return the same
+ * format it was given.
  */
 export async function generateImage(
   prompt: string,
-  reference?: { base64: string; mimeType: string },
+  references: Array<{ base64: string; mimeType: string }> = [],
 ): Promise<{ base64: string; mimeType: string }> {
   const input: unknown[] = [{ type: "text", text: prompt }];
-  if (reference) {
+  for (const reference of references) {
     input.push({ type: "image", mime_type: reference.mimeType, data: reference.base64 });
   }
 

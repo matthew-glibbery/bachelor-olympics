@@ -17,8 +17,11 @@
     "seed:events": "tsx scripts/seed-events.ts",
     "gen:char:status": "tsx scripts/character-gen/cli.ts status",
     "gen:char:image": "tsx scripts/character-gen/cli.ts image",
+    "gen:char:composite": "tsx scripts/character-gen/cli.ts composite",
     "gen:char:clip": "tsx scripts/character-gen/cli.ts clip",
-    "gen:char:upload": "tsx scripts/character-gen/cli.ts upload"
+    "gen:char:upload": "tsx scripts/character-gen/cli.ts upload",
+    "gen:char:boot-clip": "tsx scripts/character-gen/cli.ts boot-clip",
+    "gen:char:boot-upload": "tsx scripts/character-gen/cli.ts boot-upload"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
