@@ -8,7 +8,7 @@
  * a wardrobe change shows up later, this is the only file that needs it.
  */
 export const OUTFITS: Record<string, string> = {
-  matthew: "a groom's tuxedo",
+  matthew: "a groom's tuxedo, with a wildflower boutonnière pinned to the lapel matching Cassandra's wildflower bouquet",
   andrew: "a bandana folded up and worn as a headband (not a sweat/exercise headband — a folded bandana), an open short-sleeve button shirt, shorts, and two-strap Birkenstock sandals",
   josh: "trail-running gear: a black trucker hat, a white tank top, a black running vest, black shorts, a running watch, and bare feet (no shoes)",
   joe: "a cowboy hat, a toothpick in his mouth, a big belt buckle, jeans, and cowboy boots — a Texas cowboy look",
@@ -16,6 +16,6 @@ export const OUTFITS: Record<string, string> = {
   adam: "a business suit, no tie",
   anthony: "ski gear: gray pants, an orange ski jacket, an orange helmet with white goggles worn on it, and ski gloves",
   tyler: "an open long-sleeve flannel shirt over a plain t-shirt, tight jeans, and loose, untied boots",
-  cassandra: "a white wedding dress",
+  cassandra: "a white wedding dress, carrying a wildflower bouquet",
   bailey: "get her proportions right: short legs, a long body, scruffy fur, and a little white mohawk of fur on top of her head",
 };
