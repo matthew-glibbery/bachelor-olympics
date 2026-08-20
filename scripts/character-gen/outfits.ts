@@ -33,9 +33,9 @@ export const OUTFITS: Record<string, string> = {
  */
 export const FULLBODY_ACTIONS: Record<string, string> = {
   matthew:
-    "a classy, well-dressed beat: smooths down his tuxedo lapel with one hand, straightens his boutonnière, then gives a warm, confident smile — elegant and composed, not silly or exaggerated",
+    "a classy, well-dressed beat: fixes his cufflings, straightens his boutonnière, then gives a warm, confident smile — elegant and composed, not silly or exaggerated",
   andrew:
-    "a relaxed, beachy beat: an easy shoulder-roll stretch, adjusting his bandana with one hand, then a laid-back, confident nod toward camera — chill and unbothered",
+    "a festival concert beat: a few dance moves, then a laid-back, confident nod toward camera — chill and unbothered",
   josh:
     "a quick trail-runner's beat: a couple of light on-the-spot high-knees or a bouncy jog-in-place, glancing down to check his running watch, then a determined nod",
   joe:
@@ -45,7 +45,7 @@ export const FULLBODY_ACTIONS: Record<string, string> = {
   adam:
     "a business-suit beat: confidently straightens his jacket lapel and cuffs, then gives a sharp, satisfied nod — like he just closed a deal",
   anthony:
-    "a ski-hype beat: a couple of small hops in his ski boots with a quick fist pump, then pushes his goggles up onto his helmet with a grin",
+    "a ski-hype beat: a couple of small side to side ski turns in his ski boots, then a quick fist pump and a grin",
   tyler:
     "a warm, easygoing beat: a friendly wave, tucking one hand into his flannel pocket, then an approachable head-tilt and grin",
 };
