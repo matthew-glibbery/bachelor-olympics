@@ -90,7 +90,7 @@ export function CharacterRender({
           playsInline
           poster={photoUrl ?? undefined}
           className={cn(
-            "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
+            "character-clip-mask absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
             showVideo ? "opacity-100" : "opacity-0",
           )}
         />
