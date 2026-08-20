@@ -5,7 +5,7 @@ one is the look, feel, and character pipeline. Read both before building any
 UI screen.
 
 **Status: generation pipeline built and proven on Matthew; the other 9
-subjects' portraits/headshots need regenerating** (an earlier session's
+subjects' full-body images/headshots need regenerating** (an earlier session's
 locally-generated images were lost to a worktree cleanup before upload —
 not a data-loss risk going forward, since nothing is "real" until it's
 uploaded to Supabase, but worth knowing the other 9 need a re-run of
@@ -64,7 +64,7 @@ screen degrades gracefully to a plain fallback until real clips exist):
 
 Not built yet: character assets for anyone but Matthew (see the Status note
 above), any of the four per-player clips or the boot clip for anyone
-(portraits/headshots only so far), and the "character reacts to multiplier
+(full-body images/headshots only so far), and the "character reacts to multiplier
 sliders" idea from the Multiplier screen section.
 
 ## Reference points
@@ -137,7 +137,8 @@ Generation priority, cheapest/most-certain first (see
    related to the character's outfit (e.g. Isaac doing a wheelie, Joe
    twirling like he's about to draw), starting and ending in the same pose
    so it loops seamlessly. Shown looping continuously on `/select` (bottom,
-   once a character is picked) and on `/multipliers`.
+   once a character is picked), on `/multipliers`, and on the leaderboard
+   podium (`/`).
 2. **Confirm** (`character_confirm_video_url`) — a quick reaction/
    celebration animation, the character celebrating being selected. Plays
    once on "Let's go," blocks advancing until it finishes (see above).
@@ -178,11 +179,15 @@ duplicate them here where they can drift out of sync with what's really
 running. Short version, full detail in that directory's own README:
 
 1. **Nano Banana** (`gemini-3.1-flash-image`) generates the stylized N64
-   portrait from a reference photo (or several — most players' second photo
-   exists specifically to show an outfit/accessory detail), then a
-   shoulders-up headshot from that portrait (edit mode, so it stays the
-   same character), then composite scenes (victory/confirm/boot) combining
-   multiple existing character images into one.
+   full-body image from a reference photo (or several — most players'
+   second photo exists specifically to show an outfit/accessory detail),
+   then a shoulders-up headshot from that full-body image (edit mode, so it
+   stays the same character), then composite scenes (victory/confirm/boot)
+   combining multiple existing character images into one. Every image
+   renders on a radial gradient from the player's own chart color into the
+   app's dark navy (`scripts/character-gen/background.ts`), not plain
+   white — a real fix after white read badly once live (a stray halo behind
+   every render).
 2. **Veo 3.1** (`veo-3.1-generate-preview`, image-to-video, 8s clips)
    animates each of those into the actual clips — including pinning a
    clip's first *and* last frame to the same seed image (`lastFrame`) for
@@ -200,8 +205,9 @@ route is a bigger pivot, not a small swap.
 Iteration reality, confirmed over several real rounds: expect 2-3 tries per
 image to land good style/framing/expression (no stray outline, no seam
 lines between facets, centered and facing camera, right expression) —
-budget real time for this. Nail every subject's portrait and headshot
-before spending any Veo calls on clips; that's the expensive step to redo.
+budget real time for this. Nail every subject's full-body image and
+headshot before spending any Veo calls on clips; that's the expensive step
+to redo.
 
 ## Open decisions
 

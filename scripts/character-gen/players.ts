@@ -16,6 +16,7 @@ export function supabase() {
 export type PlayerRow = {
   id: string;
   name: string;
+  state: string;
   photo_url: string | null;
   character_select_video_url: string | null;
   character_fullbody_video_url: string | null;
@@ -27,7 +28,7 @@ export async function fetchPlayers(): Promise<PlayerRow[]> {
   const { data, error } = await supabase()
     .from("players")
     .select(
-      "id,name,photo_url,character_select_video_url,character_fullbody_video_url,character_confirm_video_url,character_victory_video_url",
+      "id,name,state,photo_url,character_select_video_url,character_fullbody_video_url,character_confirm_video_url,character_victory_video_url",
     )
     .order("name");
   if (error) throw new Error(`fetchPlayers: ${error.message}`);
