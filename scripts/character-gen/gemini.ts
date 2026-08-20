@@ -95,18 +95,28 @@ export type AspectRatio = "16:9" | "9:16";
 export async function generateVideo(
   prompt: string,
   image: { base64: string; mimeType: string },
-  opts: { aspectRatio?: AspectRatio; durationSeconds?: "4" | "6" | "8" } = {},
+  opts: {
+    aspectRatio?: AspectRatio;
+    durationSeconds?: "4" | "6" | "8";
+    /** Pin the closing frame too (Veo 3.1 only) — pass the same image as
+     * `image` to force a hard, exact loop instead of relying on the prompt
+     * asking the model to "return to the starting pose." */
+    lastFrame?: { base64: string; mimeType: string };
+  } = {},
 ): Promise<Buffer> {
+  const instance: Record<string, unknown> = {
+    prompt,
+    image: { inlineData: { mimeType: image.mimeType, data: image.base64 } },
+  };
+  if (opts.lastFrame) {
+    instance.lastFrame = { inlineData: { mimeType: opts.lastFrame.mimeType, data: opts.lastFrame.base64 } };
+  }
+
   const startRes = await fetch(`${BASE_URL}/models/${VIDEO_MODEL}:predictLongRunning`, {
     method: "POST",
     headers: { "x-goog-api-key": apiKey(), "Content-Type": "application/json" },
     body: JSON.stringify({
-      instances: [
-        {
-          prompt,
-          image: { inlineData: { mimeType: image.mimeType, data: image.base64 } },
-        },
-      ],
+      instances: [instance],
       parameters: {
         aspectRatio: opts.aspectRatio ?? "9:16",
         durationSeconds: opts.durationSeconds ?? "8",

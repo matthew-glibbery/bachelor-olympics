@@ -35,6 +35,21 @@ Two kinds of subject (`subjects.ts`):
 2. Drop reference photos anywhere convenient, e.g. a local
    `reference-photos/` folder (gitignored, same as `character-assets/` below
    — neither should be committed).
+3. **On a machine behind corporate TLS interception (Zscaler, same root
+   cause `docs/HANDOFF.md` already notes for npm/Docker), Node's `fetch`
+   will fail with `unable to get local issuer certificate` against both
+   Supabase and the Gemini API.** `curl` works fine (it trusts the system
+   keychain); Node doesn't unless told to. One-time fix, run from the repo
+   root:
+   ```bash
+   security find-certificate -a -c "Zscaler" -p /Library/Keychains/System.keychain > zscaler-ca.pem
+   ```
+   Then prefix every `pnpm run gen:char:*` command with
+   `NODE_EXTRA_CA_CERTS="$(pwd)/zscaler-ca.pem"` (or `export` it once per
+   shell session). `zscaler-ca.pem` is gitignored (`*.pem`) — it's a local
+   export of a machine-trusted root cert, not a secret, but it's also not
+   portable to a different machine/network, so it doesn't belong in the
+   repo. Skip this entirely on a network without TLS interception.
 
 ## Workflow
 

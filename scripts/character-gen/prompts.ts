@@ -10,28 +10,45 @@
  */
 import type { SubjectKind } from "./subjects";
 
-export function portraitPrompt(name: string, kind: SubjectKind): string {
+/** Appended to every portrait prompt. Two real failures showed up in the
+ * first test render (a fully flat 2D vector look with no sense of a 3D
+ * model, and an unprompted "NINTENDO 64" logo baked into the image) — both
+ * traced back to "should look like an official ... video game box" reading
+ * as "add real game-box branding." Named the actual 3D-render qualities
+ * instead of leaning on a box-art comparison, and explicitly banned any
+ * text/logo/watermark. */
+const RENDER_STYLE = `This must read as a 3D-rendered video game character model, not 2D
+artwork: hard-edged low-poly geometry with visible flat-shaded polygon
+facets (especially on the face and clothing folds), a distinct rim/outline
+only where geometry edges would actually catch light, and directional
+shading that implies real volume and depth — not a flat vector
+illustration, not a smooth cartoon drawing, not a comic-style cel shade.
+Saturated primary colors, chunky exaggerated proportions, slightly
+oversized head-to-body ratio, thick dark outline only around the
+silhouette. Plain solid white background, nothing else in frame — no text,
+no logos, no watermarks, no game-box framing or UI chrome of any kind.`;
+
+export function portraitPrompt(name: string, kind: SubjectKind, outfit?: string): string {
   if (kind === "pet") {
+    const outfitLine = outfit ? ` Make sure to ${outfit}.` : "";
     return `Create a stylized 3D-rendered dog character based on the attached
-reference photo of ${name}. Style: chunky, exaggerated proportions in the
-style of late-1990s N64-era video game character/creature models (think
-Diddy Kong Racing's animal characters) — thick outlines, low-poly faceted
-shading, saturated primary colors, slightly oversized head relative to
-body. Preserve ${name}'s recognizable breed, coat color/pattern, and
-markings from the reference photo, but do not aim for photorealism. Full
-body, standing pose, plain white background, front 3/4 view. Should look
-like an official character-select portrait from a 1998 sports video game
-box.`;
+reference photo of ${name}, in the style of late-1990s N64-era video game
+creature models (think Diddy Kong Racing's animal characters). Preserve
+${name}'s recognizable breed, coat color/pattern, and markings from the
+reference photo, but do not aim for photorealism.${outfitLine} Full body,
+standing pose, front 3/4 view.
+
+${RENDER_STYLE}`;
   }
+  const outfitLine = outfit ? ` Dress the character in ${outfit}.` : "";
   return `Create a stylized 3D-rendered character based on the attached reference
-photo of ${name}. Style: chunky, exaggerated proportions in the style of
-late-1990s N64-era video game character models (think Ready 2 Rumble
-Boxing, Diddy Kong Racing) — thick outlines, low-poly faceted shading,
-saturated primary colors, slightly oversized head-to-body ratio. Preserve
+photo of ${name}, in the style of late-1990s N64-era video game character
+models (think Ready 2 Rumble Boxing, Diddy Kong Racing). Preserve
 recognizable facial features, hairstyle, and skin tone from the reference
-photo, but do not aim for photorealism. Full body, neutral standing pose,
-plain white background, front 3/4 view. Should look like an official
-character-select portrait from a 1998 sports video game box.`;
+photo, but do not aim for photorealism.${outfitLine} Full body, neutral
+standing pose, front 3/4 view.
+
+${RENDER_STYLE}`;
 }
 
 export type ClipType = "select" | "fullbody" | "confirm" | "victory";
@@ -41,12 +58,13 @@ export type ClipType = "select" | "fullbody" | "confirm" | "victory";
  * victory only as a fallback when no composite scene has been generated
  * yet (see cli.ts's `clip` command). */
 const soloClipPrompts: Record<ClipType, (name: string) => string> = {
-  select: (name) => `Using the attached stylized 3D character image of ${name}, generate a
-short, seamlessly loopable video: the character stands in place doing a
-small, energetic idle gesture — a quick eager bounce or a wave toward
-camera — that returns to its exact starting pose by the end of the clip so
-it can loop invisibly. Plain white background, same low-poly N64-era
-character-select style as the reference image. No camera movement.`,
+  select: (name) => `Using the attached stylized 3D character image of ${name} as both the
+starting frame and the ending frame, animate a short, energetic idle
+gesture in between them — a quick eager bounce or a wave toward camera —
+that departs from and returns to that exact pose, so the clip loops
+perfectly on hover. Plain white background, same low-poly N64-era
+character-select style as the reference image throughout. No camera
+movement.`,
 
   fullbody: (name) => `Using the attached stylized 3D character image of ${name}, generate a
 subtle, seamlessly loopable idle animation: gentle breathing motion and a

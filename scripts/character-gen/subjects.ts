@@ -8,6 +8,7 @@
  * later; nothing else needs to change to support a third one.
  */
 import { fetchPlayers, slugify, type PlayerRow } from "./players";
+import { OUTFITS } from "./outfits";
 
 export type SubjectKind = "player" | "guest" | "pet";
 
@@ -15,20 +16,26 @@ export type Subject = {
   key: string; // slug, also the character-assets/<key>/ dirname
   name: string;
   kind: SubjectKind;
+  outfit?: string; // outfits.ts, keyed by `key`
   player?: PlayerRow; // set only when kind === "player"
 };
 
 export const SPECIAL_SUBJECTS: Subject[] = [
-  { key: "cassandra", name: "Cassandra", kind: "guest" },
-  { key: "bailey", name: "Bailey", kind: "pet" },
+  { key: "cassandra", name: "Cassandra", kind: "guest", outfit: OUTFITS.cassandra },
+  { key: "bailey", name: "Bailey", kind: "pet", outfit: OUTFITS.bailey },
 ];
+
+function playerSubject(p: PlayerRow): Subject {
+  const key = slugify(p.name);
+  return { key, name: p.name, kind: "player", outfit: OUTFITS[key], player: p };
+}
 
 export async function resolveSubject(nameOrId: string): Promise<Subject> {
   const players = await fetchPlayers();
   const player = players.find(
     (p) => p.id === nameOrId || p.name.toLowerCase() === nameOrId.toLowerCase() || slugify(p.name) === slugify(nameOrId),
   );
-  if (player) return { key: slugify(player.name), name: player.name, kind: "player", player };
+  if (player) return playerSubject(player);
 
   const special = SPECIAL_SUBJECTS.find((s) => s.key === slugify(nameOrId) || s.name.toLowerCase() === nameOrId.toLowerCase());
   if (special) return special;
@@ -41,5 +48,5 @@ export async function resolveSubject(nameOrId: string): Promise<Subject> {
  * group composite — the one asset that's supposed to include everyone. */
 export async function allSubjects(): Promise<Subject[]> {
   const players = await fetchPlayers();
-  return [...players.map((p) => ({ key: slugify(p.name), name: p.name, kind: "player" as const, player: p })), ...SPECIAL_SUBJECTS];
+  return [...players.map(playerSubject), ...SPECIAL_SUBJECTS];
 }

@@ -98,7 +98,7 @@ async function cmdImage(nameOrId: string, referencePath: string) {
   const dir = assetDir(subject.key);
   const refBytes = readFileSync(referencePath);
   console.log(`Generating N64 portrait for ${subject.name} (${subject.kind}) from ${referencePath}...`);
-  const { base64 } = await generateImage(portraitPrompt(subject.name, subject.kind), [
+  const { base64 } = await generateImage(portraitPrompt(subject.name, subject.kind, subject.outfit), [
     { base64: refBytes.toString("base64"), mimeType: mimeFromExt(referencePath) },
   ]);
   const out = path.join(dir, "portrait.png");
@@ -168,8 +168,14 @@ async function cmdClip(nameOrId: string, type: string) {
     prompt = soloClipPrompt(clipType, subject.name);
   }
 
+  // The hover-loop clip pins its own seed image as both the first AND last
+  // frame (Veo 3.1's `lastFrame`), so the loop is exact rather than just
+  // prompted for — see docs/VISUAL_SPEC.md's roster-strip hover clip and
+  // the explicit ask that drove this.
+  const videoOpts = clipType === "select" ? { lastFrame: seed } : {};
+
   console.log(`Generating "${clipType}" clip for ${subject.name} (this polls Veo, can take a few minutes)...`);
-  const video = await generateVideo(prompt, seed);
+  const video = await generateVideo(prompt, seed, videoOpts);
   const out = path.join(dir, `${clipType}.mp4`);
   writeFileSync(out, video);
   console.log(`Wrote ${out} — review it before uploading.`);
