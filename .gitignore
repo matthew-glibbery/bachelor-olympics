@@ -26,6 +26,11 @@ yarn-error.log*
 .env
 .env*.local
 
+# character-gen pipeline: reference photos and generated assets, reviewed
+# locally before upload — never committed (scripts/character-gen/README.md)
+/reference-photos/
+/character-assets/
+
 # vercel
 .vercel
 
