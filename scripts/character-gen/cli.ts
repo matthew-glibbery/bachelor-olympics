@@ -121,6 +121,11 @@ async function cmdImage(nameOrId: string, referencePaths: string[]) {
 
 async function cmdHeadshot(nameOrId: string) {
   const subject = await resolveSubject(nameOrId);
+  if (subject.kind !== "player") {
+    throw new Error(
+      `${subject.name} doesn't need a headshot — Cassandra/Bailey never appear on the select screen or roster strip, only in composite scenes (see composite --boot, and Matthew's composite victory/confirm).`,
+    );
+  }
   const dir = assetDir(subject.key);
   const portrait = readPortrait(subject);
   console.log(`Generating shoulders-up headshot for ${subject.name} from the approved full-body portrait...`);
@@ -156,6 +161,15 @@ async function cmdComposite(kind: string, nameOrId?: string) {
   if (!nameOrId) throw new Error(`usage: gen:char:composite -- ${kind} <player>`);
   const subject = await resolveSubject(nameOrId);
   if (subject.kind !== "player") throw new Error(`${kind} composite is per-player — "${nameOrId}" isn't a player`);
+  // Cassandra and Bailey only appear in Matthew's confirm/victory clips (he's
+  // the groom, they belong in his moments specifically) and the shared boot
+  // scene — not every player's clips. Explicit product decision, not a
+  // technical limitation.
+  if (subject.key !== "matthew") {
+    throw new Error(
+      `Cassandra/Bailey only appear in Matthew's ${kind} clip, not ${subject.name}'s — run gen:char:clip directly for a solo clip instead (no composite step needed).`,
+    );
+  }
 
   const images = [readPortrait(subject), ...guestPortraits()];
   const prompt = kind === "victory" ? victoryScenePrompt(subject.name) : confirmScenePrompt(subject.name);

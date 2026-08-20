@@ -19,14 +19,19 @@ Two kinds of subject (`subjects.ts`):
 
 - **Players** — the 8 competing players in Supabase. Get a solo portrait
   plus all four clips.
-- **Guests** — Cassandra (the bride) and Bailey (the dog), portrait-only.
-  They never get their own clips; their portraits are extra reference
-  material fed into three *composite scenes* — the victory clip, the
-  confirm clip, and the shared boot/start-screen clip — so they show up
-  everywhere a "here's everyone" moment calls for them, without needing a
-  Supabase row of their own (they're not competing, so they don't belong in
-  `players`). Add a third guest the same way if wanted later — just append
-  to `SPECIAL_SUBJECTS` in `subjects.ts`, nothing else needs to change.
+- **Guests** — Cassandra (the bride) and Bailey (the dog), portrait-only, no
+  headshot (`gen:char:headshot` refuses non-player subjects — they never
+  appear on the select screen or roster strip). Their portraits are extra
+  reference material fed into two places only, per explicit product
+  decision, not a technical limitation: the shared boot/start-screen scene
+  (everyone), and **Matthew's own** confirm/victory composites specifically
+  — he's the groom, it's his moments they belong in, not every player's.
+  `gen:char:composite -- victory <player>` / `confirm <player>` refuses any
+  player that isn't Matthew for exactly this reason; every other player's
+  confirm/victory clip is solo (`gen:char:clip` without a composite step).
+  Add a third guest the same way if wanted later — just append to
+  `SPECIAL_SUBJECTS` in `subjects.ts` — but revisit this file's composite
+  gating too if they should show up more broadly than Matthew's clips.
 
 ## Setup
 
@@ -79,14 +84,15 @@ pnpm run gen:char:image -- "Cassandra" reference-photos/cassandra.jpg
 pnpm run gen:char:image -- "Bailey" reference-photos/bailey.jpg
 # ...one per remaining player
 
-# --- step 3: solo clips (select/fullbody always solo; confirm/victory can
-#     be solo too if you skip step 4) ---
+# --- step 3: solo clips (select/fullbody always solo; confirm/victory are
+#     solo too for every player except Matthew — skip step 4 for them) ---
 pnpm run gen:char:clip -- "Matthew" select
 pnpm run gen:char:clip -- "Matthew" fullbody
 open character-assets/matthew/select.mp4   # review each before uploading
 
-# --- step 4: composite scenes for confirm/victory, so Cassandra + Bailey
-#     appear in them (skip this per-player if you're fine with solo clips) ---
+# --- step 4: composite scenes for Matthew's confirm/victory only, so
+#     Cassandra + Bailey appear in them — gen:char:composite refuses any
+#     other player here, this pair is Matthew-specific by design ---
 pnpm run gen:char:composite -- victory "Matthew"
 open character-assets/matthew/victory-scene.png   # review the STILL first —
                                                 # cheaper to catch a bad

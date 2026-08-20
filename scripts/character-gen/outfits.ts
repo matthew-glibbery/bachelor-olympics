@@ -15,7 +15,7 @@ export const OUTFITS: Record<string, string> = {
   isaac: "a full cycling kit and helmet, with cycling shoes and socks, and his flowing hair visibly coming out from underneath the helmet",
   adam: "a business suit, no tie",
   anthony: "ski gear: gray pants, an orange ski jacket, an orange helmet with white goggles worn on it, and ski gloves",
-  tyler: "an open long-sleeve flannel shirt over a plain t-shirt, tight jeans, and loose, untied boots",
+  tyler: "an open long-sleeve flannel shirt over a plain t-shirt, tight jeans, and loose, untied boots. He should have a warm, friendly smile — happy and approachable, not a smirk, scowl, or stern/serious expression, consistent with how the other characters are smiling",
   cassandra: "a white wedding dress with a big, full, voluminous skirt (a large ballgown-style silhouette), carrying a wildflower bouquet, and a wedding veil worn back over/behind her hair so it does NOT cover her face — her face should be fully visible",
   bailey: "get her proportions right: short legs, a long body, scruffy fur, and a little white mohawk of fur on top of her head",
 };
