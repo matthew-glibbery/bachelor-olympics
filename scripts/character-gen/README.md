@@ -71,6 +71,10 @@ open character-assets/matthew/portrait.png
 # style/likeness is right, *then* move on to the rest of the roster.
 
 # --- step 2: portraits for everyone, including the two guests ---
+# gen:char:image accepts more than one reference photo — pass all of them
+# and Nano Banana combines them (likeness from whichever shows the face
+# best, outfit/accessory detail from whichever shows that best):
+pnpm run gen:char:image -- "Andrew" reference-photos/andrew-1.jpg reference-photos/andrew-2.jpg
 pnpm run gen:char:image -- "Cassandra" reference-photos/cassandra.jpg
 pnpm run gen:char:image -- "Bailey" reference-photos/bailey.jpg
 # ...one per remaining player

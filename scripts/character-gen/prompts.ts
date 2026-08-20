@@ -55,25 +55,42 @@ Plain solid ${background} background, nothing else in frame — no text, no
 logos, no watermarks, no game-box framing or UI chrome of any kind.`;
 }
 
-export function portraitPrompt(name: string, kind: SubjectKind, outfit?: string, background: MatteBackground = "white"): string {
+/** When more than one reference photo is attached (players.ts's `image`
+ * command accepts several — many players supplied a second photo
+ * specifically to show an outfit/accessory detail the first doesn't),
+ * make the multi-photo intent explicit rather than leaving Nano Banana to
+ * guess why there are extra images attached. */
+function referencePhotosLine(photoCount: number): string {
+  if (photoCount <= 1) return "reference photo";
+  return "reference photos — use all of them together: likeness (face, hairstyle, skin tone) from whichever shows the face most clearly, and outfit/accessory details from any of the others that show them better";
+}
+
+export function portraitPrompt(
+  name: string,
+  kind: SubjectKind,
+  outfit?: string,
+  background: MatteBackground = "white",
+  photoCount = 1,
+): string {
+  const photosLine = referencePhotosLine(photoCount);
   if (kind === "pet") {
     const outfitLine = outfit ? ` Make sure to ${outfit}.` : "";
     return `Create a stylized 3D-rendered dog character based on the attached
-reference photo of ${name}, in the style of late-1990s N64-era video game
+${photosLine} of ${name}, in the style of late-1990s N64-era video game
 creature models (think Diddy Kong Racing's animal characters). Preserve
 ${name}'s recognizable breed, coat color/pattern, and markings from the
-reference photo, but do not aim for photorealism.${outfitLine} Full body,
-standing pose, front 3/4 view.
+reference photo(s), but do not aim for photorealism.${outfitLine} Full
+body, standing pose, front 3/4 view.
 
 ${renderStyle(background)}`;
   }
   const outfitLine = outfit ? ` Dress the character in ${outfit}.` : "";
-  return `Create a stylized 3D-rendered character based on the attached reference
-photo of ${name}, in the style of late-1990s N64-era video game character
-models (think Ready 2 Rumble Boxing, Diddy Kong Racing). Preserve
-recognizable facial features, hairstyle, and skin tone from the reference
-photo, but do not aim for photorealism.${outfitLine} Full body, neutral
-standing pose, front 3/4 view.
+  return `Create a stylized 3D-rendered character based on the attached
+${photosLine} of ${name}, in the style of late-1990s N64-era video game
+character models (think Ready 2 Rumble Boxing, Diddy Kong Racing).
+Preserve recognizable facial features, hairstyle, and skin tone from the
+reference photo(s), but do not aim for photorealism.${outfitLine} Full
+body, neutral standing pose, front 3/4 view.
 
 ${renderStyle(background)}`;
 }

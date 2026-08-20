@@ -102,14 +102,18 @@ async function cmdStatus() {
   console.log(`\nboot       scene:${bootScene ? "yes" : "no "}  clip:${bootClip ? "yes" : "no "}`);
 }
 
-async function cmdImage(nameOrId: string, referencePath: string) {
+async function cmdImage(nameOrId: string, referencePaths: string[]) {
   const subject = await resolveSubject(nameOrId);
   const dir = assetDir(subject.key);
-  const refBytes = readFileSync(referencePath);
-  console.log(`Generating N64 portrait for ${subject.name} (${subject.kind}) from ${referencePath}...`);
-  const { base64 } = await generateImage(portraitPrompt(subject.name, subject.kind, subject.outfit), [
-    { base64: refBytes.toString("base64"), mimeType: mimeFromExt(referencePath) },
-  ]);
+  const references = referencePaths.map((p) => ({
+    base64: readFileSync(p).toString("base64"),
+    mimeType: mimeFromExt(p),
+  }));
+  console.log(`Generating N64 portrait for ${subject.name} (${subject.kind}) from ${referencePaths.join(", ")}...`);
+  const { base64 } = await generateImage(
+    portraitPrompt(subject.name, subject.kind, subject.outfit, "white", references.length),
+    references,
+  );
   const out = path.join(dir, "portrait.png");
   writeFileSync(out, Buffer.from(base64, "base64"));
   console.log(`Wrote ${out} — review it before generating clips.`);
@@ -292,9 +296,11 @@ async function main() {
     case "status":
       return cmdStatus();
     case "image": {
-      const [a, b] = args;
-      if (!a || !b) throw new Error("usage: gen:char:image -- <player|Cassandra|Bailey> <reference-photo-path>");
-      return cmdImage(a, b);
+      const [a, ...photos] = args;
+      if (!a || photos.length === 0) {
+        throw new Error("usage: gen:char:image -- <player|Cassandra|Bailey> <reference-photo-path> [more-reference-photos...]");
+      }
+      return cmdImage(a, photos);
     }
     case "headshot": {
       const [a] = args;
