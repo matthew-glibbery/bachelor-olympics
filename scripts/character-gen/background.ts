@@ -52,7 +52,7 @@ export async function playerColorByKey(key: string): Promise<string | undefined>
  * means nothing for them. */
 export function backgroundDescription(hex?: string): string {
   if (hex) {
-    return `A flat 2D background color gradient, painted directly onto the background plane behind the character — NOT a stage light, spotlight, light beam, glow, rim light, or lit patch of ground; the character themselves must not appear lit or highlighted differently by this, and there must be no separate bright patch or halo on the ground beneath their feet. It is simply the background's own color, shaped like one tall oval: solid ${hex} only at the bottom-center point of the frame, smoothly and gradually fading into ${APP_BACKGROUND_HEX} (a dark navy blue) as it extends upward and to both sides, so that ${APP_BACKGROUND_HEX} is the only color visible along the very top edge and both the left and right edges of the frame — no ${hex} should appear in those areas at all. No other scenery, nothing else in frame.`;
+    return `A plain radial gradient background: solid ${hex} at the center of the frame, smoothly fading outward into ${APP_BACKGROUND_HEX} (a dark navy blue) toward the edges — no other scenery, nothing else in frame.`;
   }
   return `A plain solid ${APP_BACKGROUND_HEX} (dark navy blue) background, nothing else in frame.`;
 }
