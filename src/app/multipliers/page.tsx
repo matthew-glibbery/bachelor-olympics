@@ -15,7 +15,6 @@ import { bettingReserve } from "@/lib/betting/reserve";
 import { upsertMultipliers } from "@/lib/data/mutations";
 import {
   MULTIPLIER_DEFAULT,
-  MULTIPLIER_MAX,
   validateAllocations,
   type MultiplierAllocation,
 } from "@/lib/multipliers/budget";
@@ -219,11 +218,6 @@ export default function MultipliersPage() {
   }
 
   const playerColor = colorByPlayer[player.id]!;
-  // The character's "power" reading: how far the biggest single multiplier
-  // goes above baseline. Feeds the aura behind them, so stacking a
-  // multiplier visibly charges them up.
-  const peak = Math.max(...allocations.map((a) => a.value), MULTIPLIER_DEFAULT);
-  const charge = Math.max(0, (peak - MULTIPLIER_DEFAULT) / (MULTIPLIER_MAX - MULTIPLIER_DEFAULT));
 
   return (
     <GameScreen
@@ -234,15 +228,7 @@ export default function MultipliersPage() {
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
           {/* Character, carried over from /select and still idling. */}
           <aside className="flex flex-col items-center gap-3">
-            <div className="relative h-56 w-full max-w-52">
-              <div
-                className="absolute inset-0 transition-opacity duration-300"
-                style={{
-                  opacity: 0.35 + charge * 0.65,
-                  background: `radial-gradient(ellipse at 50% 80%, color-mix(in oklab, ${playerColor} 60%, transparent) 0%, transparent 68%)`,
-                }}
-                aria-hidden
-              />
+            <div className="relative aspect-[9/16] w-full max-w-52">
               {/* Re-keyed on each adjustment so the character reacts to the
                   bars rather than just sitting there. */}
               <div key={reactionKey} className="anim-pop-in relative h-full w-full">

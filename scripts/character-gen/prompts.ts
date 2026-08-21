@@ -163,7 +163,7 @@ export type ClipType = "select" | "fullbody" | "confirm" | "victory";
  * (or headshot, for `select`), no Cassandra/Bailey. Used for select/
  * fullbody always, and for confirm/victory only as a fallback when no
  * composite scene has been generated yet (see cli.ts's `clip` command). */
-const soloClipPrompts: Record<ClipType, (name: string, background: string) => string> = {
+const soloClipPrompts: Record<ClipType, (name: string, background: string, action?: string) => string> = {
   select: (name, background) => `Using the attached stylized 3D character image of ${name} as both the
 starting frame and the ending frame, animate a short, energetic idle
 gesture in between them — a quick eager bounce or a wave toward camera —
@@ -171,13 +171,20 @@ that departs from and returns to that exact pose, so the clip loops
 perfectly on hover. ${background} Same low-poly N64-era character-select
 style as the reference image throughout. No camera movement.`,
 
-  fullbody: (name, background) => `Using the attached stylized 3D character image of ${name}, generate a
-short, silly, seamlessly loopable animation related to their outfit/
-character (e.g. a trick, a flex, a signature move that fits who they are)
+  fullbody: (name, background, action) => `Using the attached stylized 3D character image of ${name}, generate a
+short, seamlessly loopable animation: ${action ?? "a silly, signature move related to their outfit/character (e.g. a trick, a flex, a move that fits who they are)"}
 — starting and ending in the exact same pose so it loops with no visible
-seam. Should read as alive and a little funny, not a static idle. ${background}
-Same low-poly N64-era character-select style as the reference image. No
-camera movement.`,
+seam, facing the camera at both the very start and the very end of the
+clip (the middle of the move can turn or shift as the action calls for,
+but it must return to fully facing camera by the last frame). The move
+itself should be quick, well under the clip's full length: perform it,
+settle back into the exact starting pose with time to spare, and hold
+there for the remainder of the clip rather than stretching the motion out
+to fill the whole duration. Should read as alive and distinctly them, not
+a static idle. ${background} Same low-poly N64-era character-select style
+as the reference image. The camera is completely static and locked off
+for the entire clip — it must not pan, orbit, rotate, dolly, or zoom, not
+even slightly; only the character moves, the camera frame never changes.`,
 
   confirm: (name, background) => `Using the attached stylized 3D character image of ${name}, generate a
 short one-shot (non-looping) confirmation animation: the character
@@ -196,8 +203,8 @@ upbeat and silly, not aggressive or realistic — this is a celebratory gag,
 not a fight.`,
 };
 
-export function soloClipPrompt(type: ClipType, name: string, background: string): string {
-  return soloClipPrompts[type](name, background);
+export function soloClipPrompt(type: ClipType, name: string, background: string, action?: string): string {
+  return soloClipPrompts[type](name, background, action);
 }
 
 /** Composite *scene image* prompts — combine several existing images

@@ -19,3 +19,33 @@ export const OUTFITS: Record<string, string> = {
   cassandra: "a white wedding dress with a big, full, voluminous skirt (a large ballgown-style silhouette), carrying a wildflower bouquet, and a wedding veil worn back over/behind her hair so it does NOT cover her face — her face should be fully visible",
   bailey: "get her proportions right: short legs, a long body, scruffy fur, and a little white mohawk of fur on top of her head",
 };
+
+/**
+ * Per-player signature move for the `fullbody` clip (VISUAL_SPEC's "a
+ * short, silly animation related to the character's outfit" — e.g. Isaac
+ * doing a wheelie, Joe twirling like he's about to draw). Keyed by slug,
+ * same as OUTFITS. Optional — soloClipPrompt falls back to a generic
+ * "trick/flex/signature move" line for anyone not listed here yet.
+ *
+ * DRAFT — everyone but Matthew below is a first pass, not yet generated or
+ * reviewed. Edit freely in place; nothing here goes live until
+ * `gen:char:clip -- <player> fullbody` actually runs against it.
+ */
+export const FULLBODY_ACTIONS: Record<string, string> = {
+  matthew:
+    "a classy, well-dressed beat: fixes his cufflings, straightens his boutonnière, then gives a warm, confident smile — elegant and composed, not silly or exaggerated",
+  andrew:
+    "a festival concert beat: a few dance moves, then a laid-back, confident nod toward camera — chill and unbothered",
+  josh:
+    "a quick trail-runner's beat: a couple of light on-the-spot high-knees or a bouncy jog-in-place, glancing down to check his running watch, then a determined nod",
+  joe:
+    "a cowboy swagger beat: spins on one boot heel, hooks his thumbs into his big belt buckle, then tips his cowboy hat toward camera with a sly grin, toothpick still in his mouth",
+  isaac:
+    "a cycling flex beat: hops in place like popping a quick wheelie, hair flowing out from under the helmet, then flexes one arm toward camera",
+  adam:
+    "a business-suit beat: confidently straightens his jacket lapel and cuffs, then gives a sharp, satisfied nod — like he just closed a deal",
+  anthony:
+    "a ski-hype beat: a couple of small side to side ski turns in his ski boots, then a quick fist pump and a grin",
+  tyler:
+    "a warm, easygoing beat: a friendly wave, tucking one hand into his flannel pocket, then an approachable head-tilt and grin",
+};

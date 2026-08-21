@@ -123,7 +123,7 @@ export default function Home() {
 
                 return (
                   <div key={player.id} className="flex flex-col items-center">
-                    <div className={cn("w-16 sm:w-24", place === 1 ? "h-28 sm:h-36" : "h-20 sm:h-28")}>
+                    <div className={cn("aspect-[9/16] w-auto", place === 1 ? "h-28 sm:h-36" : "h-20 sm:h-28")}>
                       <CharacterRender
                         name={player.name}
                         nickname={player.nickname}

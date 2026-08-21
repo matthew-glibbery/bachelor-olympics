@@ -44,6 +44,7 @@ import {
 import { uploadClipAndSet, uploadPhotoAndSet } from "./players";
 import { uploadBootClipAndSet } from "./appSettings";
 import { resolveSubject, allSubjects, SPECIAL_SUBJECTS, type Subject } from "./subjects";
+import { FULLBODY_ACTIONS } from "./outfits";
 
 process.loadEnvFile?.(".env.local");
 
@@ -227,7 +228,8 @@ async function cmdClip(nameOrId: string, type: string) {
     prompt = soloClipPrompt(clipType, subject.name, background);
   } else {
     seed = readFullBody(subject);
-    prompt = soloClipPrompt(clipType, subject.name, background);
+    const action = clipType === "fullbody" ? FULLBODY_ACTIONS[subject.key] : undefined;
+    prompt = soloClipPrompt(clipType, subject.name, background, action);
   }
 
   // The hover-loop clip pins its own seed image as both the first AND last
