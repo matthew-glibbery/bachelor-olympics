@@ -234,7 +234,7 @@ export default function MultipliersPage() {
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
           {/* Character, carried over from /select and still idling. */}
           <aside className="flex flex-col items-center gap-3">
-            <div className="relative h-56 w-full max-w-52">
+            <div className="relative aspect-[9/16] w-full max-w-52">
               <div
                 className="absolute inset-0 transition-opacity duration-300"
                 style={{

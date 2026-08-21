@@ -180,7 +180,7 @@ export default function SelectPage() {
             <div className="flex flex-1 flex-col items-center justify-center gap-4">
               {focused ? (
                 <>
-                  <div className="relative h-56 w-full max-w-sm sm:h-80">
+                  <div className="relative aspect-[9/16] h-56 w-auto sm:h-80">
                     {/* Spotlight pooling under the character. */}
                     <div
                       className="absolute inset-0"
