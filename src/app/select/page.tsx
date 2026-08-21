@@ -181,14 +181,6 @@ export default function SelectPage() {
               {focused ? (
                 <>
                   <div className="relative aspect-[9/16] h-56 w-auto sm:h-80">
-                    {/* Spotlight pooling under the character. */}
-                    <div
-                      className="absolute inset-0"
-                      style={{
-                        background: `radial-gradient(ellipse at 50% 92%, color-mix(in oklab, ${colorByPlayer[focused.id]} 45%, transparent) 0%, transparent 65%)`,
-                      }}
-                      aria-hidden
-                    />
                     {/* Keyed on player id so the pop-in replays on every swap. */}
                     <div key={focused.id} className="anim-pop-in relative h-full w-full">
                       <CharacterRender
