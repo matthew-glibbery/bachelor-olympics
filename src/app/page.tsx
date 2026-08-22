@@ -231,6 +231,7 @@ export default function Home() {
                                 state={player.state ?? "??"}
                                 nickname={player.nickname}
                                 photoUrl={player.photo_url}
+                                color={color}
                               />
                               {isYou ? (
                                 <span className="font-display text-primary shrink-0 text-[9px] tracking-widest uppercase">

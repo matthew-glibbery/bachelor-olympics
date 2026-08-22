@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 export type PlayerNameSize = "sm" | "md" | "lg";
 
-const AVATAR_PX: Record<PlayerNameSize, number> = { sm: 20, md: 24, lg: 28 };
+const AVATAR_PX: Record<PlayerNameSize, number> = { sm: 24, md: 32, lg: 40 };
 
 export interface PlayerNameProps extends React.ComponentProps<"span"> {
   name: string;
@@ -25,6 +25,11 @@ export interface PlayerNameProps extends React.ComponentProps<"span"> {
   /** Optional uploaded photo URL — shown as a small circular avatar. */
   photoUrl?: string | null;
   size?: PlayerNameSize;
+  /** This player's own chartColors.ts hue, used as the avatar ring color —
+   * the same color as their rank badge/chart line everywhere else in the
+   * app. Falls back to the theme's gold accent when not passed, so call
+   * sites that don't have a per-player color handy still render sensibly. */
+  color?: string;
 }
 
 export function PlayerName({
@@ -33,10 +38,13 @@ export function PlayerName({
   nickname,
   photoUrl,
   size = "md",
+  color,
   className,
   ...props
 }: PlayerNameProps) {
   const px = AVATAR_PX[size];
+  const ringStyle = color ? { borderColor: color } : undefined;
+  const ringClassName = color ? undefined : "border-primary/60";
   return (
     <span className={cn("inline-flex items-center gap-2", className)} {...props}>
       {/* A thin bordered ring — a small nod to game-portrait framing without
@@ -48,13 +56,13 @@ export function PlayerName({
           alt=""
           width={px}
           height={px}
-          className="border-primary/60 shrink-0 rounded-full border-2 object-cover"
-          style={{ width: px, height: px }}
+          className={cn("shrink-0 rounded-full border-2 object-cover", ringClassName)}
+          style={{ width: px, height: px, ...ringStyle }}
         />
       ) : (
         <span
-          className="bg-muted text-muted-foreground border-primary/60 flex shrink-0 items-center justify-center rounded-full border-2"
-          style={{ width: px, height: px }}
+          className={cn("bg-muted text-muted-foreground flex shrink-0 items-center justify-center rounded-full border-2", ringClassName)}
+          style={{ width: px, height: px, ...ringStyle }}
         >
           <UserRound className="size-3" />
         </span>

@@ -123,7 +123,8 @@ ${renderStyle(background)}`;
   return `Create a stylized 3D-rendered character based on the attached
 ${photosLine} of ${name}, in the style of late-1990s N64-era video game
 character models (think Ready 2 Rumble Boxing, Diddy Kong Racing).${outfitLine}
-Neutral standing pose, front 3/4 view.
+Neutral standing pose, facing directly forward into the camera, front-on —
+not angled to one side in a 3/4 view.
 
 ${LIKENESS_LINE}
 
@@ -149,10 +150,9 @@ roughly equal empty margin on the left and right sides, and positioned so
 the whole head has clear space above it — do not crop into the hair, ears,
 or any part of the head, and do not push the face toward one edge. The
 face should be turned to look directly into the camera, straight-on, not
-angled to one side in a 3/4 profile — this is a head-on selection-screen
-headshot, unlike the full-body image's 3/4 stance. Keep the same
-expression as the source image exactly. Do not change anything else about
-the character itself.
+angled to one side in a 3/4 profile — same direct, front-on facing as the
+source full-body image. Keep the same expression as the source image
+exactly. Do not change anything else about the character itself.
 
 ${renderStyle(background)}`;
 }

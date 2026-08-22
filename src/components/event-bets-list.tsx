@@ -20,9 +20,11 @@ const STATUS_VARIANT: Record<PerEventBetRow["status"], "outline" | "default" | "
 export function EventBetsList({
   bets,
   players,
+  colorByPlayer,
 }: {
   bets: PerEventBetRow[];
   players: Map<string, PlayerRow>;
+  colorByPlayer: Record<string, string>;
 }) {
   if (bets.length === 0) {
     return <p className="text-muted-foreground text-sm">No bets were placed on this event.</p>;
@@ -40,11 +42,23 @@ export function EventBetsList({
             className="bevel-raised bg-card flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm"
           >
             <span className="flex flex-wrap items-center gap-1.5">
-              <PlayerName name={bettor.name} state={bettor.state ?? "??"} size="sm" />
+              <PlayerName
+                name={bettor.name}
+                state={bettor.state ?? "??"}
+                size="sm"
+                photoUrl={bettor.photo_url}
+                color={colorByPlayer[bettor.id]}
+              />
               <span className="text-muted-foreground">
                 wagered {bet.wager.toFixed(1)} on
               </span>
-              <PlayerName name={pick.name} state={pick.state ?? "??"} size="sm" />
+              <PlayerName
+                name={pick.name}
+                state={pick.state ?? "??"}
+                size="sm"
+                photoUrl={pick.photo_url}
+                color={colorByPlayer[pick.id]}
+              />
               <span className="text-muted-foreground">{TARGET_LABEL[bet.target]}</span>
             </span>
             <Badge variant={STATUS_VARIANT[bet.status]}>

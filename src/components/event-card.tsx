@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import Image from "next/image";
 import { Flame, ImageUp, Pencil, Play, RotateCcw, X } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlayerName } from "@/components/player-name";
+import { assignPlayerColors } from "@/lib/chartColors";
 import { VictoryReplayButton } from "@/components/victory-replay-button";
 import { RankedResultsEditor } from "@/components/ranked-results-editor";
 import { EventOddsBetting } from "@/components/event-odds-betting";
@@ -99,6 +100,14 @@ export function EventCard({
   const isPlacement = event.scoring_mode === "placement";
   const playerIds = players.map((p) => p.id);
   const playerById = new Map(players.map((p) => [p.id, p]));
+  // Same sort-by-id + "dark" mode convention as every other screen
+  // (chartColors.ts's own doc comment) — computed from the same full
+  // `players` list the caller passes everywhere else, so a player's ring
+  // color here always matches their rank badge/chart line elsewhere.
+  const colorByPlayer = useMemo(() => {
+    const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
+    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
+  }, [players]);
   // Once results exist, show players in the order they actually finished —
   // position ascending for placement events, raw value ordered by
   // lower_is_better for absolute ones — not roster order. Players with no
@@ -430,6 +439,7 @@ export function EventCard({
                         state={p.state ?? "??"}
                         size="sm"
                         photoUrl={p.photo_url}
+                        color={colorByPlayer[p.id]}
                       />
                       <Input
                         type="number"
@@ -499,7 +509,7 @@ export function EventCard({
                     >
                       <span className="font-score tabular-nums">{hasResult ? i + 1 : "—"}</span>
                       <span className="inline-flex min-w-0 items-center gap-1.5">
-                        <PlayerName name={p.name} size="sm" />
+                        <PlayerName name={p.name} size="sm" photoUrl={p.photo_url} color={colorByPlayer[p.id]} />
                         {catchUpBonuses?.has(p.id) ? <CatchUpBadge bonus={catchUpBonus} /> : null}
                       </span>
                       <span className="font-score hidden text-right tabular-nums sm:block">
@@ -526,6 +536,7 @@ export function EventCard({
             event={event}
             ranking={ranking}
             players={playerById}
+            colorByPlayer={colorByPlayer}
             currentPlayerId={currentPlayerId}
             myBet={myBet}
             reserve={reserve}
@@ -534,7 +545,7 @@ export function EventCard({
 
         {bettingClosed ? (
           <TabsContent value="bets" className="pt-3">
-            <EventBetsList bets={bets} players={playerById} />
+            <EventBetsList bets={bets} players={playerById} colorByPlayer={colorByPlayer} />
           </TabsContent>
         ) : null}
       </Tabs>

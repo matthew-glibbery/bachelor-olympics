@@ -270,8 +270,8 @@
    — the procedural SVG bust has no rectangular edge to feather, and photos
    are meant to fill their frame edge-to-edge. */
 @utility character-clip-mask {
-  mask-image: radial-gradient(ellipse farthest-side at center, black 48%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse farthest-side at center, black 48%, transparent 100%);
+  mask-image: radial-gradient(circle farthest-side at center, black 78%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle farthest-side at center, black 78%, transparent 100%);
 }
 
 @layer components {
