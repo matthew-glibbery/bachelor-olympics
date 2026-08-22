@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "seed:events": "tsx scripts/seed-events.ts",
+    "gen:icons": "node scripts/generate-icons.mjs",
     "gen:char:status": "tsx scripts/character-gen/cli.ts status",
     "gen:char:image": "tsx scripts/character-gen/cli.ts image",
     "gen:char:headshot": "tsx scripts/character-gen/cli.ts headshot",

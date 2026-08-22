@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#070926"/>
+  <rect x="30.72" y="30.72" width="450.56" height="450.56" rx="81.10079999999999" fill="#141b40"/>
+  <clipPath id="plate"><rect x="30.72" y="30.72" width="450.56" height="450.56" rx="81.10079999999999"/></clipPath>
+  <clipPath id="br"><polygon points="512,0 512,512 0,512"/></clipPath>
+  <g clip-path="url(#plate)">
+    <rect x="30.72" y="30.72" width="450.56" height="450.56" rx="81.10079999999999" fill="none" stroke="#9fb6f2" stroke-width="31.539200000000005"/>
+    <g clip-path="url(#br)">
+      <rect x="30.72" y="30.72" width="450.56" height="450.56" rx="81.10079999999999" fill="none" stroke="#05061d" stroke-width="31.539200000000005"/>
+    </g>
+  </g>
+  <rect x="174.989312" y="60.00640000000001" width="54.878207999999994" height="111.06303999999999" rx="15.679488" fill="#00c3f3"/>
+  <rect x="282.13248" y="60.00640000000001" width="54.878207999999994" height="111.06303999999999" rx="15.679488" fill="#00c3f3"/>
+  <circle cx="256" cy="279.519232" r="130.6624" fill="#f3b100"/>
+  <circle cx="256" cy="279.519232" r="109.75641599999999" fill="#05061d" opacity="0.28"/>
+  <polygon points="256.00,174.99 276.00,228.47 333.05,230.97 288.36,266.51 303.62,321.54 256.00,290.02 208.38,321.54 223.64,266.51 178.95,230.97 236.00,228.47" transform="translate(0 23.52)" fill="#f3b100"/>
+</svg>

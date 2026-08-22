@@ -38,7 +38,7 @@ export function GameScreen({
   className?: string;
 }) {
   return (
-    <main className="relative min-h-dvh overflow-hidden px-4 py-6 pb-28 sm:px-8 sm:pb-6">
+    <main className="screen-pad-block relative min-h-dvh overflow-hidden px-4 sm:px-8">
       <Starfield className="opacity-60" />
 
       <div

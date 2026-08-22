@@ -154,7 +154,7 @@ export default function StartPage() {
         className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/75 to-transparent"
         aria-hidden
       />
-      <footer className="absolute inset-x-0 bottom-6 flex flex-col items-center gap-1 px-6">
+      <footer className="absolute inset-x-0 bottom-[calc(1.5rem+var(--safe-bottom))] flex flex-col items-center gap-1 px-6">
         <p className="font-display text-center text-[9px] tracking-[0.2em] text-white/70 uppercase">
           {GAME_COPYRIGHT}
         </p>

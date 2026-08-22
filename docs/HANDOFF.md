@@ -2,6 +2,57 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-22 — Installable PWA (manifest, icons, iOS standalone, safe areas)
+
+Makes the app add-to-home-screen-able so the eight players run it as an app
+for the weekend rather than as a Safari tab. 164 tests (unchanged — no
+domain logic touched), lint/typecheck/build green, verified in a real
+production build behind headless Chrome.
+
+- **`src/app/manifest.ts`** — Next's typed manifest route, served at
+  `/manifest.webmanifest` (verified with `curl` against `next start`).
+  `standalone`, `portrait`, `start_url: "/"`, and `background_color`/
+  `theme_color` `#070926`, which is the actual `--background` token
+  converted to sRGB. `viewport.themeColor` in `layout.tsx` was `#1f1c17`
+  — a leftover from the warm amber palette PR #18 landed, several shades
+  off the blue/black the app has actually been since — so it moved to the
+  same `#070926`; that's the only value changed there.
+- **Icons are generated, not hand-drawn** — `scripts/generate-icons.mjs`
+  (`pnpm run gen:icons`, uses the `sharp` we already have) rasterises one
+  on-theme SVG into `public/`: 192, 512, a 512 maskable padded into the
+  80% safe circle, a 180 apple-touch-icon, a 32 favicon, plus the source
+  `icon.svg`. The mark is a `.bevel-raised`-style console plate holding a
+  gold medal — pure geometry, no font dependency — and the script converts
+  the `oklch()` tokens from globals.css to sRGB itself so re-running after
+  a palette change keeps the icons honest.
+- **Safe-area insets are tokens, not inline `env()`** — `--safe-top/right/
+  bottom/left` in globals.css, consumed by two new utilities:
+  `nav-inset-safe` (the floating mobile tab bar, previously
+  `inset-x-4 bottom-4`) and `screen-pad-block` (GameScreen's `py-6 pb-28
+  sm:pb-6`). Both live in `@utility` blocks with the `sm:` case *inside*
+  `screen-pad-block`, because a custom utility and `pb-*` are the same
+  specificity and Tailwind's own sort order — not source order — decides
+  which wins; same trap `bevel-none` already documents. `/start`'s footer
+  and `/select`'s column use `calc(... + var(--safe-*))` directly since
+  they don't go through GameScreen. Verified live at 390px by overriding
+  the tokens to a notched phone's 59px/34px: main padding went 24/112 →
+  83/146 and the nav's `bottom` 16 → 50, with the zero-inset case
+  byte-identical to the old layout.
+- **Service worker is deliberately almost nothing** (`public/sw.js`,
+  registered in prod only by `service-worker-registrar.tsx`). It caches
+  `offline.html` + the icons and nothing else: this is a realtime Supabase
+  scoreboard, and a cached leaderboard that *looks* current is worse than
+  no leaderboard. Navigations are always network, falling back to the
+  offline card only when the fetch genuinely throws — verified by killing
+  the server and reloading, not by trusting the code. What it buys is an
+  honest offline screen and Chrome-on-Android installability (which needs
+  a fetch handler that can answer a navigation).
+- **Not done**: no iOS splash-screen images (`apple-touch-startup-image`)
+  — they need one PNG per device size and iOS 15+ generates a decent one
+  from the manifest anyway; no install prompt UI; no left/right safe-area
+  padding on the page gutters (the app is portrait-locked, where those
+  insets are 0).
+
 ## 2026-08-19 (4) — `/bets` rework: overall picks as a roster list, per-event bets view-only
 
 User ask: make picking the overall win/top3 bet feel like the Odds tab's
