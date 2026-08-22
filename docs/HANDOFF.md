@@ -150,17 +150,17 @@ in parallel, which is how this session ran.
 
 Ranked roughly by the reviewer's own impact ordering:
 
-1. **The Recharts progress chart is the biggest foreign object left.**
-   Hairline grid, default ticks, an 8-item wrapping legend eating ~15% of
-   the phone viewport, and 8 series bunching into an unreadable clump between
-   x=3 and x=5 at 430px. The y-axis is quantitative when the question players
-   actually ask is ordinal ("did I move up?"). Suggested replacement: an
-   in-world **rank ladder** — one row per player, position after each event
-   as chunky stepped segments, reusing `multiplier-bar.tsx`'s vocabulary; rows
-   self-label so the legend disappears. **An agent was dispatched to build
-   this and died on an account session limit before writing a single line —
-   the working tree was verified clean afterwards, so there is nothing
-   half-finished to untangle.** This is the top item for the next session.
+1. ~~The Recharts progress chart~~ — **done, see `rank-ladder.tsx`.** (An
+   agent was dispatched for this first and died on an account session limit
+   before writing a line; the tree was verified clean and it was then built
+   directly.) The ladder renders below `sm`, the line chart from `sm` up.
+   Worth knowing if you touch it: measuring rank movement first-to-last is
+   wrong, because the opening moment has everyone who wasn't in that event
+   tied on zero and competition ranking compresses them into one joint
+   place — that manufactured phantom six-place drops that summed to -21
+   across the field. It measures the most recent hop instead. **What's still
+   open here is the desktop chart**, which is untouched and remains a
+   configured Recharts rather than a designed object.
 2. **`/bets` is the weakest screen.** It opens with rules rather than state,
    its overall-bets table is 6-of-8 rows of em-dashes pre-lock, and "Your
    picks" sits at the *bottom*. Invert it: lead with the status readout, put
