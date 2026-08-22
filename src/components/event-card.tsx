@@ -48,13 +48,30 @@ const STATUS_LABEL: Record<EventRow["status"], string> = {
   cancelled: "Cancelled",
 };
 
+/* Tag colour per status. Two things this fixes: "in progress" and "not
+   started" were previously two different neutral variants that, once the
+   tags became flat tints, rendered as the same grey — so the card stopped
+   distinguishing an event being played right now from one that hasn't
+   started. And the event TILE already marks that same state with a red
+   "Live" chip, so the card calling it neutral was the two views disagreeing
+   about how urgent the same fact is. */
+const STATUS_VARIANT: Record<
+  EventRow["status"],
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  planned: "secondary",
+  scoring: "destructive",
+  resolved: "default",
+  cancelled: "outline",
+};
+
 /** "+30%" style badge next to a trailing player's name — see
  * EventCardProps.catchUpBonuses. Exported: the standalone catch-up-bonus
  * section on /events (src/app/events/page.tsx) uses the same badge, since
  * it moved out of this card. */
 export function CatchUpBadge({ bonus }: { bonus: number }) {
   return (
-    <Badge variant="outline" className="text-primary border-primary/40 gap-1">
+    <Badge variant="default">
       <Flame className="size-3" />+{Math.round(bonus * 100)}%
     </Badge>
   );
@@ -297,18 +314,10 @@ export function EventCard({
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="extruded text-lg sm:text-xl">{event.name}</h2>
-            <Badge
-              variant={
-                event.status === "resolved"
-                  ? "default"
-                  : event.status === "scoring"
-                    ? "outline"
-                    : "secondary"
-              }
-            >
+            <Badge variant={STATUS_VARIANT[event.status]}>
               {STATUS_LABEL[event.status]}
             </Badge>
-            <Badge variant="outline">
+            <Badge variant="secondary">
               {isPlacement ? "Placement" : "Absolute"}
             </Badge>
           </div>

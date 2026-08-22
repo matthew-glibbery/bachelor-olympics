@@ -5,49 +5,40 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
- * Status chip, in the console register.
+ * Status tag — "In progress", "Absolute", "+30%", "Done", "Awaiting result",
+ * "Alive — worth 100 pts", won/lost/voided.
  *
- * These carry real state all over the app — "Done" on an event tile,
- * "+10%" catch-up on the standings, "Alive — worth 100 pts" and "Awaiting
- * result" on `/bets`, won/lost/voided on the bets list — and as stock
- * shadcn they were the only thin-hairline rounded objects left in a UI
- * otherwise built entirely from beveled plates. That mismatch is loud
- * precisely because they sit next to real plates (a badge beside the
- * beveled Edit/Cancel pair on `/bets` was the clearest case), and it made
- * a few of them read as tappable controls rather than as status.
+ * These are the one family in the app that is deliberately NOT a beveled
+ * plate. Almost every other surface here is raised or sunken chrome, and
+ * giving these a bevel too (an earlier pass did) stopped them reading as
+ * annotation and started them reading as small physical controls — a real
+ * problem where they sit beside actual buttons, as "Awaiting result" does
+ * next to Edit/Cancel on /bets, because it made a status look pressable.
+ * A tag is a label printed ON a plate, not another plate.
  *
- * Restyled at the primitive rather than at the ~10 call sites, which is the
- * same route `button.tsx` and `card.tsx` already took to get the bevel
- * treatment — one edit, and every badge in the app inherits it.
- *
- * `bevel-sunken` is shadow-only and needs a fill alongside it (see
- * globals.css): the coloured variants bring their own, and `outline` — the
- * neutral one — uses `bg-sunken`, so an unfilled chip reads as a recess in
- * the plate behind it rather than as a floating outline.
+ * The flat treatment lives in the `tag` utility in globals.css; the
+ * variants here only choose a `--tag-color`, so border, tint and text all
+ * move together and can't drift out of sync. Every variant is the same
+ * object in a different hue, which is what makes them read as one family
+ * rather than four unrelated chips.
  */
-const badgeVariants = cva(
-  [
-    "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm px-2 py-1 whitespace-nowrap",
-    // The one label register — a status chip is a label like any other, and
-    // 11px caps reads better outdoors than the 12px sentence case it was.
-    "hud-label",
-    "bevel-sunken border-0 transition-[color,box-shadow] [&>svg]:size-3",
-  ].join(" "),
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
-        secondary: "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
-        destructive: "bg-destructive text-white [a&]:hover:bg-destructive/90",
-        outline:
-          "bg-sunken text-muted-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-      },
+const badgeVariants = cva("tag hud-label [&>svg]:size-3", {
+  variants: {
+    variant: {
+      /** Notable / positive — a resolved event, a won bet, a catch-up bonus. */
+      default: "[--tag-color:var(--primary)]",
+      /** Quiet metadata — scoring mode, "Done", "Not started". */
+      secondary: "[--tag-color:var(--muted-foreground)]",
+      /** Bad or urgent — a lost bet, an event live right now. */
+      destructive: "[--tag-color:var(--destructive)]",
+      /** Neutral, pending — "Awaiting result", "Voided". */
+      outline: "[--tag-color:var(--muted-foreground)]",
     },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-);
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+});
 
 function Badge({
   className,

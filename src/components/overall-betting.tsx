@@ -287,7 +287,14 @@ export function OverallBetting({
                       {bet.status === "won" ? `Won ${bet.payout} pts` : "Lost"}
                     </Badge>
                   ) : (
-                    <Badge variant={alive ? "outline" : "destructive"}>
+                    <Badge
+                      // Alive is good news and sits opposite a red
+                      // "Eliminated", so it takes the positive tag colour
+                      // rather than the neutral one — a grey "Alive" against
+                      // a red "Eliminated" read as though only one of the
+                      // two states mattered.
+                      variant={alive ? "default" : "destructive"}
+                    >
                       {alive ? `Alive — worth ${overallPayoutValue(type, bet.switches)} pts` : "Eliminated"}
                     </Badge>
                   )}

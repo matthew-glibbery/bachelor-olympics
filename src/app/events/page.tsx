@@ -195,12 +195,12 @@ function EventsPageInner() {
                   >
                     <span className="relative block aspect-[4/3] w-full overflow-hidden rounded-sm bg-black/20">
                       {event.status === "scoring" ? (
-                        <Badge className="absolute top-1 right-1 z-10 gap-1 bg-destructive text-white">
-                          <span className="size-1.5 animate-pulse rounded-full bg-white" />
+                        <Badge variant="destructive" className="absolute top-1 right-1 z-10">
+                          <span className="size-1.5 animate-pulse rounded-full bg-current" />
                           Live
                         </Badge>
                       ) : event.status === "resolved" ? (
-                        <Badge className="absolute top-1 right-1 z-10 gap-1" variant="secondary">
+                        <Badge variant="secondary" className="absolute top-1 right-1 z-10">
                           <CheckCircle2 className="size-3" />
                           Done
                         </Badge>

@@ -66,17 +66,19 @@ const STATIC_LINKS = [
  * the bar instead of standing out as a different control. */
 function tabClassName(active: boolean) {
   return cn(
-    // Mobile: only the ACTIVE tab spends width on its label, so it grows to
-    // fit the word while the other four collapse to icon-only squares. Every
-    // tab used to be `flex-1` with a stacked icon-over-label, which is what
-    // forced the labels to be short enough for a ~70px column in the first
-    // place ("Ranking", "Boosts") — the compromise that made the app call
-    // the same feature two different names. Growing one tab instead means
-    // the real word always fits, and the four inactive tabs end up with a
-    // wider, squarer touch target than the cramped columns they replaced.
-    "flex items-center justify-center gap-1.5 rounded-xl py-2.5 transition-colors",
-    "hud-label",
-    active ? "flex-1 px-3" : "flex-none px-3.5",
+    // Every mobile tab is the same fixed width and shows its icon AND its
+    // word, always. An earlier pass had only the active tab expand to fit
+    // its label while the rest collapsed to icon-only — it fit the full
+    // vocabulary, but a tab bar whose geometry changes as you move through
+    // it reads as unsettled, so it's back to five equal columns.
+    //
+    // Labels are normal case at 10px here rather than the app's tracked
+    // uppercase `hud-label`: five columns share a phone's width, and caps
+    // plus letter-spacing is exactly what pushed "Leaderboard" and
+    // "Multipliers" into an ellipsis. Verified at 390px that all five fit
+    // without truncating. The `sm:` pill row below has room for the app's
+    // normal label register and uses it.
+    "flex flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 text-[10px] leading-tight font-medium transition-colors",
     "sm:font-display sm:flex-none sm:flex-row sm:items-center sm:gap-1.5 sm:rounded-md sm:px-3 sm:py-1.5 sm:text-xs sm:tracking-wider sm:uppercase",
     active
       ? // A small glow on the active mobile tab (real shadow-* utilities,
@@ -139,11 +141,7 @@ export function AppNav() {
               className={tabClassName(active)}
             >
               <Icon className="size-5 sm:size-4" strokeWidth={active ? 2.5 : 2} />
-              {/* Only the active tab spends horizontal room on its word.
-                  That's what lets every tab use the app's real vocabulary
-                  instead of a squeezed synonym, and it gives the four
-                  inactive tabs a wider, easier touch target. */}
-              <span className={cn("truncate sm:hidden", !active && "sr-only")}>{label}</span>
+              <span className="max-w-full truncate sm:hidden">{label}</span>
               <span className="hidden sm:inline">{label}</span>
             </Link>
           );
@@ -162,9 +160,7 @@ export function AppNav() {
             className={tabClassName(pathname === "/setup")}
           >
             <Wrench className="size-5 sm:size-4" strokeWidth={pathname === "/setup" ? 2.5 : 2} />
-            <span className={cn("truncate sm:hidden", pathname !== "/setup" && "sr-only")}>
-              Tools
-            </span>
+            <span className="max-w-full truncate sm:hidden">Tools</span>
             <span className="hidden sm:inline">Tools</span>
           </Link>
         ) : selectedPlayer ? (
@@ -190,9 +186,7 @@ export function AppNav() {
             className={tabClassName(pathname === "/setup")}
           >
             <UserRound className="size-5 sm:size-4" strokeWidth={pathname === "/setup" ? 2.5 : 2} />
-            <span className={cn("truncate sm:hidden", pathname !== "/setup" && "sr-only")}>
-              Player settings
-            </span>
+            <span className="max-w-full truncate sm:hidden">Settings</span>
             <span className="hidden sm:inline">Player settings</span>
           </Link>
         )}

@@ -422,6 +422,39 @@
   font-variation-settings: "wght" 400;
 }
 
+/* Status tags — "In progress", "Absolute", "+30%", "Awaiting result",
+   "Alive — worth 100 pts", "Done", "Won"/"Lost".
+
+   Deliberately the one thing in this app that is NOT a beveled plate.
+   Nearly every surface here is raised or sunken chrome, and when these were
+   given a bevel too they stopped reading as annotation and started reading
+   as small physical controls — several of them sit next to real buttons,
+   which made it genuinely ambiguous whether "Awaiting result" was something
+   you could press. A tag is a label printed ON the plate, not another plate.
+
+   So: no shadow at all, a sharper corner than any plate in the app uses
+   (2px against the plates' 6-12px), and a flat tint of its own semantic
+   colour rather than a fill from the surface palette. The colour is driven
+   by a single `--tag-color` so every variant is the same object in a
+   different hue — set it via `[--tag-color:var(--destructive)]` and the
+   border, tint and text all follow together and can't drift apart. */
+@utility tag {
+  --tag-color: var(--muted-foreground);
+  display: inline-flex;
+  width: fit-content;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+  border-radius: 2px;
+  border: 1px solid color-mix(in oklab, var(--tag-color) 55%, transparent);
+  background-color: color-mix(in oklab, var(--tag-color) 14%, transparent);
+  color: var(--tag-color);
+  padding: 0.1875rem 0.375rem;
+  box-shadow: none;
+}
+
 /* The marquee voice -- Bungee, the arcade-signage face that the cartridge
    logo is set in. Reserved for the handful of moments that are meant to read
    as the game's title rather than as UI: `/start`'s "Press Start", and the
