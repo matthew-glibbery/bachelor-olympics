@@ -65,6 +65,22 @@ export function CharacterRender({
 
   return (
     <div className={cn("relative h-full w-full", className)}>
+      {/* A matching glow behind the render — a perfect circle, diameter
+          equal to the container's own height, centered. The generated
+          clips/images already bake this same radial gradient (the
+          player's own color fading to the app's navy) into their pixels,
+          but only out to the video's rectangular edge — character-clip-
+          mask's circular fade then reveals raw page background past that
+          edge, which read as a harsh seam. This picks up exactly where
+          the baked-in gradient leaves off instead of cutting straight to
+          the starfield. */}
+      <div
+        aria-hidden
+        className="absolute top-1/2 left-1/2 aspect-square h-full -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          background: `radial-gradient(circle, ${color} 0%, transparent 70%)`,
+        }}
+      />
       {photoUrl ? (
         /* Uploaded player photo — intrinsic size unknown ahead of time and
            there's a handful of these at most, so next/image's optimizer
