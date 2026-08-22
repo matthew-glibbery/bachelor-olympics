@@ -74,58 +74,58 @@ export function CharacterRender({
     // problem entirely: the video/photo's edge reads as an intentional
     // portrait-frame boundary, not a bleed that has to match anything.
     //
-    // The plain `bevel-sunken` 2px inset shadow turned out to disappear
-    // against a busy full-bleed photo/video at podium/roster size — it read
-    // as "no frame at all," the exact "doesn't look like it worked"
-    // complaint. A real, visible ring in the player's own colour (same
-    // colour their rank badge/chart line/podium step already use) plus a
-    // drop shadow reads as a deliberate frame at any size, not just under
-    // close inspection.
-    <div
-      className={cn("bg-sunken relative h-full w-full overflow-hidden rounded-lg", className)}
-      style={{ boxShadow: `0 4px 12px -2px oklch(0 0 0 / 45%), inset 0 0 0 2px ${color}` }}
-    >
-      {photoUrl ? (
-        /* Uploaded player photo — intrinsic size unknown ahead of time and
-           there's a handful of these at most, so next/image's optimizer
-           buys nothing; a plain <img> is the right call.
+    // `bevel-sunken` is a box-shadow, and a full-bleed photo/video painted
+    // as this element's own child paints *after*, and right up to, the same
+    // edge — covering the shadow outright rather than sitting inside it.
+    // That's the actual reason the frame read as "not there": not that the
+    // treatment was wrong, but that the media was drawn on top of it. Fix
+    // is a real mat, not a different effect — the bevel lives on this outer
+    // box with real padding, so the media (in its own inner, clipped box)
+    // physically can't reach the bevelled edge.
+    <div className={cn("bevel-sunken bg-sunken h-full w-full rounded-lg p-1", className)}>
+      <div className="relative h-full w-full overflow-hidden rounded-md">
+        {photoUrl ? (
+          /* Uploaded player photo — intrinsic size unknown ahead of time and
+             there's a handful of these at most, so next/image's optimizer
+             buys nothing; a plain <img> is the right call.
 
-           Faded out while the video is actively showing, not just left
-           opaque underneath it, so the video's own opacity fade-in isn't
-           fighting a fully opaque photo of a different crop underneath it
-           (a ghosted double-exposure) — both layers now sit on the same
-           bounded plate, so hiding one while the other shows is enough on
-           its own, no edge-masking trick needed either side. */
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={photoUrl}
-          alt={name}
-          className={cn("h-full w-full object-cover transition-opacity duration-300", showVideo ? "opacity-0" : "opacity-100")}
-        />
-      ) : (
-        <ProceduralBust
-          name={name}
-          nickname={nickname}
-          color={color}
-          number={number}
-          pose={pose}
-          idle={idle}
-        />
-      )}
-      {videoUrl ? (
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          loop
-          muted
-          playsInline
-          poster={photoUrl ?? undefined}
-          className={cn(
-            "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
-            showVideo ? "opacity-100" : "opacity-0",
-          )}
-        />
-      ) : null}
+             Faded out while the video is actively showing, not just left
+             opaque underneath it, so the video's own opacity fade-in isn't
+             fighting a fully opaque photo of a different crop underneath it
+             (a ghosted double-exposure) — both layers now sit on the same
+             bounded plate, so hiding one while the other shows is enough on
+             its own, no edge-masking trick needed either side. */
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photoUrl}
+            alt={name}
+            className={cn("h-full w-full object-cover transition-opacity duration-300", showVideo ? "opacity-0" : "opacity-100")}
+          />
+        ) : (
+          <ProceduralBust
+            name={name}
+            nickname={nickname}
+            color={color}
+            number={number}
+            pose={pose}
+            idle={idle}
+          />
+        )}
+        {videoUrl ? (
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            loop
+            muted
+            playsInline
+            poster={photoUrl ?? undefined}
+            className={cn(
+              "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
+              showVideo ? "opacity-100" : "opacity-0",
+            )}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
