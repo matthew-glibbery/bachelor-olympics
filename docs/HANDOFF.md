@@ -2,6 +2,184 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-22 (2) — Real webfonts, a type scale, and a design-review pass
+
+User ask: improve the UI generally, with three specifics — the font
+selection should be more on theme; the fonts and some icons ("the let's go
+arrow on player selection") look wrong on mobile, "like it's a different
+font"; and `/start` wants a more appropriate face for "Bachelor Party" and
+"Press Start". Plus: have another agent review the work, and put agents on
+making it installable as a web app (that last one is the PWA section below,
+merged into this branch). 164 tests (unchanged — no domain logic touched),
+lint/typecheck/build green.
+
+### The mobile font bug was real, and it was the tokens
+
+Every font token in `globals.css` was a **system stack** headed by
+`"Arial Black"` / `"Helvetica Neue"` / `ui-monospace, "SF Mono"`. None of
+those faces ship on iOS or Android. So every phone silently fell through to
+its own default UI font while desktop Safari/Chrome resolved the real
+thing — the fonts genuinely *were* different on mobile. Not a rendering
+quirk, not a weight issue: a different typeface.
+
+- **`src/app/fonts.ts`** (new) loads three self-hosted faces through
+  `next/font/local`, pointed at the woff2 files the `@fontsource/*` packages
+  ship. **Deliberately not `next/font/google`**: `fonts.googleapis.com` is
+  blocked outright on this network (connection-level, not a cert problem —
+  `fonts.gstatic.com` is fine), and that loader resolves families at *build*
+  time, so a Google-backed font turns every local build and any CI runner
+  behind the same proxy into a hard failure. npm works with
+  `NODE_EXTRA_CA_CERTS=<repo>/zscaler-ca.pem`, which is how the packages got
+  installed. 88KB total for all three.
+- Three distinct voices, not one font in three sizes: **Bungee** for the
+  marquee (new `--font-title` — the cartridge logo and "Press Start" only),
+  **Archivo** for display labels and body, **Saira** for scoreboard numerals
+  (semi-condensed, so the Pts/×/Total columns survive a phone).
+- **`--font-display` carries `"wght" 800` on the token itself.** It used to
+  resolve to Arial Black, which is heavy by definition, so not one of its 47
+  call sites ever set a weight class — Archivo is variable and would have
+  rendered all 47 at a thin 400. Confirmed against the *built* CSS that
+  Tailwind v4 actually emits `--font-*--font-variation-settings`, and that
+  no call site sets a competing weight utility. `--font-score` deliberately
+  does NOT carry one, because one call site does combine it with
+  `font-medium` and variation-settings would silently win.
+- **Verified on an emulated iPhone**, not inferred from desktop: UA + touch +
+  393px metrics via CDP, then read the computed styles back. All three woff2
+  fetched 200; `hud-label` → `fontDisplay` 11px `"wght" 700`; `hud-copy` →
+  `fontDisplay` 15px; `font-score` → `fontScore`; `scrollWidth == innerWidth`.
+
+### The logo, and the "different font" it was hiding
+
+`game-logo.tsx` used `textLength` + `lengthAdjust="spacingAndGlyphs"` with a
+comment saying it pinned the logo "no matter which font resolves." That was
+never really working — it pinned the *width* while the letterforms
+underneath changed completely, which is exactly why the logo looked wrong on
+phones. Now the face is guaranteed, so `lengthAdjust` is `"spacing"` (flexes
+tracking, never distorts glyphs), and the two words' widths are their
+**measured** natural advance in Bungee (851 / 521 at size 150, read via
+`getComputedTextLength` in a real browser). The old 950/480 were inherited
+from a different font and tracked BACHELOR ~14px looser per gap while
+squeezing PARTY ~10px tighter — one logo, two disagreeing letter-spacings.
+
+### The arrow
+
+`/select`'s "Let's go ▶" was a literal U+25B6. iOS renders that codepoint
+with its colour **emoji** font, so the arrow arrived on phones as a
+blue-and-white emoji triangle matching nothing else on screen. Now a lucide
+`<Play>`, per the repo's lucide-only rule. (Checked the other glyphs while
+in there: the BONUS tile's icon is already a lucide `PartyPopper` — it just
+reads emoji-like at tile scale — and the `✓`/`○` in `<option>` elements
+can't be SVG anyway.)
+
+### Type scale — the design review's headline finding
+
+An independent reviewer read every screen at both widths. Its central point:
+the app had grown 42 `text-xs`, 19 `text-[10px]`, 11 `text-[9px]`, a
+`text-[8px]`, and **nine** tracking values, nearly all small tracked
+uppercase — four distinct uppercase registers inside a 5px size range on the
+leaderboard alone, separated by nothing but tracking. The eye hit the gold
+title and found no second stop, so every screen read at one volume.
+
+Two new utilities, and only two: **`.hud-label`** (11px / 0.1em / wght 700 /
+caps — the ONE label register) and **`.hud-copy`** (15px, sentence case —
+the ONE reading register). Applied at the three components that set the
+register for everything else (`Stat`, `GameScreen`, `Panel`), then swept
+across 23 more class strings.
+
+**Trap worth knowing about:** `.hud-label` sets a font-size, so pairing it
+with any `text-*` utility leaves two size declarations racing on stylesheet
+order — and tailwind-merge *cannot* arbitrate, because it doesn't know
+`.hud-label` is a size. The sweep hit this twice (`/select`'s confirm CTA,
+`/start`'s tagline); both were pulled back out, and the hazard is written
+into the utility's own comment. Same family of bug as the `text-extruded`
+one this file already records.
+
+Worst single instance fixed: the standings footnote was an explanatory
+*sentence* set in 9px uppercase at 0.15em, on a phone, used outdoors.
+
+### Colour, vocabulary, and controls
+
+- **Gold had nine unrelated jobs, so it had none.** Most visibly the
+  adjusted score was `text-primary` on *every* row — the colour that should
+  mean "winning" painted on last place as brightly as first. Gold is the
+  leader's now; everyone else is foreground.
+- **One word per concept.** The mobile bar said "Boosts" and "Ranking" while
+  the page titles said "Multipliers" and "Leaderboard" — one feature, two
+  names depending on screen width. "Boost" appears **zero** times in
+  `PRODUCT_SPEC.md` against 23 for "multiplier", and per CLAUDE.md the spec
+  owns this vocabulary, so the invented short words went. The width problem
+  that forced them is solved properly: on mobile only the **active** tab
+  spends room on its label and grows to fit; the rest collapse to icon-only
+  with an `aria-label` (which does not recreate the WCAG 2.5.3 concern the
+  old code documents — that rule is about disagreeing with *visible* text,
+  and there now is none). Inactive tabs also end up with a bigger touch
+  target than the cramped columns they replaced.
+- **`/` stopped repeating `/start`'s marketing tagline** in the most valuable
+  40px of the primary screen. That slot is a live standing readout now
+  ("3rd · 127 pts · 47 behind Andrew"), falling back to the tagline before
+  anyone is picked or scored.
+- **`Badge` restyled at the primitive** — the same route `button.tsx` and
+  `card.tsx` already took. These carry real state everywhere (Done, +10%
+  catch-up, "Alive — worth 100 pts", "Awaiting result", won/lost/voided) and
+  were the last thin-hairline rounded objects in a UI made of beveled
+  plates. One edit, ~10 call sites inherit it.
+- **Multiplier bar got real step controls.** Eleven segments share a phone's
+  width, so a notch is ~30×24px — no layout work makes that a 44px target,
+  and this control is operated outdoors by people several drinks in where a
+  mis-tap silently moves budget. Beveled −/+ plates either side, segments
+  24px → 36px tall. Both new buttons are `tabIndex={-1}` + `aria-hidden` for
+  the same reason the segment buttons already are: the `role="slider"` is
+  the one accessible control and owns the arrow keys.
+- The multiplier **label column was a flat `w-28`** with a comment claiming
+  it fit the longest name. It didn't — at 1280px four of eight rows
+  truncated while ~600px sat empty. Widens with the breakpoint now.
+- `/bets`: "Cancel" was a flat `ghost` button (the app's only unbeveled
+  control) beside a beveled "Edit", destructive, at ~45×20px. Now an equal
+  plate. Its subtitle broke as "PER-" / "EVENT"; `text-balance` can't fix
+  that because a real hyphen is a valid break opportunity, so the character
+  is U+2011 now.
+
+### Tooling
+
+`scripts/devtools/` now honours `BASE_URL` / `PORT` / `CDP_PORT`, so a second
+worktree running its own dev server screenshots **its** app rather than
+whatever happens to hold port 3000. That matters as soon as two agents work
+in parallel, which is how this session ran.
+
+### Still open — the review's remaining findings
+
+Ranked roughly by the reviewer's own impact ordering:
+
+1. **The Recharts progress chart is the biggest foreign object left.**
+   Hairline grid, default ticks, an 8-item wrapping legend eating ~15% of
+   the phone viewport, and 8 series bunching into an unreadable clump between
+   x=3 and x=5 at 430px. The y-axis is quantitative when the question players
+   actually ask is ordinal ("did I move up?"). Suggested replacement: an
+   in-world **rank ladder** — one row per player, position after each event
+   as chunky stepped segments, reusing `multiplier-bar.tsx`'s vocabulary; rows
+   self-label so the legend disappears. **An agent was dispatched to build
+   this and died on an account session limit before writing a single line —
+   the working tree was verified clean afterwards, so there is nothing
+   half-finished to untangle.** This is the top item for the next session.
+2. **`/bets` is the weakest screen.** It opens with rules rather than state,
+   its overall-bets table is 6-of-8 rows of em-dashes pre-lock, and "Your
+   picks" sits at the *bottom*. Invert it: lead with the status readout, put
+   the rules behind a disclosure, make the Win/Place columns real toggle
+   cells.
+3. **Native `<select>` × 11.** The closed control is styled but has no
+   chevron and throws an OS wheel over the console on iOS. `/select` and
+   `overall-betting.tsx` already show the right answer (a roster of plates).
+   Groom-only admin rows can stay native.
+4. **Rank chips on the standings are lying** — they use `chartColors`
+   *identity* colours but, sitting in a rank badge, read as a green→red
+   status ramp. Make them read as identity (a ring, matching the avatar) or
+   make them a real rank ramp.
+5. **`/events` tiles carry almost no information** — no status band, no "your
+   multiplier", no winner on finished ones.
+6. **`/start`'s logo has no relationship to the boot video** (arbitrary
+   groom-uploaded content), and `/select` still has ~200px of dead space
+   between the roster and the bust.
+
 ## 2026-08-22 — Installable PWA (manifest, icons, iOS standalone, safe areas)
 
 Makes the app add-to-home-screen-able so the eight players run it as an app
