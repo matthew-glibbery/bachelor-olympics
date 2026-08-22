@@ -4,8 +4,6 @@
  *
  *   pnpm run gen:char:status
  *   pnpm run gen:char:image     -- "Matthew" reference-photos/matthew.jpg
- *   pnpm run gen:char:image     -- "Cassandra" reference-photos/cassandra.jpg
- *   pnpm run gen:char:image     -- "Bailey" reference-photos/bailey.jpg
  *   pnpm run gen:char:clip      -- "Matthew" fullbody
  *   pnpm run gen:char:composite -- victory "Matthew"
  *   pnpm run gen:char:clip      -- "Matthew" victory
@@ -17,10 +15,17 @@
  * Deliberately staged rather than one big "do everything" command — per
  * docs/VISUAL_SPEC.md, the full-body image needs sign-off before spending
  * Veo calls on clips, and clips need a local look before they're pushed
- * live. Cassandra (the bride) and Bailey (the dog) are image-only guests
- * (subjects.ts) — they never get their own fullbody/victory clip, only an
- * image used as extra reference material when composing the victory and
- * boot scenes that include everyone.
+ * live.
+ *
+ * Victory clips: every player except Tyler (not attending the weekend —
+ * victoryBeats.ts) gets a composite scene naming and defeating the real
+ * rest of that same seven-player cast, so `gen:char:composite -- victory
+ * <player>` is now a required step for ALL of them, not just Matthew — the
+ * old "composite is Matthew-only, everyone else gets a solo clip with
+ * generic rivals" behavior is gone. Matthew's beat additionally brings in
+ * Cassandra (the bride) and Bailey (the dog), who otherwise only appear in
+ * the shared boot scene — see victoryBeats.ts for the actual per-player
+ * content and cmdComposite below for how the reference-image list is built.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -31,8 +36,8 @@ import {
   fullBodyPrompt,
   headshotPrompt,
   soloClipPrompt,
-  victoryScenePrompt,
-  victorySceneClipPrompt,
+  namedVictoryScenePrompt,
+  namedVictorySceneClipPrompt,
   bootScenePrompt,
   bootSceneClipPrompt,
   CLIP_TYPES,
@@ -43,6 +48,7 @@ import { uploadClipAndSet, uploadPhotoAndSet } from "./players";
 import { uploadBootClipAndSet } from "./appSettings";
 import { resolveSubject, allSubjects, SPECIAL_SUBJECTS, type Subject } from "./subjects";
 import { FULLBODY_ACTIONS } from "./outfits";
+import { VICTORY_BEATS, VICTORY_EXCLUDED } from "./victoryBeats";
 
 process.loadEnvFile?.(".env.local");
 
@@ -150,6 +156,28 @@ function guestFullBodies(): Array<{ base64: string; mimeType: string }> {
   return SPECIAL_SUBJECTS.map((s) => readFullBody(s));
 }
 
+/** The real rest of the cast for a player's victory clip — every other
+ * player, minus whoever's excluded (victoryBeats.ts's VICTORY_EXCLUDED).
+ * Order follows allSubjects()' name-sorted roster, so the "who's flattened"
+ * list reads in a stable, predictable order across regenerations. */
+async function victoryRivalsFor(subject: Subject): Promise<Subject[]> {
+  const subjects = await allSubjects();
+  return subjects.filter(
+    (s) => s.kind === "player" && s.key !== subject.key && !VICTORY_EXCLUDED.has(s.key),
+  );
+}
+
+function assertVictoryEligible(subject: Subject) {
+  if (VICTORY_EXCLUDED.has(subject.key)) {
+    throw new Error(
+      `${subject.name} isn't part of the victory-clip cast (victoryBeats.ts) — ` +
+        `he isn't attending the actual weekend, so there's no victory clip for ` +
+        `him and the others don't defeat him either. Remove him from ` +
+        `VICTORY_EXCLUDED there if that changes.`,
+    );
+  }
+}
+
 async function cmdComposite(kind: string, nameOrId?: string) {
   if (kind === "boot") {
     const subjects = await allSubjects();
@@ -172,19 +200,33 @@ async function cmdComposite(kind: string, nameOrId?: string) {
   if (!nameOrId) throw new Error(`usage: gen:char:composite -- ${kind} <player>`);
   const subject = await resolveSubject(nameOrId);
   if (subject.kind !== "player") throw new Error(`${kind} composite is per-player — "${nameOrId}" isn't a player`);
-  // Cassandra and Bailey only appear in Matthew's victory clip (he's the
-  // groom, they belong in his moments specifically) and the shared boot
-  // scene — not every player's clips. Explicit product decision, not a
-  // technical limitation.
-  if (subject.key !== "matthew") {
+  assertVictoryEligible(subject);
+
+  const beat = VICTORY_BEATS[subject.key];
+  if (!beat) {
     throw new Error(
-      `Cassandra/Bailey only appear in Matthew's ${kind} clip, not ${subject.name}'s — run gen:char:clip directly for a solo clip instead (no composite step needed).`,
+      `No victory beat written for ${subject.name} in victoryBeats.ts — every ` +
+        `eligible player needs one (this throws instead of silently using a ` +
+        `generic scene, since the whole point is that each one is bespoke).`,
     );
   }
 
-  const images = [readFullBody(subject), ...guestFullBodies()];
-  const prompt = victoryScenePrompt(subject.name);
-  console.log(`Generating ${kind} scene for ${subject.name} with Cassandra + Bailey...`);
+  const rivals = await victoryRivalsFor(subject);
+  const rivalNames = rivals.map((r) => r.name);
+  // Cassandra and Bailey only join Matthew's scene (he's the groom, they
+  // belong in his moment specifically) and the shared boot scene — not
+  // every player's clip. Explicit product decision, not a technical
+  // limitation.
+  const isMatthew = subject.key === "matthew";
+  const guestImages = isMatthew ? guestFullBodies() : [];
+  const guestNames = isMatthew ? SPECIAL_SUBJECTS.map((g) => g.name) : [];
+
+  const images = [readFullBody(subject), ...rivals.map((r) => readFullBody(r)), ...guestImages];
+  const prompt = namedVictoryScenePrompt(subject.name, rivalNames, guestNames, beat.pose(rivalNames));
+  console.log(
+    `Generating victory scene for ${subject.name} vs. ${rivalNames.join(", ")}` +
+      `${isMatthew ? " (plus Cassandra + Bailey)" : ""}...`,
+  );
   const { base64 } = await generateImage(prompt, images);
   const out = path.join(assetDir(subject.key), `${kind}-scene.png`);
   writeFileSync(out, Buffer.from(base64, "base64"));
@@ -204,15 +246,23 @@ async function cmdClip(nameOrId: string, type: string) {
   let seed: { base64: string; mimeType: string };
   let prompt: string;
   if (clipType === "victory") {
-    const scenePath = path.join(dir, `${clipType}-scene.png`);
-    if (existsSync(scenePath)) {
-      seed = { base64: readFileSync(scenePath).toString("base64"), mimeType: "image/png" };
-      prompt = victorySceneClipPrompt(subject.name);
-    } else {
-      console.log(`No ${clipType}-scene.png for ${subject.name} — falling back to the solo full-body image (no Cassandra/Bailey). Run gen:char:composite -- ${clipType} "${subject.name}" first if you want them in it.`);
-      seed = readFullBody(subject);
-      prompt = soloClipPrompt(clipType, subject.name, background);
+    assertVictoryEligible(subject);
+    const beat = VICTORY_BEATS[subject.key];
+    if (!beat) {
+      throw new Error(`No victory beat written for ${subject.name} in victoryBeats.ts.`);
     }
+    const scenePath = path.join(dir, `${clipType}-scene.png`);
+    if (!existsSync(scenePath)) {
+      throw new Error(
+        `No ${clipType}-scene.png for ${subject.name} — victory clips are ` +
+          `composite-only now (every player's clip names the real rest of the ` +
+          `cast, which needs that scene image first). Run ` +
+          `\`gen:char:composite -- victory "${subject.name}"\` before this.`,
+      );
+    }
+    seed = { base64: readFileSync(scenePath).toString("base64"), mimeType: "image/png" };
+    const rivals = await victoryRivalsFor(subject);
+    prompt = namedVictorySceneClipPrompt(subject.name, beat.action(rivals.map((r) => r.name)));
   } else {
     seed = readFullBody(subject);
     const action = FULLBODY_ACTIONS[subject.key];

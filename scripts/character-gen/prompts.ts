@@ -9,6 +9,8 @@
  * those three moments without giving them their own player-style clip set.
  */
 import type { SubjectKind } from "./subjects";
+import { nameList } from "./format";
+import { VICTORY_BEACH_BACKGROUND } from "./background";
 
 /** Appended to every full-body/headshot prompt. Iterated four times against
  * real renders before landing here:
@@ -158,10 +160,11 @@ ${renderStyle(background)}`;
 
 export type ClipType = "fullbody" | "victory";
 
-/** Solo clip prompts — apply to the plain single-subject full-body image, no
- * Cassandra/Bailey. Used for fullbody always, and for victory only as a
- * fallback when no composite scene has been generated yet (see cli.ts's
- * `clip` command). */
+/** Solo clip prompts — apply to the plain single-subject full-body image.
+ * Used for fullbody always. NOT used for victory any more (see below) —
+ * kept in this Record only because ClipType still has two members and the
+ * type wants both covered; calling it for "victory" is a bug, not a
+ * fallback, so it throws instead of quietly generating the wrong thing. */
 const soloClipPrompts: Record<ClipType, (name: string, background: string, action?: string) => string> = {
   fullbody: (name, background, action) => `Using the attached stylized 3D character image of ${name}, generate a
 short, seamlessly loopable animation: ${action ?? "a silly, signature move related to their outfit/character (e.g. a trick, a flex, a move that fits who they are)"}
@@ -178,13 +181,15 @@ as the reference image. The camera is completely static and locked off
 for the entire clip — it must not pan, orbit, rotate, dolly, or zoom, not
 even slightly; only the character moves, the camera frame never changes.`,
 
-  victory: (name, background) => `Using the attached stylized 3D character image of ${name}'s low-poly
-N64-era character, generate a video: ${name}'s character performs a
-triumphant, comedic victory move, then playfully stomps/squashes a small
-group of generic same-style opposing characters, who comically flatten
-like inflatable toys and pop back up dazed. ${background} Cartoon physics,
-upbeat and silly, not aggressive or realistic — this is a celebratory gag,
-not a fight.`,
+  victory: () => {
+    throw new Error(
+      "Victory clips no longer have a generic single-character fallback — " +
+        "every player's victory clip names and defeats the real rest of the " +
+        "cast (victoryBeats.ts), which needs the composite scene step first: " +
+        "run `gen:char:composite -- victory <player>`, then " +
+        "`gen:char:clip -- <player> victory`.",
+    );
+  },
 };
 
 export function soloClipPrompt(type: ClipType, name: string, background: string, action?: string): string {
@@ -194,37 +199,42 @@ export function soloClipPrompt(type: ClipType, name: string, background: string,
 /** Composite *scene image* prompts — combine several existing images
  * (Nano Banana, multi-image input) into one still frame before it's handed
  * to Veo as a single seed image. Keeps every character's likeness anchored
- * to its own reference rather than asking Veo to invent Cassandra/Bailey
- * from a text description alone. Still on the original "arena" background
- * language — docs/VISUAL_SPEC.md's newer Lake Tahoe beach direction for
- * victory/boot hasn't been threaded through here yet, deliberately lowest
- * priority (see that doc's per-player-clip generation order). */
-export function victoryScenePrompt(playerName: string): string {
-  return `Using the attached stylized N64-style character images — ${playerName}'s
-character, Cassandra's character (the bride), and Bailey's character (the
-dog) — compose a single wide victory scene. Keep every character's face,
-proportions, outfit, and (for Bailey) breed/markings identical to their own
-reference image. ${playerName}'s character stands center, triumphant, arms
-raised, a medal around their neck. Cassandra and Bailey stand to the side,
-visibly cheering and celebrating for ${playerName} — not part of the
-victory gag, just happy spectators. Leave room in the composition for a
-small group of generic, same-style rival characters off to ${playerName}'s
-other side, since the video step will animate them getting comically
-squashed. Colorful stylized N64-era sports-game arena background, medal/
-trophy accents, bright primary-color lighting. Full body, every character
-fully visible, front-facing.`;
+ * to its own reference rather than asking Veo to invent anyone from a text
+ * description alone.
+ *
+ * Generalized from a Matthew-only function to cover every player, on
+ * direct ask: each player's victory clip now names and defeats the real
+ * rest of the cast (not "generic same-style opposing characters"), all on
+ * the same VICTORY_BEACH_BACKGROUND (docs/VISUAL_SPEC.md's Lake Tahoe
+ * beach direction, threaded through here — see background.ts). `pose` and
+ * `action` are the bespoke per-player content from victoryBeats.ts; this
+ * function only owns the shared scaffolding (which images are attached,
+ * the background, the likeness-fidelity instruction, the safety/tone
+ * footer) so that scaffolding can't drift between players.
+ *
+ * `guestNames` is empty for everyone except Matthew, whose beat also
+ * brings Cassandra and Bailey into the reference-image list and the final
+ * pose — see cmdComposite in cli.ts for where that list gets built. */
+
+export function namedVictoryScenePrompt(
+  winnerName: string,
+  rivalNames: string[],
+  guestNames: string[],
+  pose: string,
+): string {
+  const cast = [winnerName, ...rivalNames, ...guestNames];
+  return `Using the attached stylized N64-style character images — ${nameList(cast)} —
+compose a single wide victory scene on ${VICTORY_BEACH_BACKGROUND}. Keep
+every character's face, proportions, outfit, and (for Bailey, if present)
+breed/markings identical to their own reference image. ${pose} Full body,
+every character fully visible, front-facing.`;
 }
 
-export function victorySceneClipPrompt(playerName: string): string {
-  return `Using the attached composite scene image (${playerName} at center with
-Cassandra and Bailey cheering beside them, and room for rival characters),
-animate it into a video: ${playerName}'s character performs a triumphant,
-comedic victory move, then playfully stomps/squashes the small group of
-generic rival characters, who comically flatten like inflatable toys and
-pop back up dazed — while Cassandra and Bailey, unharmed, cheer and
-celebrate the whole time. Simple dynamic camera, one push-in on
-${playerName}. Cartoon physics, upbeat and silly, not aggressive or
-realistic — a celebratory gag, not a fight.`;
+export function namedVictorySceneClipPrompt(winnerName: string, action: string): string {
+  return `Using the attached composite scene image, animate it into a video: ${action}
+Simple dynamic camera, one gentle push-in on ${winnerName}. Cartoon physics,
+upbeat and silly, not aggressive or realistic — this is a celebratory gag,
+not a fight, and nobody is really hurt.`;
 }
 
 export function bootScenePrompt(names: string[]): string {
