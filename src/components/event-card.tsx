@@ -283,17 +283,17 @@ export function EventCard({
 
   return (
     <div className="bevel-raised bg-card flex flex-col gap-4 rounded-md p-4">
+      {/* Photo big at top, banner-style — this card is now the sole
+          per-event view (events/page.tsx enters it after a tile is picked,
+          rather than showing it small alongside a thumbnail strip), so the
+          photo gets the same "hero image" treatment the event itself earns
+          once you've actually opened it. */}
+      {event.photo_url ? (
+        <div className="border-bevel-dark relative -mx-4 -mt-4 aspect-[16/9] w-[calc(100%+2rem)] overflow-hidden rounded-t-md border-b-2 sm:aspect-[21/9]">
+          <Image src={event.photo_url} alt="" fill sizes="100vw" className="object-cover" />
+        </div>
+      ) : null}
       <div className="flex items-start gap-3">
-        {event.photo_url ? (
-          <Image
-            src={event.photo_url}
-            alt=""
-            width={64}
-            height={64}
-            className="border-bevel-dark shrink-0 rounded-md border-2 object-cover"
-            style={{ width: 64, height: 64 }}
-          />
-        ) : null}
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="extruded text-lg sm:text-xl">{event.name}</h2>
