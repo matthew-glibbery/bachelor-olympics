@@ -29,13 +29,15 @@ screen degrades gracefully to a plain fallback until real clips exist):
 - `supabase/migrations/0011_character_media.sql` (`character_portrait_url`
   dropped again in `0013_drop_character_portrait.sql` — unused, nothing ever
   read it, the roster strip uses `photo_url` directly) +
-  `0012_character_confirm_video.sql` — `character_select_video_url` /
-  `character_fullbody_video_url` / `character_confirm_video_url` /
-  `character_victory_video_url` on `players`, `boot_video_url` on
+  `0012_character_confirm_video.sql` — `character_fullbody_video_url` /
+  `character_victory_video_url` on `players` (`character_select_video_url` /
+  `character_confirm_video_url` also still exist as unused DB columns —
+  the select-clip and confirm-clip concepts were cut per explicit product
+  decision; picking a character on `/select` now routes straight into the
+  app, no full-bleed confirm clip, and the roster-strip busts are a plain
+  photo/procedural render, no hover clip), `boot_video_url` on
   `app_settings`, and a `videos` Storage bucket (same trusted-friends RLS
-  model as `photos`). `character_confirm_video_url` plays once on `/select`
-  right after hitting "Let's go," before routing into the app — distinct
-  from the fullbody clip, which idles while still choosing.
+  model as `photos`).
 - `src/components/identity-gate.tsx` — wraps the whole app (`layout.tsx`).
   Until this device has picked a player, redirects to `/start` (which leads
   into `/select`) instead of rendering the requested page. Bypasses itself
@@ -94,13 +96,10 @@ conventional button.
 - Selecting a player swaps the large character render in the center of the
   screen to their **fullbody clip**, looping continuously, plus their name
   in a name-plate below it.
-- **Confirming plays a distinct clip**: hitting "Let's go" plays
-  `character_confirm_video_url` full-bleed once — the character celebrating
-  being picked, a different clip from the idling fullbody render. The
-  screen must not advance to the next screen until that clip finishes
-  playing (an explicit tap/key skip is fine and doesn't count as "not
-  finished" — the point is no *premature auto-advance*, not that skipping
-  is disallowed).
+- Hitting "Let's go" routes straight into the app — no separate confirm
+  clip. (An earlier version of this spec had a full-bleed "you're playing
+  as ___" celebration clip here; cut per explicit product decision, along
+  with the roster-strip hover clip below.)
 
 ## Multiplier screen
 
@@ -128,10 +127,13 @@ rest of the cast, played back whenever they win any event. Revisit this
 only if a cheap, fast, reliable way to generate matchup-specific clips shows
 up later — don't build for that case now.
 
-## The four per-player clips + shared boot clip
+## The two per-player clips + shared boot clip
 
 Generation priority, cheapest/most-certain first (see
-`scripts/character-gen/README.md` for the actual commands):
+`scripts/character-gen/README.md` for the actual commands). The select and
+confirm clips originally planned here were cut per explicit product
+decision — the roster strip and the "Let's go" action are both a plain,
+clip-free interaction now.
 
 1. **Fullbody** (`character_fullbody_video_url`) — a short, silly animation
    related to the character's outfit (e.g. Isaac doing a wheelie, Joe
@@ -139,22 +141,14 @@ Generation priority, cheapest/most-certain first (see
    so it loops seamlessly. Shown looping continuously on `/select` (bottom,
    once a character is picked), on `/multipliers`, and on the leaderboard
    podium (`/`).
-2. **Confirm** (`character_confirm_video_url`) — a quick reaction/
-   celebration animation, the character celebrating being selected. Plays
-   once on "Let's go," blocks advancing until it finishes (see above).
-3. **Select** (`character_select_video_url`) — **lowest priority of the
-   four**, generate last. A short animation using the *headshot* framing —
-   not fullbody — as both its first and last frame (Veo's `lastFrame`, see
-   `gemini.ts`), so it loops perfectly. Plays in the small roster-strip box
-   when that character is the current selection/hover target.
-4. **Victory** (`character_victory_video_url`) — generated **last of all**,
-   since it ideally needs every other character's art to exist first (the
-   whole cast gets knocked out, see above).
-5. **Boot/start-screen clip** (`app_settings.boot_video_url`, one shared
+2. **Victory** (`character_victory_video_url`) — generated **last**, since
+   it ideally needs every other character's art to exist first (the whole
+   cast gets knocked out, see above).
+3. **Boot/start-screen clip** (`app_settings.boot_video_url`, one shared
    asset) — the whole cast on an N64-styled Lake Tahoe beach, doing
    individual bits, ending in a group photo with Matthew, Cassandra, and
    Bailey specifically front-and-center. Cassandra and Bailey never appear
-   in any other clip except this one and Matthew's own confirm/victory
+   in any other clip except this one and Matthew's own victory clip
    (`scripts/character-gen/README.md`'s guest-scoping section) — they're not
    competing players.
 

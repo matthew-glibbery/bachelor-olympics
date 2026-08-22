@@ -63,11 +63,7 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
   }
 
   function handleCharacterAsset(
-    field:
-      | "character_select_video_url"
-      | "character_fullbody_video_url"
-      | "character_confirm_video_url"
-      | "character_victory_video_url",
+    field: "character_fullbody_video_url" | "character_victory_video_url",
     kind: "image" | "video",
   ) {
     return async (e: ChangeEvent<HTMLInputElement>) => {
@@ -93,25 +89,11 @@ export function ManagePlayerRow({ player }: { player: PlayerRow }) {
 
   const CHARACTER_ASSETS = [
     {
-      field: "character_select_video_url" as const,
-      kind: "video" as const,
-      label: "select clip",
-      accept: "video/*",
-      set: player.character_select_video_url,
-    },
-    {
       field: "character_fullbody_video_url" as const,
       kind: "video" as const,
       label: "fullbody clip",
       accept: "video/*",
       set: player.character_fullbody_video_url,
-    },
-    {
-      field: "character_confirm_video_url" as const,
-      kind: "video" as const,
-      label: "confirm clip",
-      accept: "video/*",
-      set: player.character_confirm_video_url,
     },
     {
       field: "character_victory_video_url" as const,

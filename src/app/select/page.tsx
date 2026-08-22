@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -62,10 +62,6 @@ export default function SelectPage() {
     [rosterFromStore],
   );
 
-  // Set once "Let's go" is hit, if the chosen player has a confirm clip —
-  // plays full-bleed before actually routing into the app.
-  const [confirmingPlayerId, setConfirmingPlayerId] = useState<string | null>(null);
-
   // Picking Matthew (the groom) asks for the groom PIN first — this is
   // what a device needs to also get groom tools (AppNav's "Tools" tab),
   // not just a separate unlock step buried on /setup. Skipped if this
@@ -97,11 +93,7 @@ export default function SelectPage() {
   const finalizeSelect = useCallback(
     (player: PlayerRow) => {
       selectPlayer(player.id);
-      if (player.character_confirm_video_url) {
-        setConfirmingPlayerId(player.id);
-      } else {
-        router.push("/");
-      }
+      router.push("/");
     },
     [selectPlayer, router],
   );
@@ -137,24 +129,16 @@ export default function SelectPage() {
 
   const onBack = useCallback(() => router.push("/start"), [router]);
 
-  const confirmingPlayer = players.find((p) => p.id === confirmingPlayerId) ?? null;
-
   const { index, setIndex, getItemProps } = useMenuNav({
     count: players.length,
     columns: 1,
     initialIndex,
     onConfirm,
     onBack,
-    enabled: players.length > 0 && !confirmingPlayer && !pinPromptPlayer,
+    enabled: players.length > 0 && !pinPromptPlayer,
   });
 
   const focused = players[index] ?? null;
-
-  if (confirmingPlayer) {
-    return (
-      <ConfirmClip videoUrl={confirmingPlayer.character_confirm_video_url!} onDone={() => router.push("/")} />
-    );
-  }
 
   return (
     <main className="relative flex min-h-dvh flex-col overflow-hidden">
@@ -215,8 +199,6 @@ export default function SelectPage() {
                           name={p.name}
                           nickname={p.nickname}
                           photoUrl={p.photo_url}
-                          videoUrl={p.character_select_video_url}
-                          playing={isActive}
                           color={color}
                           pose="bust"
                         />
@@ -264,9 +246,8 @@ export default function SelectPage() {
                   />
 
                   {/* The one deliberate confirm action (also what A/Enter
-                      triggers via useMenuNav's onConfirm) — plays the
-                      player's confirm clip if they have one, then routes
-                      in. */}
+                      triggers via useMenuNav's onConfirm) — routes straight
+                      into the app. */}
                   <button
                     type="button"
                     onClick={() => onConfirm(index)}
@@ -324,52 +305,5 @@ export default function SelectPage() {
         </DialogContent>
       </Dialog>
     </main>
-  );
-}
-
-/**
- * Full-bleed "you're playing as ___" clip (character_confirm_video_url),
- * plays once right after hitting confirm — routes into the app when it
- * ends, or immediately on tap/keypress (skippable, doesn't trap anyone).
- */
-function ConfirmClip({ videoUrl, onDone }: { videoUrl: string; onDone: () => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    function onKey() {
-      onDone();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onDone]);
-
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    // Same mobile-autoplay fix as start/page.tsx's boot video and
-    // character-render.tsx's clips: `autoPlay` alone isn't reliable on
-    // mobile Safari/Chrome, so set `muted` as a real DOM property and call
-    // `.play()` imperatively.
-    v.muted = true;
-    v.play().catch(() => {});
-  }, [videoUrl]);
-
-  return (
-    <button
-      type="button"
-      onClick={onDone}
-      aria-label="Skip"
-      className="bg-background fixed inset-0 z-50 flex h-dvh w-dvw cursor-pointer items-center justify-center overflow-hidden"
-    >
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        autoPlay
-        muted
-        playsInline
-        onEnded={onDone}
-        className="h-full w-full object-cover"
-      />
-    </button>
   );
 }
