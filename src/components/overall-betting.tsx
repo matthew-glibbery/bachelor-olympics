@@ -5,6 +5,7 @@ import Image from "next/image";
 import { UserRound } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { assignPlayerColors } from "@/lib/chartColors";
 import { PlayerName } from "@/components/player-name";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,10 @@ export function OverallBetting({
   eliminationField: EliminationInput[];
 }) {
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  const colorByPlayer = useMemo(() => {
+    const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
+    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
+  }, [players]);
 
   const myBets = useMemo(() => {
     const map = {} as Record<OverallBetType, OverallBetRow | undefined>;
@@ -192,6 +197,7 @@ export function OverallBetting({
                 state={candidate.state ?? "??"}
                 size="sm"
                 photoUrl={candidate.photo_url}
+                color={colorByPlayer[candidate.id]}
               />
               <div className="flex items-center gap-4">
                 {BET_TYPES.map(({ type }) => {
@@ -263,7 +269,13 @@ export function OverallBetting({
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5 text-sm">
                     <span className="text-muted-foreground">{label}:</span>
-                    <PlayerName name={pick.name} state={pick.state ?? "??"} size="sm" />
+                    <PlayerName
+                      name={pick.name}
+                      state={pick.state ?? "??"}
+                      size="sm"
+                      photoUrl={pick.photo_url}
+                      color={colorByPlayer[pick.id]}
+                    />
                   </span>
                   {bet.status !== "open" ? (
                     <Badge variant={bet.status === "won" ? "default" : "destructive"}>

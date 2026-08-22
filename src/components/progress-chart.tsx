@@ -281,7 +281,13 @@ function ProgressLegend({
               className="w-4 shrink-0 rounded-full"
               style={{ backgroundColor: colorByPlayer[p.id], height: isYou ? 3 : 2 }}
             />
-            <PlayerName name={p.name} state={p.state ?? "??"} photoUrl={p.photo_url} size="sm" />
+            <PlayerName
+              name={p.name}
+              state={p.state ?? "??"}
+              photoUrl={p.photo_url}
+              size="sm"
+              color={colorByPlayer[p.id]}
+            />
             {isYou ? (
               <span className="text-primary font-display text-[9px] tracking-widest uppercase">You</span>
             ) : null}
@@ -378,7 +384,13 @@ function ProgressTooltip({
                   className="h-0.5 w-3 shrink-0 rounded-full"
                   style={{ backgroundColor: colorByPlayer[playerId] }}
                 />
-                <PlayerName name={player.name} state={player.state ?? "??"} size="sm" />
+                <PlayerName
+                  name={player.name}
+                  state={player.state ?? "??"}
+                  size="sm"
+                  photoUrl={player.photo_url}
+                  color={colorByPlayer[playerId]}
+                />
               </span>
               <span className="text-left font-semibold tabular-nums">{Math.round(value)}</span>
               <span

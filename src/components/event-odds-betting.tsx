@@ -44,6 +44,7 @@ export function EventOddsBetting({
   event,
   ranking,
   players,
+  colorByPlayer,
   currentPlayerId,
   myBet,
   reserve,
@@ -51,6 +52,7 @@ export function EventOddsBetting({
   event: EventRow;
   ranking: RankingEntry[];
   players: Map<string, PlayerRow>;
+  colorByPlayer: Record<string, string>;
   currentPlayerId: string | null;
   myBet: PerEventBetRow | undefined;
   reserve: BettingReserve | null;
@@ -200,6 +202,7 @@ export function EventOddsBetting({
                   state={player.state ?? "??"}
                   size="sm"
                   photoUrl={player.photo_url}
+                  color={colorByPlayer[playerId]}
                 />
               </span>
               <div className="flex items-center gap-4">
@@ -250,6 +253,8 @@ export function EventOddsBetting({
                   name={players.get(myBet.pick_player_id)?.name ?? "?"}
                   state={players.get(myBet.pick_player_id)?.state ?? "??"}
                   size="sm"
+                  photoUrl={players.get(myBet.pick_player_id)?.photo_url}
+                  color={colorByPlayer[myBet.pick_player_id]}
                 />
                 <span className="text-muted-foreground">
                   to {TARGET_LABEL[myBet.target]} — wagered {myBet.wager.toFixed(1)}
