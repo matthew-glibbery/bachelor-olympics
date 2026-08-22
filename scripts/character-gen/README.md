@@ -27,13 +27,30 @@ Two kinds of subject (`subjects.ts`):
   material fed into two places only, per explicit product decision, not a
   technical limitation: the shared boot/start-screen scene (everyone), and
   **Matthew's own** victory composite specifically — he's the groom, it's
-  his moment they belong in, not every player's.
-  `gen:char:composite -- victory <player>` refuses any player that isn't
-  Matthew for exactly this reason; every other player's victory clip is
-  solo (`gen:char:clip` without a composite step). Add a third guest the
+  his moment they belong in, not every player's. Add a third guest the
   same way if wanted later — just append to `SPECIAL_SUBJECTS` in
-  `subjects.ts` — but revisit this file's composite gating too if they
-  should show up more broadly than Matthew's clip.
+  `subjects.ts`.
+
+**Victory clips are composite-only, for every player** (`victoryBeats.ts`).
+Each player's clip names and defeats the real rest of the cast — not a
+generic "opposing characters" filler — all on the same Lake Tahoe beach
+(`background.ts`'s `VICTORY_BEACH_BACKGROUND`, per `docs/VISUAL_SPEC.md`'s
+"this all happened at the same party" direction). That means
+`gen:char:composite -- victory <player>` is a required step before
+`gen:char:clip -- <player> victory` for everyone now, not just Matthew —
+`gen:char:clip` throws if the scene image is missing rather than silently
+falling back to a generic solo clip, since that fallback is exactly the
+thing this was changed to stop producing. Matthew's beat is the one
+exception in *content*, not mechanism: his composite step also pulls in
+Cassandra and Bailey, and his clip closes on them jumping into his arms
+instead of him beating the group down.
+
+**Tyler is excluded from every victory clip, both as a winner and as
+someone the others defeat** (`VICTORY_EXCLUDED` in `victoryBeats.ts`) — he
+isn't attending the actual weekend. This is scoped to victory-clip content
+only; his `players` row, fullbody clip, and everything else in the app are
+untouched. Add him back to `VICTORY_BEATS` with his own beat if that
+changes.
 
 **The headshot is now the canonical `photo_url`** — `gen:char:upload-photo`
 pushes it live, superseding the original "real uploaded photo, separate
@@ -116,16 +133,21 @@ pnpm run gen:char:image -- "Bailey" reference-photos/bailey.jpg
 pnpm run gen:char:clip -- "Matthew" fullbody
 open character-assets/matthew/fullbody.mp4   # review before uploading
 
-# --- step 4: composite scene for Matthew's victory clip only, so
-#     Cassandra + Bailey appear in it — gen:char:composite refuses any
-#     other player here, this is Matthew-specific by design ---
+# --- step 4: victory composite scene — required for EVERY player now
+#     (not just Matthew). Needs every other non-Tyler player's fullbody.png
+#     to already exist, since the scene references the real rest of the
+#     cast — generate victory clips last, after step 2 covers the roster.
+#     Matthew's also pulls in Cassandra + Bailey. ---
 pnpm run gen:char:composite -- victory "Matthew"
 open character-assets/matthew/victory-scene.png   # review the STILL first —
                                                 # cheaper to catch a bad
                                                 # composite here than after
                                                 # spending a Veo call on it
 pnpm run gen:char:clip -- "Matthew" victory        # picks up victory-scene.png
-                                                 # automatically if present
+                                                 # automatically, throws if
+                                                 # it's missing
+# ...repeat composite + clip for every other non-Tyler player once their
+# fullbody.png exists for all of them
 
 # --- step 5: push an approved clip to Supabase Storage + the player row ---
 pnpm run gen:char:upload -- "Matthew" fullbody

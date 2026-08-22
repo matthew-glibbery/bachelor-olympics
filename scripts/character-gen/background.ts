@@ -63,3 +63,20 @@ export function backgroundDescription(hex?: string): string {
 export function matteBackgroundDescription(color: "white" | "black"): string {
   return `Plain solid ${color} background, nothing else in frame.`;
 }
+
+/** docs/VISUAL_SPEC.md's Lake Tahoe beach direction, threaded through for
+ * victory scenes — this file's own header used to flag that as deferred;
+ * done here, on direct ask. The boot scene still uses the older "arena"
+ * language in prompts.ts's bootScenePrompt — a separate, still-open
+ * follow-up, not touched by this change.
+ *
+ * One shared constant, not a per-player variant like
+ * backgroundDescription()'s hex gradient — the whole point (per
+ * VISUAL_SPEC) is that every clip reads as "this all happened at the same
+ * party," which a different beach per player would undercut. */
+export const VICTORY_BEACH_BACKGROUND =
+  "a stylized, low-poly N64-era Lake Tahoe beach: pale sand meeting brilliant " +
+  "turquoise-blue water, granite boulders at the waterline, tall pine trees " +
+  "along the shore, and snow-capped mountains rising across the lake under a " +
+  "bright blue sky — the same colorful, saturated N64-era sports-game look " +
+  "as the rest of the cast's world, no photorealism, no real-world logos";
