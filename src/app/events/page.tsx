@@ -1,45 +1,42 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { CalendarDays, Flame, PartyPopper } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarDays, ChevronLeft, PartyPopper } from "lucide-react";
 import Image from "next/image";
 
 import { BonusEventsCard } from "@/components/bonus-events-card";
-import { CatchUpBadge, EventCard } from "@/components/event-card";
+import { EventCard } from "@/components/event-card";
 import { GameScreen } from "@/components/n64/game-screen";
-import { Panel } from "@/components/n64/panel";
-import { PlayerName } from "@/components/player-name";
+import { useGameInput } from "@/hooks/use-game-input";
 import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
-import { assignPlayerColors } from "@/lib/chartColors";
 import { deriveScoreLines, upcomingCatchUp } from "@/lib/scoring/fromRows";
 import { bettingReserve } from "@/lib/betting/reserve";
 import { allocatedMultiplierTotal } from "@/lib/multipliers/budget";
 import { cn } from "@/lib/utils";
 
 /**
- * Events (docs/VISUAL_SPEC.md) — the /select roster-strip pattern applied to
- * events instead of players: every event visible at once as a thumbnail
- * strip up top, one focused event's full detail below. Unlike /select
- * there's no separate "confirm" step — moving the cursor (D-pad, click, or
- * Tab) is itself the selection, since this screen doesn't route anywhere.
+ * Events (docs/VISUAL_SPEC.md) — a two-step flow: every event visible at
+ * once as a grid of big tiles, then picking one (click, Enter/A, or Tab+
+ * confirm) enters that event's own full-screen detail — big photo up top
+ * (EventCard, src/components/event-card.tsx), the Results/Odds/Bets tabs
+ * below. `entered` gates which of the two is on screen; there's no partial
+ * state showing both, matching the "big tiles, then dive into one" ask.
  *
- * The detail panel is the real EventCard (src/components/event-card.tsx,
- * reskinned in place — same groom-tool logic as before: start scoring,
- * enter/edit results, cancel/reset, photo upload, odds, bets, victory
- * replay), just showing one event at a time instead of all of them stacked.
+ * The detail view is the real EventCard — same groom-tool logic as before
+ * (start scoring, enter/edit results, cancel/reset, photo upload, odds,
+ * bets, victory replay).
  *
- * Bonus events (BonusEventsCard) get one more tile at the end of the strip
+ * Bonus events (BonusEventsCard) get one more tile at the end of the grid
  * rather than a permanently-visible card below everything — they're
  * spontaneous and outside core scoring, but the *screen grammar* here is
- * "one strip, one focused thing," and a card that's always on screen
- * regardless of the cursor breaks that. Its content only shows when that
- * tile is the one selected.
+ * "one grid, or one focused thing," and a card that's always on screen
+ * breaks that.
  *
  * Selection is click/tap/D-pad only, not hover (`selectOnHover: false`) —
  * this is a content-heavy admin list where someone's mouse legitimately
- * passes back and forth over the strip while reading, unlike /select's
+ * passes back and forth over the grid while reading, unlike /select's
  * roster where "look at a portrait, it lights up" is the point.
  */
 export default function EventsPage() {
@@ -64,10 +61,6 @@ export default function EventsPage() {
   }, [hydrate, connect]);
 
   const playerIds = players.map((p) => p.id);
-  const colorByPlayer = useMemo(() => {
-    const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
-    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
-  }, [players]);
 
   // Odds tab's per-event betting form needs the session player's unallocated
   // multiplier reserve — same derivation as src/app/bets/page.tsx.
@@ -92,31 +85,49 @@ export default function EventsPage() {
     forEvent.set(line.playerId, line.catchUpBonus);
     catchUpByEvent.set(line.eventId, forEvent);
   }
+  // upcomingCatchUp still feeds catchUpByEvent (so the entered EventCard's
+  // results tab keeps showing a live badge on whoever's actually scoring
+  // right now) — only the standalone preview *section* on this page is
+  // gone. The leaderboard (src/app/page.tsx) is now where players see the
+  // preview before an event starts.
   const preview = upcomingCatchUp(events, eventResults, multipliers, playerIds);
   if (preview && preview.bonuses.size > 0) {
     catchUpByEvent.set(preview.eventId, preview.bonuses);
   }
-  const previewEvent = preview ? (events.find((e) => e.id === preview.eventId) ?? null) : null;
 
-  // The bonus-events tile is one more strip entry, appended after the real
+  // The bonus-events tile is one more grid entry, appended after the real
   // events — only offered once there's a roster to award points to, same
   // guard BonusEventsCard itself used to have.
   const showBonusTile = players.length > 0;
   const bonusIndex = events.length;
   const itemCount = events.length + (showBonusTile ? 1 : 0);
 
+  // Two-step flow: the grid is a menu, "confirming" an item enters its
+  // detail view instead of routing anywhere (this screen has no sub-routes
+  // of its own). `enabled: !entered` keeps the D-pad from moving the grid
+  // cursor while a detail view is open; a separate useGameInput below
+  // handles Back (B/Escape) to leave it.
+  const [entered, setEntered] = useState(false);
   const { index, getItemProps } = useMenuNav({
     count: itemCount,
     columns: 1,
     selectOnHover: false,
+    enabled: !entered,
+    onConfirm: () => setEntered(true),
   });
+  useGameInput({ enabled: entered, onBack: () => setEntered(false) });
+
   const focused = index < events.length ? (events[index] ?? null) : null;
   const bonusSelected = showBonusTile && index === bonusIndex;
 
   return (
     <GameScreen
       title="Events"
-      subtitle="Start scoring, enter results, or cancel an event"
+      subtitle={
+        entered && (focused ?? bonusSelected)
+          ? (bonusSelected ? "Bonus events" : focused!.name)
+          : "Pick an event to start scoring, enter results, or place bets"
+      }
     >
       {error ? (
           <p className="text-destructive text-center text-sm">{error}</p>
@@ -127,135 +138,90 @@ export default function EventsPage() {
             <CalendarDays className="size-4" />
             No events configured yet.
           </p>
-        ) : (
-          <>
-            {/* Event strip. */}
-            <ul className="mx-auto grid w-full max-w-4xl grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
-              {events.map((event, i) => {
-                const isActive = i === index;
-                return (
-                  <li key={event.id} className="min-w-0">
-                    <button
-                      type="button"
-                      {...getItemProps(i)}
-                      aria-pressed={isActive}
-                      className={cn(
-                        "bevel-raised bg-card group w-full min-w-0 rounded-md p-1 transition-transform duration-75 focus:outline-none",
-                        isActive && "is-cursor -translate-y-1",
-                      )}
-                    >
-                      <span className="block aspect-square w-full overflow-hidden rounded-sm bg-black/20">
-                        {event.photo_url ? (
-                          <Image
-                            src={event.photo_url}
-                            alt=""
-                            width={96}
-                            height={96}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span className="flex h-full w-full items-center justify-center">
-                            <CalendarDays className="text-muted-foreground size-6" />
-                          </span>
-                        )}
-                      </span>
-                      {/* Two lines, not `truncate`: a third of the real
-                          event names ("Super Smash Bros. (N64)", "Settlers
-                          of Catan", "Nine Holes of Golf") were clipped to
-                          "SUPER SMA…" on a phone, and the game's name is
-                          the entire content of a game-select tile. Fixed
-                          two-line box so the grid rows stay aligned whether
-                          a name wraps or not. */}
-                      <span
-                        className={cn(
-                          "font-display mt-1 line-clamp-2 block h-[2.2em] text-[10px] leading-[1.1] tracking-wider uppercase",
-                          isActive ? "text-foreground" : "text-muted-foreground",
-                        )}
-                      >
-                        {event.name}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-
-              {showBonusTile ? (
-                <li className="min-w-0">
+        ) : !entered ? (
+          /* Step 1: every event as a big tile. Picking one (click, tap, or
+             D-pad + confirm) enters its detail view below. */
+          <ul className="mx-auto grid w-full max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+            {events.map((event, i) => {
+              const isActive = i === index;
+              return (
+                <li key={event.id} className="min-w-0">
                   <button
                     type="button"
-                    {...getItemProps(bonusIndex)}
-                    aria-pressed={bonusSelected}
+                    {...getItemProps(i)}
+                    aria-pressed={isActive}
                     className={cn(
-                      "bevel-raised bg-card group w-full min-w-0 rounded-md p-1 transition-transform duration-75 focus:outline-none",
-                      bonusSelected && "is-cursor -translate-y-1",
+                      "bevel-raised bg-card group flex w-full min-w-0 flex-col gap-2 rounded-md p-2 transition-transform duration-75 focus:outline-none",
+                      isActive && "is-cursor -translate-y-1",
                     )}
                   >
-                    <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-sm bg-black/20">
-                      <PartyPopper className="text-primary size-6" />
+                    <span className="block aspect-[4/3] w-full overflow-hidden rounded-sm bg-black/20">
+                      {event.photo_url ? (
+                        <Image
+                          src={event.photo_url}
+                          alt=""
+                          width={320}
+                          height={240}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center">
+                          <CalendarDays className="text-muted-foreground size-8" />
+                        </span>
+                      )}
                     </span>
                     <span
                       className={cn(
-                        "font-display mt-1 block truncate text-[10px] tracking-wider uppercase",
-                        bonusSelected ? "text-foreground" : "text-muted-foreground",
+                        "font-display block text-center text-xs tracking-wider uppercase",
+                        isActive ? "text-foreground" : "text-muted-foreground",
                       )}
                     >
-                      Bonus
+                      {event.name}
                     </span>
                   </button>
                 </li>
-              ) : null}
-            </ul>
+              );
+            })}
 
-            {/* Catch-up bonus — its own section, always present, between
-                the strip and the focused event's detail, rather than living
-                inside whichever event card happens to be focused (it used
-                to, and would disappear/reappear depending on cursor
-                position). Targets the event actually being scored once
-                one's underway (upcomingCatchUp, src/lib/scoring/fromRows.ts);
-                before that, it falls back to the lowest-sort_order planned
-                event as a best-guess preview — `preview.confirmed`
-                distinguishes the two so the wording doesn't overclaim. Not
-                whichever tile the cursor is on, and not gated behind
-                "has bonuses" — three states below, so the section not
-                rendering never reads as a missing feature. */}
-            <Panel title="Catch-up bonus" icon={Flame}>
-              {previewEvent && preview && preview.bonuses.size > 0 ? (
-                <>
-                  <p className="text-muted-foreground -mt-1 text-xs">
-                    Applies to <span className="text-foreground font-medium">{previewEvent.name}</span>
-                    {preview.confirmed
-                      ? ", the event currently being scored."
-                      : ", up next going by the current running order — may change if the groom plays out of order."}
-                  </p>
-                  <div className="flex flex-col gap-1.5">
-                    {[...preview.bonuses.entries()].map(([playerId, bonus]) => {
-                      const p = players.find((pl) => pl.id === playerId);
-                      if (!p) return null;
-                      return (
-                        <span key={playerId} className="flex items-center justify-between gap-2 text-sm">
-                          <PlayerName name={p.name} size="sm" photoUrl={p.photo_url} color={colorByPlayer[p.id]} />
-                          <CatchUpBadge bonus={bonus} />
-                        </span>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : previewEvent ? (
-                <p className="text-muted-foreground -mt-1 text-xs">
-                  {preview?.confirmed ? "Scoring" : "Up next:"}{" "}
-                  <span className="text-foreground font-medium">{previewEvent.name}</span> — no catch-up
-                  bonus applies this time (it only kicks in once someone&apos;s actually behind).
-                </p>
-              ) : (
-                <p className="text-muted-foreground -mt-1 text-xs">
-                  No events left to score. Whoever&apos;s trailing gets +30%/+20%/+10% on whichever event
-                  starts next, however it&apos;s reached.
-                </p>
-              )}
-            </Panel>
-
-            {/* Focused tile's full detail — the real event's card, or the
-                bonus-events card, never both at once. */}
+            {showBonusTile ? (
+              <li className="min-w-0">
+                <button
+                  type="button"
+                  {...getItemProps(bonusIndex)}
+                  aria-pressed={bonusSelected}
+                  className={cn(
+                    "bevel-raised bg-card group flex w-full min-w-0 flex-col gap-2 rounded-md p-2 transition-transform duration-75 focus:outline-none",
+                    bonusSelected && "is-cursor -translate-y-1",
+                  )}
+                >
+                  <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-sm bg-black/20">
+                    <PartyPopper className="text-primary size-8" />
+                  </span>
+                  <span
+                    className={cn(
+                      "font-display block text-center text-xs tracking-wider uppercase",
+                      bonusSelected ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    Bonus
+                  </span>
+                </button>
+              </li>
+            ) : null}
+          </ul>
+        ) : (
+          /* Step 2: the picked tile's full detail — the real event's card,
+             or the bonus-events card, never both, and never alongside the
+             grid. */
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => setEntered(false)}
+              className="text-muted-foreground hover:text-foreground font-display inline-flex w-fit items-center gap-1 text-xs tracking-wider uppercase"
+            >
+              <ChevronLeft className="size-4" />
+              Back to events
+            </button>
             {bonusSelected ? (
               <BonusEventsCard players={players} bonusEvents={bonusEvents} groomUnlocked={groomUnlocked} />
             ) : focused ? (
@@ -274,9 +240,9 @@ export default function EventsPage() {
                 currentPlayerId={selectedPlayerId}
                 reserve={reserve}
               />
-          ) : null}
-        </>
-      )}
+            ) : null}
+          </div>
+        )}
     </GameScreen>
   );
 }

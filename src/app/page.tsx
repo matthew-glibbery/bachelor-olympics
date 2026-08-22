@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ListOrdered, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
+import { CatchUpBadge } from "@/components/event-card";
 import { CharacterRender } from "@/components/n64/character-render";
 import { GameScreen } from "@/components/n64/game-screen";
 import { Panel } from "@/components/n64/panel";
@@ -14,7 +15,7 @@ import { useGameInput } from "@/hooks/use-game-input";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { applyBonusAwards } from "@/lib/bonus/bonusEvent";
 import { cumulativeSeries } from "@/lib/scoring/cumulativeSeries";
-import { deriveScoreLines } from "@/lib/scoring/fromRows";
+import { deriveScoreLines, upcomingCatchUp } from "@/lib/scoring/fromRows";
 import { standings } from "@/lib/scoring/total";
 import { playSfx } from "@/lib/sfx";
 import { useGameStore } from "@/store/gameStore";
@@ -90,6 +91,19 @@ export default function Home() {
   const series = cumulativeSeries(events, eventResults, multipliers, players.map((p) => p.id), bonusEvents);
 
   const podium = ranked.slice(0, 3);
+
+  // Catch-up bonus preview (PRODUCT_SPEC.md → Multipliers → Catch-up
+  // bonus): who'd get the +X% on whichever event is currently being scored,
+  // or — before that — on whichever planned event comes next. This used to
+  // live in its own section on /events; it's the standings' job now, since
+  // "who currently has the multiplier" is a fact about the whole field, not
+  // about whichever event tile you happen to have open.
+  const catchUp = upcomingCatchUp(
+    events,
+    eventResults,
+    multipliers,
+    players.map((p) => p.id),
+  );
 
   return (
     <GameScreen
@@ -237,6 +251,9 @@ export default function Home() {
                                 <span className="font-display text-primary shrink-0 text-[9px] tracking-widest uppercase">
                                   You
                                 </span>
+                              ) : null}
+                              {catchUp?.bonuses.has(player.id) ? (
+                                <CatchUpBadge bonus={catchUp.bonuses.get(player.id)!} />
                               ) : null}
                             </span>
                           </td>

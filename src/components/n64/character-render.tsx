@@ -73,7 +73,18 @@ export function CharacterRender({
     // same sunken-plate treatment used elsewhere in the app) sidesteps the
     // problem entirely: the video/photo's edge reads as an intentional
     // portrait-frame boundary, not a bleed that has to match anything.
-    <div className={cn("bevel-sunken bg-sunken relative h-full w-full overflow-hidden rounded-md", className)}>
+    //
+    // The plain `bevel-sunken` 2px inset shadow turned out to disappear
+    // against a busy full-bleed photo/video at podium/roster size — it read
+    // as "no frame at all," the exact "doesn't look like it worked"
+    // complaint. A real, visible ring in the player's own colour (same
+    // colour their rank badge/chart line/podium step already use) plus a
+    // drop shadow reads as a deliberate frame at any size, not just under
+    // close inspection.
+    <div
+      className={cn("bg-sunken relative h-full w-full overflow-hidden rounded-lg", className)}
+      style={{ boxShadow: `0 4px 12px -2px oklch(0 0 0 / 45%), inset 0 0 0 2px ${color}` }}
+    >
       {photoUrl ? (
         /* Uploaded player photo — intrinsic size unknown ahead of time and
            there's a handful of these at most, so next/image's optimizer

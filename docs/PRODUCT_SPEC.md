@@ -141,9 +141,14 @@ allocates.
   = 25% each, not 30% each).
 - No bonus at all before the first event has resolved — there's no
   meaningful "who's behind" yet.
-- Shown on the affected event's card: as an applied badge once results are
-  in, and as a live preview on the upcoming event before it starts, so
-  players know going in.
+- Shown as a badge on the leaderboard standings once an event actually
+  starts scoring or resolves — that's the applied badge for whoever
+  benefited. Before that (event still planned), the live preview of who'd
+  get it next also shows on the leaderboard standings, not on the events
+  screen — "who currently has the multiplier" is a fact about the whole
+  field, not about whichever event card happens to be open. Once an event
+  starts, the same badges also show next to the affected players in that
+  event's own results table.
 - Implementation: `src/lib/scoring/catchUp.ts` (the tier/tie math, pure and
   unit-tested) + `src/lib/scoring/fromRows.ts` (walks resolved events in the
   order they actually happened, not `sort_order`, computing each one's
