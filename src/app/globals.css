@@ -345,6 +345,59 @@
   color: var(--primary);
 }
 
+/* ── The type scale ───────────────────────────────────────────────────
+   Four registers, and deliberately only four.
+
+   The problem these two utilities exist to end: this app had grown 42
+   `text-xs`, 19 `text-[10px]`, 11 `text-[9px]`, a `text-[8px]`, and NINE
+   different tracking values (`tracking-wide/wider/widest` plus six
+   arbitrary `[0.14em]`-style ones) — nearly all of them small tracked
+   uppercase. On the leaderboard that meant four distinct uppercase
+   registers inside a 5px size range, separated by nothing but tracking.
+   The eye landed on the gold title and then found no second stop, so every
+   screen read at one volume and had to be scanned linearly.
+
+   The four registers are: `.extruded` (screen title) > plate heading
+   (Panel's h2) > `.hud-label` > `.hud-copy`. Hierarchy below the title is
+   carried by SIZE, WEIGHT and COLOUR — never by adding another tracking
+   value. If you find yourself reaching for `text-[9px] tracking-[0.15em]
+   uppercase` again, reach for `.hud-label` instead.
+
+   Both sit outside the `text-` namespace on purpose. `cn()` runs
+   tailwind-merge, which treats any `text-*` class as a member of one group
+   and silently keeps only the last — the same trap that once ate
+   `.extruded`'s font entirely. See that utility's comment. */
+
+/* The ONE small tracked-uppercase register: every field label, column
+   header, tab, nav item, badge and caption in the app. 11px rather than the
+   old 8-10px because this is read on a phone, outdoors, in sunlight. */
+@utility hud-label {
+  font-family: var(--font-display);
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1.25;
+  letter-spacing: 0.1em;
+  font-variation-settings: "wght" 700;
+  text-transform: uppercase;
+}
+
+/* The ONE reading register — sentence case, untracked, the normal-width
+   body face. For anything that is a sentence: panel descriptions, rule
+   explanations, footnotes.
+
+   Uppercase tracked type is for labels a player *recognises*, not for prose
+   they have to *read*. The standings footnote ("Adjusted = raw points x
+   that event's multiplier...") was a two-line explanatory sentence set in
+   9px uppercase at 0.15em tracking — unreadable by construction on the
+   device this app actually runs on. */
+@utility hud-copy {
+  font-family: var(--font-ui);
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-transform: none;
+  font-variation-settings: "wght" 400;
+}
+
 /* The marquee voice -- Bungee, the arcade-signage face that the cartridge
    logo is set in. Reserved for the handful of moments that are meant to read
    as the game's title rather than as UI: `/start`'s "Press Start", and the

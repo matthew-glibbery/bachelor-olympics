@@ -37,6 +37,10 @@ const MEDAL_COLOR = ["var(--medal-gold)", "var(--medal-silver)", "var(--medal-br
  * changing `MedalTable` itself (kept around undisturbed in case anything
  * else wants the plain version later).
  */
+/** 1st..8th, for the standings readout under the title. Eight players is
+ *  the whole field (PRODUCT_SPEC.md), so a table beats a suffix rule. */
+const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"] as const;
+
 export default function Home() {
   const router = useRouter();
   const { players, events, eventResults, multipliers, bonusEvents, overallBets, connect, loading, error, ready } =
@@ -105,12 +109,35 @@ export default function Home() {
     bonusAwards,
   );
 
+  // The subtitle slot on this screen used to repeat `/start`'s marketing
+  // tagline verbatim ("Eight events · Eight competitors · One leaderboard").
+  // On the title screen that line is doing a job; here it was spending the
+  // most valuable 40px of the app's primary screen — directly under the
+  // title, above the fold — saying something the player already knew and
+  // could not act on. Replaced with the one thing they actually open this
+  // screen to find out: where they stand right now.
+  //
+  // Falls back to the tagline before anyone has been picked or scored,
+  // since there is genuinely no standing to report yet.
+  const myIndex = ranked.findIndex((t) => t.playerId === selectedPlayerId);
+  const me = myIndex >= 0 ? ranked[myIndex] : undefined;
+  const leader = ranked[0];
+  const standingLine = (() => {
+    if (!me || !leader) return "Eight events · Eight competitors · One leaderboard";
+    const place = ORDINALS[myIndex] ?? `${myIndex + 1}th`;
+    const pts = `${Math.round(me.adjusted)} pts`;
+    if (myIndex === 0) {
+      const chaser = ranked[1];
+      if (!chaser) return `${place} · ${pts}`;
+      return `${place} · ${pts} · ${Math.round(me.adjusted - chaser.adjusted)} ahead`;
+    }
+    const ahead = players.find((pl) => pl.id === ranked[myIndex - 1]!.playerId);
+    const gap = Math.round(ranked[myIndex - 1]!.adjusted - me.adjusted);
+    return `${place} · ${pts} · ${gap} behind${ahead ? ` ${ahead.name}` : ""}`;
+  })();
+
   return (
-    <GameScreen
-      title="Leaderboard"
-      tone="gold"
-      subtitle="Eight events · Eight competitors · One leaderboard"
-    >
+    <GameScreen title="Leaderboard" tone="gold" subtitle={standingLine}>
       {error ? (
           <p className="text-destructive text-center text-sm">{error}</p>
         ) : !ready && loading ? (
@@ -160,7 +187,7 @@ export default function Home() {
                         <span className="font-display text-xl leading-none sm:text-2xl" style={{ color: medal }}>
                           {place}
                         </span>
-                        <span className="font-display max-w-full truncate px-1 text-[9px] tracking-wider text-white uppercase sm:text-[10px]">
+                        <span className="hud-label max-w-full truncate px-1 text-white">
                           {player.name}
                         </span>
                       </div>
@@ -192,7 +219,7 @@ export default function Home() {
                           key={h || i}
                           scope="col"
                           className={cn(
-                            "font-display text-muted-foreground px-3 py-2 text-[10px] tracking-[0.15em] uppercase",
+                            "hud-label text-muted-foreground px-3 py-2",
                             i >= 2 ? "text-right" : "text-left",
                             i === 2 && "hidden sm:table-cell",
                           )}
@@ -251,7 +278,7 @@ export default function Home() {
                                 color={color}
                               />
                               {isYou ? (
-                                <span className="font-display text-primary shrink-0 text-[9px] tracking-widest uppercase">
+                                <span className="hud-label text-primary shrink-0">
                                   You
                                 </span>
                               ) : null}
@@ -270,7 +297,12 @@ export default function Home() {
                           <td className="font-score text-muted-foreground hidden px-3 py-2 text-right text-sm tabular-nums sm:table-cell">
                             {Math.round(total.raw)}
                           </td>
-                          <td className="font-score text-primary px-3 py-2 text-right text-base tabular-nums">
+                          <td
+                            className={cn(
+                              "font-score px-3 py-2 text-right text-base tabular-nums",
+                              i === 0 ? "text-primary" : "text-foreground",
+                            )}
+                          >
                             {Math.round(total.adjusted)}
                           </td>
                         </tr>
@@ -280,7 +312,7 @@ export default function Home() {
                 </table>
               </div>
 
-              <p className="font-display text-muted-foreground text-center text-[9px] tracking-[0.15em] uppercase">
+              <p className="hud-copy text-muted-foreground text-center">
                 Adjusted = raw points × that event&apos;s multiplier, plus any bonus-event or overall-bet points
               </p>
             </Panel>
