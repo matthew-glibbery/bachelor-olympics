@@ -1,12 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { CalendarDays, Coins, Medal, Sliders, UserRound } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { CalendarDays, Coins, Medal, Sliders, UserRound, Wrench } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
+import { assignPlayerColors } from "@/lib/chartColors";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // `short` is what the narrow mobile tab bar shows. Five tabs across a phone
 // leaves each about 70px, which truncated "Leaderboard" to a meaningless
@@ -41,61 +52,129 @@ const STATIC_LINKS = [
  * was a beveled console plate, which is exactly the kind of mismatch that
  * reads as "unfinished" rather than "deliberate."
  */
+/** Shared classes for every tab, link or button alike, so the new
+ * dialog-triggering "switch player" tab reads identically to the rest of
+ * the bar instead of standing out as a different control. */
+function tabClassName(active: boolean) {
+  return cn(
+    "flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-medium transition-colors",
+    "sm:font-display sm:flex-none sm:flex-row sm:items-center sm:gap-1.5 sm:rounded-md sm:px-3 sm:py-1.5 sm:text-xs sm:tracking-wider sm:uppercase",
+    active
+      ? // A small glow on the active mobile tab (real shadow-* utilities,
+        // so the desktop row can override it), and the full gold cursor
+        // treatment on the desktop pill — the same `.is-cursor` the roster
+        // strip uses for "you are here," rather than a second, unrelated
+        // active style.
+        "bg-primary/10 text-primary shadow-[0_0_0_1px_var(--primary),0_0_10px_-2px_var(--primary)] sm:is-cursor sm:bg-primary sm:text-primary-foreground"
+      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground sm:bevel-raised sm:bg-card",
+  );
+}
+
 export function AppNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const players = useGameStore((s) => s.players);
   const selectedPlayerId = useSessionStore((s) => s.selectedPlayerId);
+  const clearSelectedPlayer = useSessionStore((s) => s.clearSelectedPlayer);
   const selectedPlayer = players.find((p) => p.id === selectedPlayerId);
+  const isGroom = selectedPlayer?.name === "Matthew";
+  const [switchOpen, setSwitchOpen] = useState(false);
 
-  const links = [
-    ...STATIC_LINKS,
-    {
-      href: "/setup",
-      label: selectedPlayer?.name ?? "Player Settings",
-      // A first name already fits; only the signed-out label needs shortening.
-      short: selectedPlayer?.name ?? "You",
-      icon: UserRound,
-    },
-  ];
+  const colorByPlayer = players.length
+    ? assignPlayerColors(
+        [...players]
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .map((p) => ({ id: p.id, state: p.state ?? "" })),
+        "dark",
+      )
+    : {};
+
+  function switchPlayer() {
+    setSwitchOpen(false);
+    clearSelectedPlayer();
+    router.push("/start");
+  }
 
   return (
-    <nav
-      className={cn(
-        "bevel-raised bg-card fixed inset-x-4 bottom-4 z-50 flex items-center justify-around gap-1 rounded-2xl px-2 py-2",
-        "sm:static sm:inset-auto sm:z-auto sm:flex-wrap sm:justify-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:px-0 sm:py-0 sm:shadow-none",
-      )}
-    >
-      {links.map(({ href, label, short, icon: Icon }) => {
-        const active = pathname === href;
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-medium transition-colors",
-              "sm:font-display sm:flex-none sm:flex-row sm:items-center sm:gap-1.5 sm:rounded-md sm:px-3 sm:py-1.5 sm:text-xs sm:tracking-wider sm:uppercase",
-              active
-                ? // A small glow on the active mobile tab (real shadow-*
-                  // utilities, so the desktop row can override it), and the
-                  // full gold cursor treatment on the desktop pill — the
-                  // same `.is-cursor` the roster strip uses for "you are
-                  // here," rather than a second, unrelated active style.
-                  "bg-primary/10 text-primary shadow-[0_0_0_1px_var(--primary),0_0_10px_-2px_var(--primary)] sm:is-cursor sm:bg-primary sm:text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground sm:bevel-raised sm:bg-card",
-            )}
-          >
-            <Icon className="size-5 sm:size-4" />
-            {/* No aria-label here on purpose: only one of these two spans is
-                displayed at a time, so the accessible name is already the
-                text actually on screen. An aria-label of the long form would
-                override that and leave a speech-input user saying the word
-                they can see ("Ranking") with nothing to match — WCAG 2.5.3
-                Label in Name. */}
-            <span className="truncate sm:hidden">{short}</span>
-            <span className="hidden sm:inline">{label}</span>
+    <>
+      <nav
+        className={cn(
+          "bevel-raised bg-card fixed inset-x-4 bottom-4 z-50 flex items-center justify-around gap-1 rounded-2xl px-2 py-2",
+          "sm:static sm:inset-auto sm:z-auto sm:flex-wrap sm:justify-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:px-0 sm:py-0 sm:shadow-none",
+        )}
+      >
+        {STATIC_LINKS.map(({ href, label, short, icon: Icon }) => {
+          const active = pathname === href;
+          return (
+            <Link key={href} href={href} className={tabClassName(active)}>
+              <Icon className="size-5 sm:size-4" />
+              {/* No aria-label here on purpose: only one of these two spans
+                  is displayed at a time, so the accessible name is already
+                  the text actually on screen. An aria-label of the long
+                  form would override that and leave a speech-input user
+                  saying the word they can see ("Ranking") with nothing to
+                  match — WCAG 2.5.3 Label in Name. */}
+              <span className="truncate sm:hidden">{short}</span>
+              <span className="hidden sm:inline">{label}</span>
+            </Link>
+          );
+        })}
+
+        {/* Last tab: Matthew (the groom) gets a real link to the groom
+            tools page — same tab everyone used to see, just renamed and
+            reserved for him now that picking him at /select already asks
+            for the groom PIN. Everyone else gets their own name/photo, not
+            a link at all — tapping it opens a lightweight "switch player"
+            dialog instead of navigating to the groom's admin page. */}
+        {isGroom ? (
+          <Link href="/setup" className={tabClassName(pathname === "/setup")}>
+            <Wrench className="size-5 sm:size-4" />
+            <span className="truncate sm:hidden">Tools</span>
+            <span className="hidden sm:inline">Tools</span>
           </Link>
-        );
-      })}
-    </nav>
+        ) : selectedPlayer ? (
+          <button type="button" onClick={() => setSwitchOpen(true)} className={tabClassName(false)}>
+            {selectedPlayer.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={selectedPlayer.photo_url}
+                alt=""
+                className="size-5 shrink-0 rounded-full border-2 object-cover sm:size-4"
+                style={{ borderColor: colorByPlayer[selectedPlayer.id] }}
+              />
+            ) : (
+              <UserRound className="size-5 sm:size-4" />
+            )}
+            <span className="truncate sm:hidden">{selectedPlayer.name}</span>
+            <span className="hidden sm:inline">{selectedPlayer.name}</span>
+          </button>
+        ) : (
+          <Link href="/setup" className={tabClassName(pathname === "/setup")}>
+            <UserRound className="size-5 sm:size-4" />
+            <span className="truncate sm:hidden">You</span>
+            <span className="hidden sm:inline">Player Settings</span>
+          </Link>
+        )}
+      </nav>
+
+      <Dialog open={switchOpen} onOpenChange={setSwitchOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Playing as {selectedPlayer?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Not you, or handing the device to someone else? Switch to a different competitor.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSwitchOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={switchPlayer}>Switch player</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

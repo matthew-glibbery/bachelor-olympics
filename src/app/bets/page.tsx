@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
+import { assignPlayerColors } from "@/lib/chartColors";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   cancelPerEventBet,
@@ -75,6 +76,10 @@ export default function BetsPage() {
 
   const player = players.find((p) => p.id === selectedPlayerId);
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  const colorByPlayer = useMemo(() => {
+    const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
+    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
+  }, [players]);
 
   // Once any event leaves "planned," the weekend has effectively started —
   // that's when new overall-bet placement locks (existing bets can still be
@@ -312,6 +317,8 @@ export default function BetsPage() {
                               name={playersById.get(myBet.pick_player_id)?.name ?? "?"}
                               state={playersById.get(myBet.pick_player_id)?.state ?? "??"}
                               size="sm"
+                              photoUrl={playersById.get(myBet.pick_player_id)?.photo_url}
+                              color={colorByPlayer[myBet.pick_player_id]}
                             />
                             <span className="text-muted-foreground">
                               {PER_EVENT_TARGETS.find((t) => t.target === myBet.target)?.label} —

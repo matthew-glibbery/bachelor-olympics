@@ -7,11 +7,31 @@ import Link from "next/link";
 import { CharacterRender } from "@/components/n64/character-render";
 import { Nameplate } from "@/components/n64/nameplate";
 import { Starfield } from "@/components/n64/starfield";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { cn } from "@/lib/utils";
+import type { PlayerRow } from "@/lib/data/database.types";
+
+/** Matthew is the groom — the one player identity that doubles as "this
+ * device also gets groom tools." Same hardcoded-by-name convention the
+ * character-gen pipeline already uses for the same reason (see
+ * scripts/character-gen/README.md's composite-scene gating). */
+function isGroom(player: PlayerRow): boolean {
+  return player.name === "Matthew";
+}
 
 /**
  * Character-select screen (docs/VISUAL_SPEC.md) — the Mario Kart 64
@@ -28,7 +48,7 @@ import { cn } from "@/lib/utils";
 export default function SelectPage() {
   const router = useRouter();
   const { players, connect, ready } = useGameStore();
-  const { selectedPlayerId, selectPlayer } = useSessionStore();
+  const { selectedPlayerId, selectPlayer, groomUnlocked, unlockGroom } = useSessionStore();
 
   useEffect(() => {
     connect();
@@ -37,6 +57,15 @@ export default function SelectPage() {
   // Set once "Let's go" is hit, if the chosen player has a confirm clip —
   // plays full-bleed before actually routing into the app.
   const [confirmingPlayerId, setConfirmingPlayerId] = useState<string | null>(null);
+
+  // Picking Matthew (the groom) asks for the groom PIN first — this is
+  // what a device needs to also get groom tools (AppNav's "Tools" tab),
+  // not just a separate unlock step buried on /setup. Skipped if this
+  // device already unlocked groom tools before.
+  const [pinPromptPlayer, setPinPromptPlayer] = useState<PlayerRow | null>(null);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const [checkingPin, setCheckingPin] = useState(false);
 
   // Stable per-player color and jersey number, independent of roster
   // display order (chartColors.ts: color follows the entity, never its
@@ -57,10 +86,8 @@ export default function SelectPage() {
     return i >= 0 ? i : 0;
   }, [players, selectedPlayerId]);
 
-  const onConfirm = useCallback(
-    (i: number) => {
-      const player = players[i];
-      if (!player) return;
+  const finalizeSelect = useCallback(
+    (player: PlayerRow) => {
       selectPlayer(player.id);
       if (player.character_confirm_video_url) {
         setConfirmingPlayerId(player.id);
@@ -68,8 +95,37 @@ export default function SelectPage() {
         router.push("/");
       }
     },
-    [players, selectPlayer, router],
+    [selectPlayer, router],
   );
+
+  const onConfirm = useCallback(
+    (i: number) => {
+      const player = players[i];
+      if (!player) return;
+      if (isGroom(player) && !groomUnlocked) {
+        setPin("");
+        setPinError(false);
+        setPinPromptPlayer(player);
+        return;
+      }
+      finalizeSelect(player);
+    },
+    [players, groomUnlocked, finalizeSelect],
+  );
+
+  async function handlePinSubmit() {
+    if (!pinPromptPlayer) return;
+    setCheckingPin(true);
+    const ok = await unlockGroom(pin);
+    setCheckingPin(false);
+    if (!ok) {
+      setPinError(true);
+      return;
+    }
+    const player = pinPromptPlayer;
+    setPinPromptPlayer(null);
+    finalizeSelect(player);
+  }
 
   const onBack = useCallback(() => router.push("/start"), [router]);
 
@@ -81,7 +137,7 @@ export default function SelectPage() {
     initialIndex,
     onConfirm,
     onBack,
-    enabled: players.length > 0 && !confirmingPlayer,
+    enabled: players.length > 0 && !confirmingPlayer && !pinPromptPlayer,
   });
 
   const focused = players[index] ?? null;
@@ -221,6 +277,49 @@ export default function SelectPage() {
           </>
         )}
       </div>
+
+      <Dialog
+        open={!!pinPromptPlayer}
+        onOpenChange={(open) => {
+          if (!open) setPinPromptPlayer(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Groom code required</DialogTitle>
+            <DialogDescription>
+              Matthew&apos;s the groom — enter the groom PIN to play as him and unlock groom
+              tools on this device.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="select-groom-pin">PIN</Label>
+            <Input
+              id="select-groom-pin"
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              value={pin}
+              onChange={(e) => {
+                setPin(e.target.value);
+                setPinError(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && pin) handlePinSubmit();
+              }}
+            />
+            {pinError ? <p className="text-destructive text-sm">Wrong PIN</p> : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPinPromptPlayer(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePinSubmit} disabled={!pin || checkingPin}>
+              Unlock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { CalendarDays, Flame, PartyPopper } from "lucide-react";
 import Image from "next/image";
 
@@ -12,6 +12,7 @@ import { PlayerName } from "@/components/player-name";
 import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
+import { assignPlayerColors } from "@/lib/chartColors";
 import { deriveScoreLines, upcomingCatchUp } from "@/lib/scoring/fromRows";
 import { bettingReserve } from "@/lib/betting/reserve";
 import { allocatedMultiplierTotal } from "@/lib/multipliers/budget";
@@ -63,6 +64,10 @@ export default function EventsPage() {
   }, [hydrate, connect]);
 
   const playerIds = players.map((p) => p.id);
+  const colorByPlayer = useMemo(() => {
+    const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
+    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
+  }, [players]);
 
   // Odds tab's per-event betting form needs the session player's unallocated
   // multiplier reserve — same derivation as src/app/bets/page.tsx.
@@ -228,7 +233,7 @@ export default function EventsPage() {
                       if (!p) return null;
                       return (
                         <span key={playerId} className="flex items-center justify-between gap-2 text-sm">
-                          <PlayerName name={p.name} size="sm" />
+                          <PlayerName name={p.name} size="sm" photoUrl={p.photo_url} color={colorByPlayer[p.id]} />
                           <CatchUpBadge bonus={bonus} />
                         </span>
                       );

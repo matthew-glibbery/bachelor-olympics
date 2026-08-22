@@ -217,7 +217,9 @@ export function OverallBetting({
                     );
                   }
 
-                  const canPick = !!currentPlayerId && !myBet;
+                  // Can't bet on yourself to win or place — same reasoning
+                  // as any pick-the-winner pool.
+                  const canPick = !!currentPlayerId && !myBet && candidate.id !== currentPlayerId;
                   return canPick ? (
                     <Button
                       key={type}
@@ -261,7 +263,10 @@ export function OverallBetting({
             const alive =
               bet.status === "open" ? isPickAlive(type, bet.pick_player_id, eliminationField) : null;
             const aliveCandidates = players.filter(
-              (p) => p.id !== bet.pick_player_id && isPickAlive(type, p.id, eliminationField),
+              (p) =>
+                p.id !== bet.pick_player_id &&
+                p.id !== currentPlayerId &&
+                isPickAlive(type, p.id, eliminationField),
             );
 
             return (
