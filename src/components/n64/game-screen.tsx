@@ -38,7 +38,7 @@ export function GameScreen({
   className?: string;
 }) {
   return (
-    <main className="relative min-h-dvh overflow-hidden px-4 py-6 pb-28 sm:px-8 sm:pb-6">
+    <main className="screen-pad-block relative min-h-dvh overflow-hidden px-4 sm:px-8">
       <Starfield className="opacity-60" />
 
       <div
@@ -64,7 +64,7 @@ export function GameScreen({
             // screen; left full-width it wrapped with a single orphan word on
             // line two on four of five screens. Balanced and capped so it
             // breaks into even lines instead.
-            <p className="font-display text-muted-foreground max-w-[48ch] text-[10px] tracking-[0.2em] text-balance uppercase">
+            <p className="hud-label text-muted-foreground max-w-[48ch] text-balance">
               {subtitle}
             </p>
           ) : null}

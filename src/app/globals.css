@@ -78,16 +78,66 @@
   --glow: var(--primary);
   --crt-vignette: oklch(0.08 0.04 277 / 65%);
 
+  /* Movement colours — gained/lost places on the rank ladder, and the
+     chart tooltip's rank-change indicator.
+
+     Deliberately NOT the categorical palette's own green/red slots
+     (chartColors.ts): those are tied to whichever players happen to hold
+     them, and reusing them for status would make a movement figure look
+     like it belonged to a particular competitor. These two values are the
+     ones progress-chart.tsx already validated for contrast against the dark
+     surfaces (green 8.80:1, red 5.75:1 — both clear WCAG AA for small
+     text); promoted to tokens here so the ladder and the chart can't drift
+     apart. Always shipped with a +/- sign alongside, never colour alone. */
+  --status-up: #4cd676;
+  --status-down: #ff6759;
+
   /* Podium colors for the leaderboard (src/app/page.tsx) — universal
      gold/silver/bronze, deliberately not derived from the base palette. */
   --medal-gold: oklch(0.84 0.16 88);
   --medal-silver: oklch(0.82 0.02 250);
   --medal-bronze: oklch(0.65 0.13 55);
 
-  --font-display: "Arial Black", "Arial Bold", "Helvetica Neue", Helvetica,
+  /*
+    ── Safe-area insets (installed / standalone PWA) ────────────────────
+    Added to a home screen there is no browser chrome, so the iOS notch and
+    home indicator sit *on top of* the UI — the floating bottom tab bar in
+    particular. `viewport-fit=cover` (layout.tsx) is what makes these env()
+    values non-zero; they fall back to 0px in a normal browser tab, so the
+    same rules are safe everywhere. Tokens rather than inline env() in
+    components, per the convention every other value here follows.
+  */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+
+  /* Type. These resolve to real self-hosted webfonts loaded by
+     `src/app/fonts.ts` via next/font, which injects the `*-loaded` variables
+     onto <html>. The trailing stacks are genuine fallbacks for the swap
+     window only — they are no longer what anyone actually sees.
+
+     These used to BE system stacks ("Arial Black", "SF Mono", ...), which is
+     precisely why the app rendered in a different typeface on every phone:
+     none of those faces ship on iOS or Android, so mobile silently fell
+     through to its own default while desktop resolved the real thing. Don't
+     reintroduce a system-font-only token here. */
+
+  /* Marquee voice: the cartridge logo and "Press Start". Caps-only, ultra
+     wide, and unusable below ~16px — never put a small label in this. */
+  --font-title: var(--font-title-loaded), "Arial Black", "Arial Bold",
+    Helvetica, sans-serif;
+  /* The workhorse: every tracked 9-10px uppercase label, tab, nav item and
+     plate heading in the app. Variable 100-900. */
+  --font-display: var(--font-display-loaded), "Helvetica Neue", Helvetica,
     Arial, sans-serif;
-  --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-score: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-ui: var(--font-display-loaded), "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+  /* Scoreboard readouts. Semi-condensed, so the Pts/x/Total columns survive
+     a narrow phone. Always pair with `tabular-nums`. */
+  --font-score: var(--font-score-loaded), "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
 }
 
 @theme inline {
@@ -126,19 +176,42 @@
   --color-bevel-dark: var(--bevel-dark);
   --color-sunken: var(--sunken);
   --color-glow: var(--glow);
+  --color-status-up: var(--status-up);
+  --color-status-down: var(--status-down);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  --font-title: var(--font-title);
   --font-display: var(--font-display);
+  /* `font-display` used to resolve to Arial Black, which is heavy by
+     definition -- so not one of the ~47 places that use it ever set a weight
+     class. Archivo is a variable font that would default to a thin-looking
+     400 in all of them. Carrying the weight on the token itself preserves
+     every existing call site rather than requiring a `font-black` next to
+     each one. Verified there is no conflict: no `font-display` call site in
+     the app sets its own weight utility. */
+  --font-display--font-variation-settings: "wght" 800;
   --font-ui: var(--font-ui);
+  /* Deliberately no variation-settings here -- `font-score` IS combined with
+     a weight utility in one place (event-card's Total column), and
+     variation-settings would silently win over it. */
   --font-score: var(--font-score);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  html {
+    /* Installed to a home screen there is no browser chrome to rubber-band
+       against, and a pull-to-refresh gesture mid-scroll just looks broken.
+       `body` already sets this; the scroll gesture is handled on the root
+       element too, so both need it. */
+    overscroll-behavior-y: none;
+    /* Standalone iOS otherwise inflates text on rotation. */
+    -webkit-text-size-adjust: 100%;
   }
   body {
     @apply bg-background text-foreground;
@@ -217,6 +290,34 @@
    strip, and any future menu screen) — .bevel-raised plus a glowing ring,
    since a plain hover state doesn't read on a screen driven by a D-pad
    rather than a pointer. */
+/* Where the floating mobile tab bar (app-nav.tsx) sits. Same 1rem gap it
+   always had, plus whatever the device reserves for the home indicator —
+   without this the bar sits under it on any modern iPhone in standalone
+   mode. Only the fixed (mobile) case uses these; from `sm:` up the nav is
+   `position: static` and ignores them. */
+@utility nav-inset-safe {
+  bottom: calc(1rem + var(--safe-bottom));
+  left: calc(1rem + var(--safe-left));
+  right: calc(1rem + var(--safe-right));
+}
+
+/* Block padding for the screen shell (n64/game-screen.tsx): the old
+   `py-6 pb-28 sm:pb-6`, plus the safe-area insets. One utility rather than
+   Tailwind classes because `pb-*` and a custom utility are the same
+   specificity in one layer and Tailwind, not source order, decides which
+   wins — the same trap `bevel-none` documents below. Keeping both the
+   mobile and `sm:` case inside here makes the outcome independent of that
+   ordering. */
+@utility screen-pad-block {
+  padding-top: calc(1.5rem + var(--safe-top));
+  /* 7rem clears the floating tab bar; the inset clears the home indicator. */
+  padding-bottom: calc(7rem + var(--safe-bottom));
+
+  @media (width >= 40rem) {
+    padding-bottom: calc(1.5rem + var(--safe-bottom));
+  }
+}
+
 @utility is-cursor {
   box-shadow:
     inset 2px 2px 0 0 var(--bevel-light),
@@ -240,6 +341,9 @@
    impossible to merge away. */
 @utility extruded {
   font-family: var(--font-display);
+  /* Explicit, for the same reason the token above carries one: Archivo is
+     variable and would otherwise render this at 400. */
+  font-variation-settings: "wght" 850;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--foreground);
@@ -255,6 +359,123 @@
    trophy/prestige color rather than plain chrome (the leaderboard title). */
 @utility extruded-gold {
   color: var(--primary);
+}
+
+/* ── The type scale ───────────────────────────────────────────────────
+   Four registers, and deliberately only four.
+
+   The problem these two utilities exist to end: this app had grown 42
+   `text-xs`, 19 `text-[10px]`, 11 `text-[9px]`, a `text-[8px]`, and NINE
+   different tracking values (`tracking-wide/wider/widest` plus six
+   arbitrary `[0.14em]`-style ones) — nearly all of them small tracked
+   uppercase. On the leaderboard that meant four distinct uppercase
+   registers inside a 5px size range, separated by nothing but tracking.
+   The eye landed on the gold title and then found no second stop, so every
+   screen read at one volume and had to be scanned linearly.
+
+   The four registers are: `.extruded` (screen title) > plate heading
+   (Panel's h2) > `.hud-label` > `.hud-copy`. Hierarchy below the title is
+   carried by SIZE, WEIGHT and COLOUR — never by adding another tracking
+   value. If you find yourself reaching for `text-[9px] tracking-[0.15em]
+   uppercase` again, reach for `.hud-label` instead.
+
+   Both sit outside the `text-` namespace on purpose. `cn()` runs
+   tailwind-merge, which treats any `text-*` class as a member of one group
+   and silently keeps only the last — the same trap that once ate
+   `.extruded`'s font entirely. See that utility's comment. */
+
+/* The ONE small tracked-uppercase register: every field label, column
+   header, tab, nav item, badge and caption in the app. 11px rather than the
+   old 8-10px because this is read on a phone, outdoors, in sunlight.
+
+   Never combine this with a `text-*` size utility. Both set font-size, and
+   because tailwind-merge doesn't know `.hud-label` IS a size, it won't drop
+   the loser -- you get two declarations racing on stylesheet order, which is
+   not something you want deciding how big a label renders. If something
+   needs to be bigger than this, it isn't a label: give it its own
+   treatment (see /select's confirm CTA and /start's tagline, both
+   deliberately left out of this register). */
+@utility hud-label {
+  font-family: var(--font-display);
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1.25;
+  letter-spacing: 0.1em;
+  font-variation-settings: "wght" 700;
+  text-transform: uppercase;
+}
+
+/* The ONE reading register — sentence case, untracked, the normal-width
+   body face. For anything that is a sentence: panel descriptions, rule
+   explanations, footnotes.
+
+   Uppercase tracked type is for labels a player *recognises*, not for prose
+   they have to *read*. The standings footnote ("Adjusted = raw points x
+   that event's multiplier...") was a two-line explanatory sentence set in
+   9px uppercase at 0.15em tracking — unreadable by construction on the
+   device this app actually runs on. */
+@utility hud-copy {
+  font-family: var(--font-ui);
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-transform: none;
+  font-variation-settings: "wght" 400;
+}
+
+/* Status tags — "In progress", "Absolute", "+30%", "Awaiting result",
+   "Alive — worth 100 pts", "Done", "Won"/"Lost".
+
+   Deliberately the one thing in this app that is NOT a beveled plate.
+   Nearly every surface here is raised or sunken chrome, and when these were
+   given a bevel too they stopped reading as annotation and started reading
+   as small physical controls — several of them sit next to real buttons,
+   which made it genuinely ambiguous whether "Awaiting result" was something
+   you could press. A tag is a label printed ON the plate, not another plate.
+
+   So: no shadow at all, a sharper corner than any plate in the app uses
+   (2px against the plates' 6-12px), and a flat tint of its own semantic
+   colour rather than a fill from the surface palette. The colour is driven
+   by a single `--tag-color` so every variant is the same object in a
+   different hue — set it via `[--tag-color:var(--destructive)]` and the
+   border, tint and text all follow together and can't drift apart. */
+@utility tag {
+  --tag-color: var(--muted-foreground);
+  display: inline-flex;
+  width: fit-content;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+  border-radius: 2px;
+  border: 1px solid color-mix(in oklab, var(--tag-color) 55%, transparent);
+  background-color: color-mix(in oklab, var(--tag-color) 14%, transparent);
+  color: var(--tag-color);
+  padding: 0.1875rem 0.375rem;
+  box-shadow: none;
+}
+
+/* The marquee voice -- Bungee, the arcade-signage face that the cartridge
+   logo is set in. Reserved for the handful of moments that are meant to read
+   as the game's title rather than as UI: `/start`'s "Press Start", and the
+   logo SVG itself.
+
+   Deliberately NOT used for in-page headings (event names, "Choose your
+   character"). Bungee is drawn caps-only and is far wider per character than
+   a normal grotesque, so a real event name like "Nine Holes of Golf" set in
+   it wraps to three lines on a phone. Those keep `.extruded`. */
+@utility marquee {
+  font-family: var(--font-title);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  text-shadow:
+    1px 1px 0 var(--bevel-dark),
+    2px 2px 0 var(--bevel-dark),
+    3px 3px 0 var(--bevel-dark),
+    4px 4px 0 var(--bevel-dark),
+    5px 5px 6px oklch(0 0 0 / 45%);
 }
 
 @layer components {
@@ -292,6 +513,16 @@
   the reduced-motion block below turns all of it off, and no screen depends
   on an animation having run to become usable or readable.
 */
+/* The arcade attract-mode blink on "Press Start".
+
+   Deliberately still a hard `steps(1)` switch rather than a fade — the
+   instant on/off IS the idiom, and easing it would just read as a generic
+   web pulse. What changed is the floor: the off-phase used to be `opacity:
+   0`, so the screen's only call to action was completely absent half of
+   every second. That's bad on its own terms (a first-time player can look
+   straight at the screen during an off-phase and see nothing to do) and it
+   made the title screen photograph as broken. Dropping to 0.3 keeps the
+   blink obvious while leaving the prompt continuously readable. */
 @keyframes n64-blink {
   0%,
   49% {
@@ -299,7 +530,7 @@
   }
   50%,
   100% {
-    opacity: 0;
+    opacity: 0.3;
   }
 }
 

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Play } from "lucide-react";
 import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -144,7 +145,7 @@ export default function SelectPage() {
     <main className="relative flex min-h-dvh flex-col overflow-hidden">
       <Starfield className="opacity-60" />
 
-      <div className="relative flex min-h-dvh flex-col gap-4 px-4 py-6 sm:px-8">
+      <div className="relative flex min-h-dvh flex-col gap-4 px-4 pt-[calc(1.5rem+var(--safe-top))] pb-[calc(1.5rem+var(--safe-bottom))] sm:px-8">
         <div className="flex items-center justify-center">
           <h1 className="extruded text-lg sm:text-2xl">Choose your character</h1>
         </div>
@@ -205,7 +206,7 @@ export default function SelectPage() {
                       </span>
                       <span
                         className={cn(
-                          "font-display mt-1 block truncate text-[10px] tracking-wider uppercase",
+                          "hud-label mt-1 block truncate",
                           isActive ? "text-foreground" : "text-muted-foreground",
                         )}
                       >
@@ -251,9 +252,14 @@ export default function SelectPage() {
                   <button
                     type="button"
                     onClick={() => onConfirm(index)}
-                    className="bevel-raised is-cursor bg-primary text-primary-foreground font-display mt-1 rounded-md px-8 py-3 text-sm tracking-widest uppercase focus-visible:outline-none"
+                    className="font-display bevel-raised is-cursor bg-primary text-primary-foreground mt-1 flex items-center gap-2 rounded-md px-8 py-3 text-sm tracking-widest uppercase focus-visible:outline-none"
                   >
-                    Let&apos;s go ▶
+                    Let&apos;s go
+                    {/* A lucide glyph, not a literal "\u25B6" character. iOS
+                        renders that codepoint with its colour emoji font, so
+                        the arrow arrived on phones as a blue-and-white emoji
+                        triangle that matched nothing else on screen. */}
+                    <Play className="size-4 shrink-0" fill="currentColor" strokeWidth={0} />
                   </button>
                 </>
               ) : null}

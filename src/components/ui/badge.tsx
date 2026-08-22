@@ -4,26 +4,41 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
-const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 gap-1 [&>svg]:size-3 transition-[color,box-shadow] overflow-hidden",
-  {
-    variants: {
-      variant: {
-        default:
-          "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
-        secondary:
-          "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
-        destructive:
-          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90",
-        outline:
-          "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-      },
+/**
+ * Status tag — "In progress", "Absolute", "+30%", "Done", "Awaiting result",
+ * "Alive — worth 100 pts", won/lost/voided.
+ *
+ * These are the one family in the app that is deliberately NOT a beveled
+ * plate. Almost every other surface here is raised or sunken chrome, and
+ * giving these a bevel too (an earlier pass did) stopped them reading as
+ * annotation and started them reading as small physical controls — a real
+ * problem where they sit beside actual buttons, as "Awaiting result" does
+ * next to Edit/Cancel on /bets, because it made a status look pressable.
+ * A tag is a label printed ON a plate, not another plate.
+ *
+ * The flat treatment lives in the `tag` utility in globals.css; the
+ * variants here only choose a `--tag-color`, so border, tint and text all
+ * move together and can't drift out of sync. Every variant is the same
+ * object in a different hue, which is what makes them read as one family
+ * rather than four unrelated chips.
+ */
+const badgeVariants = cva("tag hud-label [&>svg]:size-3", {
+  variants: {
+    variant: {
+      /** Notable / positive — a resolved event, a won bet, a catch-up bonus. */
+      default: "[--tag-color:var(--primary)]",
+      /** Quiet metadata — scoring mode, "Done", "Not started". */
+      secondary: "[--tag-color:var(--muted-foreground)]",
+      /** Bad or urgent — a lost bet, an event live right now. */
+      destructive: "[--tag-color:var(--destructive)]",
+      /** Neutral, pending — "Awaiting result", "Voided". */
+      outline: "[--tag-color:var(--muted-foreground)]",
     },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-);
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+});
 
 function Badge({
   className,

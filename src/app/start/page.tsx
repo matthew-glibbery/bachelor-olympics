@@ -117,7 +117,7 @@ export default function StartPage() {
         </div>
 
         <p
-          className="font-display text-primary/90 text-center text-[11px] tracking-[0.3em] uppercase sm:text-sm"
+          className="font-display text-primary/90 max-w-[22rem] text-center text-[11px] tracking-[0.16em] text-balance uppercase sm:max-w-none sm:text-sm sm:tracking-[0.3em]"
           style={{ animation: "n64-pop-in 0.5s ease-out 1.1s both" }}
         >
           {GAME_TAGLINE}
@@ -135,7 +135,9 @@ export default function StartPage() {
         >
           <span
             className={
-              starting ? "extruded text-2xl sm:text-3xl" : "anim-blink extruded text-2xl sm:text-3xl"
+              starting
+                ? "marquee text-xl sm:text-2xl"
+                : "anim-blink marquee text-xl sm:text-2xl"
             }
             style={{ visibility: promptVisible ? "visible" : "hidden" }}
           >
@@ -154,11 +156,11 @@ export default function StartPage() {
         className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/75 to-transparent"
         aria-hidden
       />
-      <footer className="absolute inset-x-0 bottom-6 flex flex-col items-center gap-1 px-6">
-        <p className="font-display text-center text-[9px] tracking-[0.2em] text-white/70 uppercase">
+      <footer className="absolute inset-x-0 bottom-[calc(1.5rem+var(--safe-bottom))] flex flex-col items-center gap-1 px-6">
+        <p className="hud-label text-center text-balance text-white/70 sm:tracking-[0.2em]">
           {GAME_COPYRIGHT}
         </p>
-        <p className="font-display text-center text-[9px] tracking-[0.2em] text-white/50 uppercase">
+        <p className="hud-label text-center text-white/50">
           Keyboard · Gamepad · Touch
         </p>
       </footer>

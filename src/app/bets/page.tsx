@@ -205,7 +205,12 @@ export default function BetsPage() {
   return (
     <GameScreen
       title="Bets"
-      subtitle="Overall picks, plus every per-event wager you've got open"
+      // U+2011 (non-breaking hyphen), not a plain "-": the subtitle is
+      // tracked uppercase and was breaking as "PER-" / "EVENT" across two
+      // lines. text-balance doesn't prevent that -- a real hyphen is a valid
+      // break opportunity, so the character itself has to be the unbreakable
+      // one.
+      subtitle={"Overall picks, plus every per\u2011event wager you've got open"}
       // Both these screens are stacked prose-and-form panels, not a grid —
       // they were `max-w-2xl` before the shared shell existed and reading
       // measure is the reason, so keep it rather than inheriting the
@@ -347,8 +352,8 @@ export default function BetsPage() {
                                 </Button>
                                 <Button
                                   size="sm"
-                                  variant="ghost"
-                                  className="text-destructive"
+                                  variant="outline"
+                                  className="text-destructive hover:text-destructive"
                                   onClick={() => handleCancelPerEvent(myBet.id)}
                                   disabled={busyEventId === myBet.id}
                                 >

@@ -173,7 +173,7 @@ export function OverallBetting({
               <span
                 key={type}
                 className={cn(
-                  "font-display text-muted-foreground text-[10px] tracking-wide uppercase",
+                  "hud-label text-muted-foreground",
                   COLUMN_CLASS,
                 )}
               >
@@ -252,7 +252,7 @@ export function OverallBetting({
 
       {currentPlayerId && (myBets.win || myBets.top3) ? (
         <div className="bevel-sunken bg-sunken flex flex-col gap-3 rounded-md p-3">
-          <span className="font-display text-muted-foreground text-[10px] tracking-wide uppercase">
+          <span className="hud-label text-muted-foreground">
             Your picks
           </span>
           {BET_TYPES.map(({ type, label }) => {
@@ -287,7 +287,14 @@ export function OverallBetting({
                       {bet.status === "won" ? `Won ${bet.payout} pts` : "Lost"}
                     </Badge>
                   ) : (
-                    <Badge variant={alive ? "outline" : "destructive"}>
+                    <Badge
+                      // Alive is good news and sits opposite a red
+                      // "Eliminated", so it takes the positive tag colour
+                      // rather than the neutral one — a grey "Alive" against
+                      // a red "Eliminated" read as though only one of the
+                      // two states mattered.
+                      variant={alive ? "default" : "destructive"}
+                    >
                       {alive ? `Alive — worth ${overallPayoutValue(type, bet.switches)} pts` : "Eliminated"}
                     </Badge>
                   )}

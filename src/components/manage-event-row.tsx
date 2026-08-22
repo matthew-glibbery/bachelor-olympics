@@ -116,7 +116,7 @@ export function ManageEventRow({ event }: { event: EventRow }) {
               <GripVertical className="size-4" />
             </button>
             <span className="text-sm font-medium">{event.name}</span>
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline">
               {STATUS_LABEL[event.status]}
             </Badge>
           </span>

@@ -228,7 +228,7 @@ export default function MultipliersPage() {
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
           {/* Character, carried over from /select and still idling. */}
           <aside className="flex flex-col items-center gap-3">
-            <div className="relative aspect-[9/16] w-full max-w-52">
+            <div className="relative aspect-[9/16] w-full max-w-36 sm:max-w-52">
               {/* Re-keyed on each adjustment so the character reacts to the
                   bars rather than just sitting there. */}
               <div key={reactionKey} className="anim-pop-in relative h-full w-full">
@@ -259,9 +259,7 @@ export default function MultipliersPage() {
                   validation.budgetRemaining < 0 && "is-cursor",
                 )}
               >
-                <p className="font-display text-muted-foreground text-[9px] tracking-wider uppercase">
-                  Budget remaining
-                </p>
+                <p className="hud-label text-muted-foreground">Budget remaining</p>
                 <p
                   className={cn(
                     "font-score text-2xl tabular-nums",
@@ -271,7 +269,7 @@ export default function MultipliersPage() {
                   {validation.budgetRemaining > 0 ? "+" : ""}
                   {validation.budgetRemaining.toFixed(1)}
                 </p>
-                <p className="font-display text-muted-foreground mt-1 text-[8px] tracking-wide uppercase">
+                <p className="hud-label text-muted-foreground mt-1 opacity-80">
                   {validation.budgetRemaining > 0
                     ? "Unspent — becomes reserve"
                     : validation.budgetRemaining === 0
@@ -289,16 +287,14 @@ export default function MultipliersPage() {
                   both was just the same fact printed twice. */}
               {reserve ? (
                 <div className="bevel-sunken bg-sunken flex-1 rounded-md px-3 py-3 text-center">
-                  <p className="font-display text-muted-foreground text-[9px] tracking-wider uppercase">
-                    Tied up in open wagers
-                  </p>
+                  <p className="hud-label text-muted-foreground">Tied up in open wagers</p>
                   <p className="font-score text-2xl tabular-nums">{reserve.tiedUp.toFixed(1)}</p>
                 </div>
               ) : null}
             </div>
 
             {reserve ? (
-              <p className="font-display text-muted-foreground text-center text-[9px] tracking-wider uppercase">
+              <p className="hud-label text-muted-foreground text-center">
                 See{" "}
                 <Link href="/bets" className="text-foreground underline">
                   Bets
@@ -316,7 +312,7 @@ export default function MultipliersPage() {
               title="Event multipliers"
               icon={Sliders}
               action={
-                <span className="font-display text-muted-foreground text-[10px] tracking-wider uppercase">
+                <span className="hud-label text-muted-foreground">
                   {saving
                     ? "Saving…"
                     : justSaved
@@ -379,7 +375,7 @@ export default function MultipliersPage() {
                   setReactionKey((k) => k + 1);
                   setJustSaved(false);
                 }}
-                className="bevel-raised bg-card font-display flex w-fit items-center gap-2 rounded-md px-4 py-2 text-xs tracking-wider uppercase focus-visible:is-cursor focus-visible:outline-none"
+                className="hud-label bevel-raised bg-card flex w-fit items-center gap-2 rounded-md px-4 py-2 focus-visible:is-cursor focus-visible:outline-none"
               >
                 <RotateCcw className="size-3.5" />
                 Reset to even

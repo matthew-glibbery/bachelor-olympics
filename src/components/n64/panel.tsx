@@ -43,14 +43,21 @@ export function Panel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2.5">
           {Icon ? (
-            <span className="bevel-sunken bg-sunken grid size-8 shrink-0 place-items-center rounded-md">
-              <Icon className={cn("text-primary size-4", iconClassName)} />
+            // A lucide hairline (1.5px at 16px) reads visibly thinner than
+            // the 2px hard bevel edge of the well it sits in, which is the
+            // "thin line icons against chunky plates" mismatch. Heavier
+            // stroke via CSS rather than a `strokeWidth` prop: `Icon` is
+            // typed as a bare `{ className }` component here, and a CSS
+            // `stroke-width` overrides the SVG presentation attribute
+            // anyway, so this works for any glyph passed in.
+            <span className="bevel-sunken bg-sunken grid size-8 shrink-0 place-items-center rounded-md [&_svg]:[stroke-width:2.25]">
+              <Icon className={cn("text-primary size-[18px]", iconClassName)} />
             </span>
           ) : null}
           <div className="flex min-w-0 flex-col gap-1">
-            <h2 className="font-display text-sm tracking-wider uppercase">{title}</h2>
+            <h2 className="font-display text-[15px] tracking-[0.06em] uppercase">{title}</h2>
             {description ? (
-              <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
+              <p className="hud-copy text-muted-foreground">{description}</p>
             ) : null}
           </div>
         </div>

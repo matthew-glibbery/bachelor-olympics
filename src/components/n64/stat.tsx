@@ -29,7 +29,7 @@ export function Stat({
 }) {
   return (
     <div className={cn("bevel-sunken bg-sunken flex min-w-0 flex-1 flex-col gap-0.5 rounded-md px-3 py-2", className)}>
-      <span className="font-display text-muted-foreground text-[9px] leading-tight tracking-[0.15em] uppercase">
+      <span className="hud-label text-muted-foreground">
         {label}
       </span>
       <span
@@ -42,7 +42,7 @@ export function Stat({
         {value}
       </span>
       {hint ? (
-        <span className="font-display text-muted-foreground text-[9px] tracking-wider uppercase">
+        <span className="hud-label text-muted-foreground opacity-80">
           {hint}
         </span>
       ) : null}
