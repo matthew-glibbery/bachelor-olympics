@@ -84,6 +84,21 @@
   --medal-silver: oklch(0.82 0.02 250);
   --medal-bronze: oklch(0.65 0.13 55);
 
+  /*
+    ── Safe-area insets (installed / standalone PWA) ────────────────────
+    Added to a home screen there is no browser chrome, so the iOS notch and
+    home indicator sit *on top of* the UI — the floating bottom tab bar in
+    particular. `viewport-fit=cover` (layout.tsx) is what makes these env()
+    values non-zero; they fall back to 0px in a normal browser tab, so the
+    same rules are safe everywhere. Tokens rather than inline env() in
+    components, per the convention every other value here follows.
+  */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+
   /* Type. These resolve to real self-hosted webfonts loaded by
      `src/app/fonts.ts` via next/font, which injects the `*-loaded` variables
      onto <html>. The trailing stacks are genuine fallbacks for the swap
@@ -173,6 +188,15 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Installed to a home screen there is no browser chrome to rubber-band
+       against, and a pull-to-refresh gesture mid-scroll just looks broken.
+       `body` already sets this; the scroll gesture is handled on the root
+       element too, so both need it. */
+    overscroll-behavior-y: none;
+    /* Standalone iOS otherwise inflates text on rotation. */
+    -webkit-text-size-adjust: 100%;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-ui);
@@ -250,6 +274,34 @@
    strip, and any future menu screen) — .bevel-raised plus a glowing ring,
    since a plain hover state doesn't read on a screen driven by a D-pad
    rather than a pointer. */
+/* Where the floating mobile tab bar (app-nav.tsx) sits. Same 1rem gap it
+   always had, plus whatever the device reserves for the home indicator —
+   without this the bar sits under it on any modern iPhone in standalone
+   mode. Only the fixed (mobile) case uses these; from `sm:` up the nav is
+   `position: static` and ignores them. */
+@utility nav-inset-safe {
+  bottom: calc(1rem + var(--safe-bottom));
+  left: calc(1rem + var(--safe-left));
+  right: calc(1rem + var(--safe-right));
+}
+
+/* Block padding for the screen shell (n64/game-screen.tsx): the old
+   `py-6 pb-28 sm:pb-6`, plus the safe-area insets. One utility rather than
+   Tailwind classes because `pb-*` and a custom utility are the same
+   specificity in one layer and Tailwind, not source order, decides which
+   wins — the same trap `bevel-none` documents below. Keeping both the
+   mobile and `sm:` case inside here makes the outcome independent of that
+   ordering. */
+@utility screen-pad-block {
+  padding-top: calc(1.5rem + var(--safe-top));
+  /* 7rem clears the floating tab bar; the inset clears the home indicator. */
+  padding-bottom: calc(7rem + var(--safe-bottom));
+
+  @media (width >= 40rem) {
+    padding-bottom: calc(1.5rem + var(--safe-bottom));
+  }
+}
+
 @utility is-cursor {
   box-shadow:
     inset 2px 2px 0 0 var(--bevel-light),

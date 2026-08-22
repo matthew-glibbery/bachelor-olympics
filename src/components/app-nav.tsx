@@ -99,7 +99,7 @@ export function AppNav() {
     <>
       <nav
         className={cn(
-          "bevel-raised bg-card fixed inset-x-4 bottom-4 z-50 flex items-center justify-around gap-1 rounded-2xl px-2 py-2",
+          "bevel-raised bg-card nav-inset-safe fixed z-50 flex items-center justify-around gap-1 rounded-2xl px-2 py-2",
           "sm:static sm:inset-auto sm:z-auto sm:flex-wrap sm:justify-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:px-0 sm:py-0 sm:shadow-none",
         )}
       >

@@ -145,7 +145,7 @@ export default function SelectPage() {
     <main className="relative flex min-h-dvh flex-col overflow-hidden">
       <Starfield className="opacity-60" />
 
-      <div className="relative flex min-h-dvh flex-col gap-4 px-4 py-6 sm:px-8">
+      <div className="relative flex min-h-dvh flex-col gap-4 px-4 pt-[calc(1.5rem+var(--safe-top))] pb-[calc(1.5rem+var(--safe-bottom))] sm:px-8">
         <div className="flex items-center justify-center">
           <h1 className="extruded text-lg sm:text-2xl">Choose your character</h1>
         </div>
