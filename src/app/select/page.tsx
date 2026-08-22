@@ -202,12 +202,7 @@ export default function SelectPage() {
                         isActive && "is-cursor -translate-y-1",
                       )}
                     >
-                      <span
-                        className="block aspect-square w-full overflow-hidden rounded-sm"
-                        style={{
-                          background: `linear-gradient(180deg, color-mix(in oklab, ${color} 35%, transparent), transparent)`,
-                        }}
-                      >
+                      <span className="block aspect-square w-full overflow-hidden rounded-sm">
                         <CharacterRender
                           name={p.name}
                           nickname={p.nickname}
@@ -236,7 +231,7 @@ export default function SelectPage() {
             <div className="flex flex-1 flex-col items-center justify-center gap-4">
               {focused ? (
                 <>
-                  <div className="relative aspect-[9/16] h-56 w-auto sm:h-80">
+                  <div className="relative aspect-[9/16] h-96 w-auto sm:h-[28rem]">
                     {/* Keyed on player id so the pop-in replays on every swap. */}
                     <div key={focused.id} className="anim-pop-in relative h-full w-full">
                       <CharacterRender

@@ -64,37 +64,27 @@ export function CharacterRender({
   }, [showVideo]);
 
   return (
-    <div className={cn("relative h-full w-full", className)}>
-      {/* A matching glow behind the render — a perfect circle, diameter
-          equal to the container's own height, centered. The generated
-          clips/images already bake this same radial gradient (the
-          player's own color fading to the app's navy) into their pixels,
-          but only out to the video's rectangular edge — character-clip-
-          mask's circular fade then reveals raw page background past that
-          edge, which read as a harsh seam. This picks up exactly where
-          the baked-in gradient leaves off instead of cutting straight to
-          the starfield. */}
-      <div
-        aria-hidden
-        className="absolute top-1/2 left-1/2 aspect-square h-full -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          background: `radial-gradient(circle, ${color} 0%, transparent 70%)`,
-        }}
-      />
+    // A bounded plate, not an attempt to blend the render into the page —
+    // every previous approach here (a CSS mask fading the clip's own
+    // rectangular edge, a matching radial-gradient glow behind it) still
+    // left a visible seam, because the generated clip/image's own baked-in
+    // gradient only extends to its own frame, and no page-side trick
+    // reliably picked up exactly where that left off. A real frame (the
+    // same sunken-plate treatment used elsewhere in the app) sidesteps the
+    // problem entirely: the video/photo's edge reads as an intentional
+    // portrait-frame boundary, not a bleed that has to match anything.
+    <div className={cn("bevel-sunken bg-sunken relative h-full w-full overflow-hidden rounded-md", className)}>
       {photoUrl ? (
         /* Uploaded player photo — intrinsic size unknown ahead of time and
            there's a handful of these at most, so next/image's optimizer
            buys nothing; a plain <img> is the right call.
 
            Faded out while the video is actively showing, not just left
-           opaque underneath it: character-clip-mask (globals.css) fades the
-           video's own edges to transparency so it blends into whatever's
-           behind it — but with the photo always fully opaque here, those
-           faded edges revealed the *photo* instead (a different framing/
-           crop than the video, white background), showing up as a ghosted
-           double-exposure. Hiding the photo while the video plays means the
-           mask's transparent edges reveal the real page background, which
-           is the point of it. */
+           opaque underneath it, so the video's own opacity fade-in isn't
+           fighting a fully opaque photo of a different crop underneath it
+           (a ghosted double-exposure) — both layers now sit on the same
+           bounded plate, so hiding one while the other shows is enough on
+           its own, no edge-masking trick needed either side. */
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={photoUrl}
@@ -120,7 +110,7 @@ export function CharacterRender({
           playsInline
           poster={photoUrl ?? undefined}
           className={cn(
-            "character-clip-mask absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
+            "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
             showVideo ? "opacity-100" : "opacity-0",
           )}
         />

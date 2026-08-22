@@ -257,23 +257,6 @@
   color: var(--primary);
 }
 
-/* Feathers a character clip's rectangular edges into transparency instead
-   of a hard box against the Starfield/panel behind it. The clips
-   themselves are generated on a flat solid background (Gemini's image/video
-   models have no alpha channel — see scripts/character-gen/README.md), so
-   without this every clip reads as a visible rectangle wherever that flat
-   background shows past the character. A radial-gradient mask fades the
-   video element's own opacity per-pixel near the edges — the flat
-   background fades out with it — so it blends against whatever's actually
-   behind it (Starfield, a panel, the dark stage) regardless of what color
-   the clip was rendered on. Applied to the <video> in CharacterRender only
-   — the procedural SVG bust has no rectangular edge to feather, and photos
-   are meant to fill their frame edge-to-edge. */
-@utility character-clip-mask {
-  mask-image: radial-gradient(circle farthest-side at center, black 78%, transparent 100%);
-  -webkit-mask-image: radial-gradient(circle farthest-side at center, black 78%, transparent 100%);
-}
-
 @layer components {
   /* CRT vignette, painted over the whole app (layout.tsx), never
      interactive. (The scanline pass was dropped — it read as literal
