@@ -4,18 +4,13 @@ import { useEffect, useState } from "react";
 import {
   Clapperboard,
   Dices,
-  Lock,
   RotateCcw,
-  ShieldCheck,
   TriangleAlert,
   UserRound,
   Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { PlayerName } from "@/components/player-name";
 import { ManagePlayerRow } from "@/components/manage-player-row";
 import { AddPlayerRow } from "@/components/add-player-row";
@@ -31,17 +26,9 @@ import { resetWeekend } from "@/lib/data/mutations";
 
 export default function SetupPage() {
   const { players, events, eventRankings, appSettings, connect, ready } = useGameStore();
-  const {
-    selectedPlayerId,
-    groomUnlocked,
-    hydrate,
-    selectPlayer,
-    clearSelectedPlayer,
-    unlockGroom,
-  } = useSessionStore();
+  const { selectedPlayerId, groomUnlocked, hydrate, selectPlayer, clearSelectedPlayer } =
+    useSessionStore();
 
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState(false);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
@@ -52,12 +39,6 @@ export default function SetupPage() {
   }, [hydrate, connect]);
 
   const selectedPlayer = players.find((p) => p.id === selectedPlayerId);
-
-  async function handleUnlock() {
-    const ok = await unlockGroom(pin);
-    setPinError(!ok);
-    if (ok) setPin("");
-  }
 
   async function handleResetWeekend() {
     setResetting(true);
@@ -127,38 +108,6 @@ export default function SetupPage() {
               ) : null}
             </div>
           )}
-      </Panel>
-
-      <Panel
-        title="Groom tools"
-        icon={groomUnlocked ? ShieldCheck : Lock}
-        description={
-          groomUnlocked
-            ? "Unlocked on this device — manage players and events below."
-            : "Enter the groom PIN to add or manage players and events."
-        }
-      >
-          {!groomUnlocked ? (
-            <div className="flex items-end gap-2">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="groom-pin">PIN</Label>
-                <Input
-                  id="groom-pin"
-                  type="password"
-                  inputMode="numeric"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  className="w-32"
-                />
-              </div>
-              <Button onClick={handleUnlock} disabled={!pin}>
-                Unlock
-              </Button>
-              {pinError ? (
-                <Badge variant="destructive">Wrong PIN</Badge>
-              ) : null}
-            </div>
-          ) : null}
       </Panel>
 
       {groomUnlocked ? (
