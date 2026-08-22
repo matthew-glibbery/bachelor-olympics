@@ -2,9 +2,10 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, ChevronLeft, PartyPopper } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronLeft, PartyPopper } from "lucide-react";
 import Image from "next/image";
 
+import { Badge } from "@/components/ui/badge";
 import { BonusEventsCard } from "@/components/bonus-events-card";
 import { EventCard } from "@/components/event-card";
 import { GameScreen } from "@/components/n64/game-screen";
@@ -192,7 +193,18 @@ function EventsPageInner() {
                       isActive && "is-cursor -translate-y-1",
                     )}
                   >
-                    <span className="block aspect-[4/3] w-full overflow-hidden rounded-sm bg-black/20">
+                    <span className="relative block aspect-[4/3] w-full overflow-hidden rounded-sm bg-black/20">
+                      {event.status === "scoring" ? (
+                        <Badge className="absolute top-1 right-1 z-10 gap-1 bg-destructive text-white">
+                          <span className="size-1.5 animate-pulse rounded-full bg-white" />
+                          Live
+                        </Badge>
+                      ) : event.status === "resolved" ? (
+                        <Badge className="absolute top-1 right-1 z-10 gap-1" variant="secondary">
+                          <CheckCircle2 className="size-3" />
+                          Done
+                        </Badge>
+                      ) : null}
                       {event.photo_url ? (
                         <Image
                           src={event.photo_url}
@@ -260,7 +272,16 @@ function EventsPageInner() {
               Back to events
             </button>
             {bonusSelected ? (
-              <BonusEventsCard players={players} bonusEvents={bonusEvents} groomUnlocked={groomUnlocked} />
+              <BonusEventsCard
+                players={players}
+                bonusEvents={bonusEvents}
+                groomUnlocked={groomUnlocked}
+                events={events}
+                eventResults={eventResults}
+                multipliers={multipliers}
+                perEventBets={perEventBets}
+                overallBets={overallBets}
+              />
             ) : focused ? (
               <EventCard
                 key={focused.id}

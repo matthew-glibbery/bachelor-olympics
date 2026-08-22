@@ -134,12 +134,11 @@ ${renderStyle(background)}`;
 }
 
 /**
- * Shoulders-up crop of an already-approved full-body image — the
- * selection-screen render, and the seed for the `select` hover clip
- * (start AND end frame, so it loops on the actual framing that clip plays
- * at, not the full-body one). Generated from the full-body image itself
- * (Nano Banana edit mode) rather than a plain image crop, since a naive
- * crop can cut off hair/accessories the full-body framing left room for.
+ * Shoulders-up crop of an already-approved full-body image — pushed live as
+ * `photo_url` (gen:char:upload-photo), the canonical "photo" shown
+ * everywhere in the app. Generated from the full-body image itself (Nano
+ * Banana edit mode) rather than a plain image crop, since a naive crop can
+ * cut off hair/accessories the full-body framing left room for.
  */
 export function headshotPrompt(name: string, background: string): string {
   return `Using the attached full-body character image of ${name}, reframe it as a
@@ -157,20 +156,13 @@ exactly. Do not change anything else about the character itself.
 ${renderStyle(background)}`;
 }
 
-export type ClipType = "select" | "fullbody" | "confirm" | "victory";
+export type ClipType = "fullbody" | "victory";
 
-/** Solo clip prompts — apply to the plain single-subject full-body image
- * (or headshot, for `select`), no Cassandra/Bailey. Used for select/
- * fullbody always, and for confirm/victory only as a fallback when no
- * composite scene has been generated yet (see cli.ts's `clip` command). */
+/** Solo clip prompts — apply to the plain single-subject full-body image, no
+ * Cassandra/Bailey. Used for fullbody always, and for victory only as a
+ * fallback when no composite scene has been generated yet (see cli.ts's
+ * `clip` command). */
 const soloClipPrompts: Record<ClipType, (name: string, background: string, action?: string) => string> = {
-  select: (name, background) => `Using the attached stylized 3D character image of ${name} as both the
-starting frame and the ending frame, animate a short, energetic idle
-gesture in between them — a quick eager bounce or a wave toward camera —
-that departs from and returns to that exact pose, so the clip loops
-perfectly on hover. ${background} Same low-poly N64-era character-select
-style as the reference image throughout. No camera movement.`,
-
   fullbody: (name, background, action) => `Using the attached stylized 3D character image of ${name}, generate a
 short, seamlessly loopable animation: ${action ?? "a silly, signature move related to their outfit/character (e.g. a trick, a flex, a move that fits who they are)"}
 — starting and ending in the exact same pose so it loops with no visible
@@ -185,14 +177,6 @@ a static idle. ${background} Same low-poly N64-era character-select style
 as the reference image. The camera is completely static and locked off
 for the entire clip — it must not pan, orbit, rotate, dolly, or zoom, not
 even slightly; only the character moves, the camera frame never changes.`,
-
-  confirm: (name, background) => `Using the attached stylized 3D character image of ${name}, generate a
-short one-shot (non-looping) confirmation animation: the character
-celebrates being selected/chosen — a confident, hype reaction, a fist
-pump, a point at the camera, or a thumbs up — as if just picked on a video
-game character-select screen. ${background} Same low-poly N64-era
-character-select style as the reference image. Simple push-in camera move
-for emphasis.`,
 
   victory: (name, background) => `Using the attached stylized 3D character image of ${name}'s low-poly
 N64-era character, generate a video: ${name}'s character performs a
@@ -243,28 +227,6 @@ ${playerName}. Cartoon physics, upbeat and silly, not aggressive or
 realistic — a celebratory gag, not a fight.`;
 }
 
-export function confirmScenePrompt(playerName: string): string {
-  return `Using the attached stylized N64-style character images — ${playerName}'s
-character, Cassandra's character (the bride), and Bailey's character (the
-dog) — compose a single character-select confirmation scene. Keep every
-character's face, proportions, outfit, and (for Bailey) breed/markings
-identical to their own reference image. ${playerName}'s character stands
-center-front in a confident "I'm ready to play" pose. Cassandra and Bailey
-are positioned just behind/beside them, smiling and supportive — Cassandra
-giving a thumbs up, Bailey alert and happy. Plain bold background suitable
-for a video game "you're playing as ___" confirmation screen. Full body,
-every character fully visible.`;
-}
-
-export function confirmSceneClipPrompt(playerName: string): string {
-  return `Using the attached composite scene image (${playerName} with Cassandra
-and Bailey supporting them), animate it into a short one-shot (non-looping)
-video: ${playerName}'s character strikes their confident "I'm ready" pose
-— a fist pump or point at camera — while Cassandra gives an enthusiastic
-thumbs up and Bailey wags happily beside them. Simple push-in camera on
-${playerName} for emphasis.`;
-}
-
 export function bootScenePrompt(names: string[]): string {
   return `Using the attached stylized N64-style character images — ${names.join(", ")}
 — compose a single wide group scene, like the opening cast shot of a 1998
@@ -285,11 +247,9 @@ energetic, all characters visible and in motion at once. No dialogue
 needed.`;
 }
 
-export const CLIP_TYPES: ClipType[] = ["select", "fullbody", "confirm", "victory"];
+export const CLIP_TYPES: ClipType[] = ["fullbody", "victory"];
 
 export const CLIP_FIELD: Record<ClipType, string> = {
-  select: "character_select_video_url",
   fullbody: "character_fullbody_video_url",
-  confirm: "character_confirm_video_url",
   victory: "character_victory_video_url",
 };

@@ -1,17 +1,27 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { Pencil, PartyPopper, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlayerName } from "@/components/player-name";
+import { WeekendAwardsSection } from "@/components/weekend-awards";
 import { cn } from "@/lib/utils";
+import { assignPlayerColors } from "@/lib/chartColors";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { createBonusEvent, removeBonusEvent, updateBonusEvent } from "@/lib/data/mutations";
 import { BONUS_EVENT_POINTS } from "@/lib/bonus/bonusEvent";
-import type { BonusEventRow, PlayerRow } from "@/lib/data/database.types";
+import type {
+  BonusEventRow,
+  EventResultRow,
+  EventRow,
+  MultiplierRow,
+  OverallBetRow,
+  PerEventBetRow,
+  PlayerRow,
+} from "@/lib/data/database.types";
 
 const SELECT_CLASS =
   "border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
@@ -29,10 +39,23 @@ export function BonusEventsCard({
   players,
   bonusEvents,
   groomUnlocked,
+  events,
+  eventResults,
+  multipliers,
+  perEventBets,
+  overallBets,
 }: {
   players: PlayerRow[];
   bonusEvents: BonusEventRow[];
   groomUnlocked: boolean;
+  /** Only needed for the Weekend awards sub-section — omit (or leave
+   * undefined) and that section just doesn't render, same "degrade
+   * gracefully" pattern the rest of this app uses for optional data. */
+  events?: EventRow[];
+  eventResults?: EventResultRow[];
+  multipliers?: MultiplierRow[];
+  perEventBets?: PerEventBetRow[];
+  overallBets?: OverallBetRow[];
 }) {
   const [name, setName] = useState("");
   const [playerId, setPlayerId] = useState("");
@@ -41,6 +64,13 @@ export function BonusEventsCard({
   const [error, setError] = useState<string | null>(null);
 
   const playersById = new Map(players.map((p) => [p.id, p]));
+  // Same sort-by-id + "dark" mode convention as every other screen
+  // (chartColors.ts's own doc comment) — a player's avatar ring here always
+  // matches their rank badge/chart line elsewhere in the app.
+  const colorByPlayer = useMemo(() => {
+    const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
+    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
+  }, [players]);
 
   async function handleAward() {
     const pts = Math.round(Number(points));
@@ -77,6 +107,17 @@ export function BonusEventsCard({
         </p>
       </div>
       <div className="flex flex-col gap-4">
+        {groomUnlocked && events && eventResults && multipliers && perEventBets && overallBets ? (
+          <WeekendAwardsSection
+            players={players}
+            events={events}
+            eventResults={eventResults}
+            multipliers={multipliers}
+            perEventBets={perEventBets}
+            overallBets={overallBets}
+            bonusEvents={bonusEvents}
+          />
+        ) : null}
         {groomUnlocked ? (
           <div className="flex flex-col gap-2 border-b pb-4">
             <div className="grid grid-cols-2 gap-2">
@@ -137,6 +178,7 @@ export function BonusEventsCard({
                 key={b.id}
                 bonusEvent={b}
                 players={players}
+                colorByPlayer={colorByPlayer}
                 playerName={
                   b.winner_player_id ? (playersById.get(b.winner_player_id)?.name ?? null) : null
                 }
@@ -153,11 +195,13 @@ export function BonusEventsCard({
 function BonusEventItem({
   bonusEvent,
   players,
+  colorByPlayer,
   playerName,
   groomUnlocked,
 }: {
   bonusEvent: BonusEventRow;
   players: PlayerRow[];
+  colorByPlayer: Record<string, string>;
   playerName: string | null;
   groomUnlocked: boolean;
 }) {
@@ -256,7 +300,7 @@ function BonusEventItem({
               <span className="text-muted-foreground">
                 {bonusEvent.points < 0 ? "deducted from" : "won by"}
               </span>
-              <PlayerName name={player.name} size="sm" />
+              <PlayerName name={player.name} size="sm" photoUrl={player.photo_url} color={colorByPlayer[player.id]} />
             </>
           ) : playerName ? (
             <span className="text-muted-foreground">— {playerName}</span>

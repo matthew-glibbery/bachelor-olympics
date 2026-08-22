@@ -6,7 +6,7 @@
  *   pnpm run gen:char:image     -- "Matthew" reference-photos/matthew.jpg
  *   pnpm run gen:char:image     -- "Cassandra" reference-photos/cassandra.jpg
  *   pnpm run gen:char:image     -- "Bailey" reference-photos/bailey.jpg
- *   pnpm run gen:char:clip      -- "Matthew" select
+ *   pnpm run gen:char:clip      -- "Matthew" fullbody
  *   pnpm run gen:char:composite -- victory "Matthew"
  *   pnpm run gen:char:clip      -- "Matthew" victory
  *   pnpm run gen:char:upload    -- "Matthew" victory
@@ -18,9 +18,9 @@
  * docs/VISUAL_SPEC.md, the full-body image needs sign-off before spending
  * Veo calls on clips, and clips need a local look before they're pushed
  * live. Cassandra (the bride) and Bailey (the dog) are image-only guests
- * (subjects.ts) — they never get their own select/fullbody/confirm/victory
- * clip, only an image used as extra reference material when composing the
- * victory, confirm, and boot scenes that include everyone.
+ * (subjects.ts) — they never get their own fullbody/victory clip, only an
+ * image used as extra reference material when composing the victory and
+ * boot scenes that include everyone.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -33,8 +33,6 @@ import {
   soloClipPrompt,
   victoryScenePrompt,
   victorySceneClipPrompt,
-  confirmScenePrompt,
-  confirmSceneClipPrompt,
   bootScenePrompt,
   bootSceneClipPrompt,
   CLIP_TYPES,
@@ -100,7 +98,7 @@ async function cmdStatus() {
     }
     const player = s.player!;
     const clips = CLIP_TYPES.map((t) => {
-      const scene = t === "confirm" || t === "victory" ? existsSync(path.join(dir, `${t}-scene.png`)) : false;
+      const scene = t === "victory" ? existsSync(path.join(dir, `${t}-scene.png`)) : false;
       const local = existsSync(path.join(dir, `${t}.mp4`));
       const live = Boolean(player[CLIP_FIELD[t] as keyof typeof player]);
       const localTag = live ? "LIVE" : local ? "local" : scene ? "scene-only" : "-";
@@ -135,7 +133,7 @@ async function cmdHeadshot(nameOrId: string) {
   const subject = await resolveSubject(nameOrId);
   if (subject.kind !== "player") {
     throw new Error(
-      `${subject.name} doesn't need a headshot — Cassandra/Bailey never appear on the select screen or roster strip, only in composite scenes (see composite --boot, and Matthew's composite victory/confirm).`,
+      `${subject.name} doesn't need a headshot — Cassandra/Bailey never appear on the roster strip, only in composite scenes (see composite --boot, and Matthew's composite victory).`,
     );
   }
   const dir = assetDir(subject.key);
@@ -145,7 +143,7 @@ async function cmdHeadshot(nameOrId: string) {
   const { base64 } = await generateImage(headshotPrompt(subject.name, background), [fullbody]);
   const out = path.join(dir, "headshot.png");
   writeFileSync(out, Buffer.from(base64, "base64"));
-  console.log(`Wrote ${out} — this is what the select-screen render and the hover-loop clip will use.`);
+  console.log(`Wrote ${out} — this is what gen:char:upload-photo pushes live as photo_url.`);
 }
 
 function guestFullBodies(): Array<{ base64: string; mimeType: string }> {
@@ -168,14 +166,14 @@ async function cmdComposite(kind: string, nameOrId?: string) {
     return;
   }
 
-  if (kind !== "victory" && kind !== "confirm") {
-    throw new Error(`Unknown composite kind "${kind}" — expected victory | confirm | boot`);
+  if (kind !== "victory") {
+    throw new Error(`Unknown composite kind "${kind}" — expected victory | boot`);
   }
   if (!nameOrId) throw new Error(`usage: gen:char:composite -- ${kind} <player>`);
   const subject = await resolveSubject(nameOrId);
   if (subject.kind !== "player") throw new Error(`${kind} composite is per-player — "${nameOrId}" isn't a player`);
-  // Cassandra and Bailey only appear in Matthew's confirm/victory clips (he's
-  // the groom, they belong in his moments specifically) and the shared boot
+  // Cassandra and Bailey only appear in Matthew's victory clip (he's the
+  // groom, they belong in his moments specifically) and the shared boot
   // scene — not every player's clips. Explicit product decision, not a
   // technical limitation.
   if (subject.key !== "matthew") {
@@ -185,7 +183,7 @@ async function cmdComposite(kind: string, nameOrId?: string) {
   }
 
   const images = [readFullBody(subject), ...guestFullBodies()];
-  const prompt = kind === "victory" ? victoryScenePrompt(subject.name) : confirmScenePrompt(subject.name);
+  const prompt = victoryScenePrompt(subject.name);
   console.log(`Generating ${kind} scene for ${subject.name} with Cassandra + Bailey...`);
   const { base64 } = await generateImage(prompt, images);
   const out = path.join(assetDir(subject.key), `${kind}-scene.png`);
@@ -205,41 +203,24 @@ async function cmdClip(nameOrId: string, type: string) {
 
   let seed: { base64: string; mimeType: string };
   let prompt: string;
-  if (clipType === "victory" || clipType === "confirm") {
+  if (clipType === "victory") {
     const scenePath = path.join(dir, `${clipType}-scene.png`);
     if (existsSync(scenePath)) {
       seed = { base64: readFileSync(scenePath).toString("base64"), mimeType: "image/png" };
-      prompt = clipType === "victory" ? victorySceneClipPrompt(subject.name) : confirmSceneClipPrompt(subject.name);
+      prompt = victorySceneClipPrompt(subject.name);
     } else {
       console.log(`No ${clipType}-scene.png for ${subject.name} — falling back to the solo full-body image (no Cassandra/Bailey). Run gen:char:composite -- ${clipType} "${subject.name}" first if you want them in it.`);
       seed = readFullBody(subject);
       prompt = soloClipPrompt(clipType, subject.name, background);
     }
-  } else if (clipType === "select") {
-    // Selection-screen framing (shoulders-up), not the full-body image —
-    // this is the clip that plays small, in the roster strip, on hover.
-    const headshot = readAsset(subject, "headshot.png");
-    if (headshot) {
-      seed = headshot;
-    } else {
-      console.log(`No headshot.png for ${subject.name} — falling back to the full-body image for this hover clip. Run gen:char:headshot "${subject.name}" first if you want it framed shoulders-up.`);
-      seed = readFullBody(subject);
-    }
-    prompt = soloClipPrompt(clipType, subject.name, background);
   } else {
     seed = readFullBody(subject);
-    const action = clipType === "fullbody" ? FULLBODY_ACTIONS[subject.key] : undefined;
+    const action = FULLBODY_ACTIONS[subject.key];
     prompt = soloClipPrompt(clipType, subject.name, background, action);
   }
 
-  // The hover-loop clip pins its own seed image as both the first AND last
-  // frame (Veo 3.1's `lastFrame`), so the loop is exact rather than just
-  // prompted for — see docs/VISUAL_SPEC.md's roster-strip hover clip and
-  // the explicit ask that drove this.
-  const videoOpts = clipType === "select" ? { lastFrame: seed } : {};
-
   console.log(`Generating "${clipType}" clip for ${subject.name} (this polls Veo, can take a few minutes)...`);
-  const video = await generateVideo(prompt, seed, videoOpts);
+  const video = await generateVideo(prompt, seed);
   const out = path.join(dir, `${clipType}.mp4`);
   writeFileSync(out, video);
   console.log(`Wrote ${out} — review it before uploading.`);

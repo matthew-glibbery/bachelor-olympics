@@ -1,37 +1,39 @@
 # N64 character asset generation pipeline
 
-Generates the four per-player video clips described in
+Generates the two per-player video clips described in
 `docs/VISUAL_SPEC.md` (character generation pipeline section) from a
 reference photo, using the Gemini API only:
 
 - **Nano Banana** (`gemini-3.1-flash-image`) for stylized N64 full-body
   images and headshots, and for composing multi-character scene images.
 - **Veo 3.1** (`veo-3.1-generate-preview`, image-to-video, 8s clips) for
-  every clip — `select`, `fullbody`, `confirm`, `victory`, plus the boot
-  clip. The spec's original plan used ByteDance's Seedance for the victory
-  clip specifically, since it handles multi-character physical interaction
-  (the squash gag); this pipeline tries Veo for that too, on the explicit
-  call that a single-provider pipeline is worth the risk of a lower-quality
-  victory clip. If it doesn't hold up, Seedance is the documented fallback
-  for that one clip type only.
+  every clip — `fullbody`, `victory`, plus the boot clip. (`select` and
+  `confirm` clips existed in an earlier version of this pipeline; both were
+  cut per explicit product decision — see `docs/VISUAL_SPEC.md` — so this
+  script no longer generates them.) The spec's original plan used
+  ByteDance's Seedance for the victory clip specifically, since it handles
+  multi-character physical interaction (the squash gag); this pipeline
+  tries Veo for that too, on the explicit call that a single-provider
+  pipeline is worth the risk of a lower-quality victory clip. If it doesn't
+  hold up, Seedance is the documented fallback for that one clip type only.
 
 Two kinds of subject (`subjects.ts`):
 
-- **Players** — the 8 competing players in Supabase. Get a full-body image,
-  a headshot (uploaded as `photo_url` — see below), and all four clips.
+- **Players** — the competing players in Supabase. Get a full-body image, a
+  headshot (uploaded as `photo_url` — see below), and both clips.
 - **Guests** — Cassandra (the bride) and Bailey (the dog), full-body-image-
   only, no headshot (`gen:char:headshot` refuses non-player subjects — they
-  never appear on the select screen or roster strip). Their images are
-  extra reference material fed into two places only, per explicit product
-  decision, not a technical limitation: the shared boot/start-screen scene
-  (everyone), and **Matthew's own** confirm/victory composites specifically
-  — he's the groom, it's his moments they belong in, not every player's.
-  `gen:char:composite -- victory <player>` / `confirm <player>` refuses any
-  player that isn't Matthew for exactly this reason; every other player's
-  confirm/victory clip is solo (`gen:char:clip` without a composite step).
-  Add a third guest the same way if wanted later — just append to
-  `SPECIAL_SUBJECTS` in `subjects.ts` — but revisit this file's composite
-  gating too if they should show up more broadly than Matthew's clips.
+  never appear on the roster strip). Their images are extra reference
+  material fed into two places only, per explicit product decision, not a
+  technical limitation: the shared boot/start-screen scene (everyone), and
+  **Matthew's own** victory composite specifically — he's the groom, it's
+  his moment they belong in, not every player's.
+  `gen:char:composite -- victory <player>` refuses any player that isn't
+  Matthew for exactly this reason; every other player's victory clip is
+  solo (`gen:char:clip` without a composite step). Add a third guest the
+  same way if wanted later — just append to `SPECIAL_SUBJECTS` in
+  `subjects.ts` — but revisit this file's composite gating too if they
+  should show up more broadly than Matthew's clip.
 
 **The headshot is now the canonical `photo_url`** — `gen:char:upload-photo`
 pushes it live, superseding the original "real uploaded photo, separate
@@ -79,7 +81,7 @@ like, see that command's own notes below.
 Staged deliberately — the spec calls out that a full-body image needs
 sign-off *before* spending Veo calls on clips, and clips are worth a local
 look before they go live. **Start with one player to nail the prompt and
-style before running the other seven** — every human full-body image
+style before running the rest of the roster** — every human full-body image
 shares one prompt, so one good result de-risks the rest; Bailey's dog
 variant is worth its own one-off check since it's a different prompt.
 
@@ -110,15 +112,13 @@ pnpm run gen:char:image -- "Bailey" reference-photos/bailey.jpg
 # ...one per remaining player, + gen:char:headshot + gen:char:upload-photo
 # for each player (not the two guests)
 
-# --- step 3: solo clips (select/fullbody always solo; confirm/victory are
-#     solo too for every player except Matthew — skip step 4 for them) ---
-pnpm run gen:char:clip -- "Matthew" select
+# --- step 3: fullbody clip, solo for everyone including Matthew ---
 pnpm run gen:char:clip -- "Matthew" fullbody
-open character-assets/matthew/select.mp4   # review each before uploading
+open character-assets/matthew/fullbody.mp4   # review before uploading
 
-# --- step 4: composite scenes for Matthew's confirm/victory only, so
-#     Cassandra + Bailey appear in them — gen:char:composite refuses any
-#     other player here, this pair is Matthew-specific by design ---
+# --- step 4: composite scene for Matthew's victory clip only, so
+#     Cassandra + Bailey appear in it — gen:char:composite refuses any
+#     other player here, this is Matthew-specific by design ---
 pnpm run gen:char:composite -- victory "Matthew"
 open character-assets/matthew/victory-scene.png   # review the STILL first —
                                                 # cheaper to catch a bad
@@ -127,16 +127,13 @@ open character-assets/matthew/victory-scene.png   # review the STILL first —
 pnpm run gen:char:clip -- "Matthew" victory        # picks up victory-scene.png
                                                  # automatically if present
 
-pnpm run gen:char:composite -- confirm "Matthew"
-pnpm run gen:char:clip -- "Matthew" confirm
-
 # --- step 5: push an approved clip to Supabase Storage + the player row ---
-pnpm run gen:char:upload -- "Matthew" select
+pnpm run gen:char:upload -- "Matthew" fullbody
 pnpm run gen:char:upload -- "Matthew" victory
-# ...repeat clip/upload for confirm, fullbody, and the rest of the roster
+# ...repeat clip/upload for the rest of the roster
 
 # --- step 6: the shared boot/start-screen clip, everyone in one scene ---
-pnpm run gen:char:composite -- boot   # all 8 players + Cassandra + Bailey
+pnpm run gen:char:composite -- boot   # every player + Cassandra + Bailey
 open character-assets/_boot/scene.png
 pnpm run gen:char:boot-clip
 open character-assets/_boot/clip.mp4
@@ -188,5 +185,5 @@ the trial-and-error.
 - **Regeneration is expected, budget time for it** — `docs/VISUAL_SPEC.md`
   explicitly calls out redoing the victory clip "a handful of times per
   player" as normal, and to nail the full-body/headshot style before
-  spending any Veo calls — doubly true now that confirm/victory each cost
-  an extra Nano Banana composite call before the Veo call.
+  spending any Veo calls — doubly true for Matthew's victory clip, which
+  costs an extra Nano Banana composite call before the Veo call.
