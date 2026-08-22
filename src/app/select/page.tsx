@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Play } from "lucide-react";
 import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -251,9 +252,14 @@ export default function SelectPage() {
                   <button
                     type="button"
                     onClick={() => onConfirm(index)}
-                    className="bevel-raised is-cursor bg-primary text-primary-foreground font-display mt-1 rounded-md px-8 py-3 text-sm tracking-widest uppercase focus-visible:outline-none"
+                    className="bevel-raised is-cursor bg-primary text-primary-foreground font-display mt-1 flex items-center gap-2 rounded-md px-8 py-3 text-sm tracking-widest uppercase focus-visible:outline-none"
                   >
-                    Let&apos;s go ▶
+                    Let&apos;s go
+                    {/* A lucide glyph, not a literal "\u25B6" character. iOS
+                        renders that codepoint with its colour emoji font, so
+                        the arrow arrived on phones as a blue-and-white emoji
+                        triangle that matched nothing else on screen. */}
+                    <Play className="size-4 shrink-0" fill="currentColor" strokeWidth={0} />
                   </button>
                 </>
               ) : null}

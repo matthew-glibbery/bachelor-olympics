@@ -84,10 +84,31 @@
   --medal-silver: oklch(0.82 0.02 250);
   --medal-bronze: oklch(0.65 0.13 55);
 
-  --font-display: "Arial Black", "Arial Bold", "Helvetica Neue", Helvetica,
+  /* Type. These resolve to real self-hosted webfonts loaded by
+     `src/app/fonts.ts` via next/font, which injects the `*-loaded` variables
+     onto <html>. The trailing stacks are genuine fallbacks for the swap
+     window only — they are no longer what anyone actually sees.
+
+     These used to BE system stacks ("Arial Black", "SF Mono", ...), which is
+     precisely why the app rendered in a different typeface on every phone:
+     none of those faces ship on iOS or Android, so mobile silently fell
+     through to its own default while desktop resolved the real thing. Don't
+     reintroduce a system-font-only token here. */
+
+  /* Marquee voice: the cartridge logo and "Press Start". Caps-only, ultra
+     wide, and unusable below ~16px — never put a small label in this. */
+  --font-title: var(--font-title-loaded), "Arial Black", "Arial Bold",
+    Helvetica, sans-serif;
+  /* The workhorse: every tracked 9-10px uppercase label, tab, nav item and
+     plate heading in the app. Variable 100-900. */
+  --font-display: var(--font-display-loaded), "Helvetica Neue", Helvetica,
     Arial, sans-serif;
-  --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-score: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-ui: var(--font-display-loaded), "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+  /* Scoreboard readouts. Semi-condensed, so the Pts/x/Total columns survive
+     a narrow phone. Always pair with `tabular-nums`. */
+  --font-score: var(--font-score-loaded), "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
 }
 
 @theme inline {
@@ -131,8 +152,20 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  --font-title: var(--font-title);
   --font-display: var(--font-display);
+  /* `font-display` used to resolve to Arial Black, which is heavy by
+     definition -- so not one of the ~47 places that use it ever set a weight
+     class. Archivo is a variable font that would default to a thin-looking
+     400 in all of them. Carrying the weight on the token itself preserves
+     every existing call site rather than requiring a `font-black` next to
+     each one. Verified there is no conflict: no `font-display` call site in
+     the app sets its own weight utility. */
+  --font-display--font-variation-settings: "wght" 800;
   --font-ui: var(--font-ui);
+  /* Deliberately no variation-settings here -- `font-score` IS combined with
+     a weight utility in one place (event-card's Total column), and
+     variation-settings would silently win over it. */
   --font-score: var(--font-score);
 }
 
@@ -240,6 +273,9 @@
    impossible to merge away. */
 @utility extruded {
   font-family: var(--font-display);
+  /* Explicit, for the same reason the token above carries one: Archivo is
+     variable and would otherwise render this at 400. */
+  font-variation-settings: "wght" 850;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--foreground);
@@ -255,6 +291,29 @@
    trophy/prestige color rather than plain chrome (the leaderboard title). */
 @utility extruded-gold {
   color: var(--primary);
+}
+
+/* The marquee voice -- Bungee, the arcade-signage face that the cartridge
+   logo is set in. Reserved for the handful of moments that are meant to read
+   as the game's title rather than as UI: `/start`'s "Press Start", and the
+   logo SVG itself.
+
+   Deliberately NOT used for in-page headings (event names, "Choose your
+   character"). Bungee is drawn caps-only and is far wider per character than
+   a normal grotesque, so a real event name like "Nine Holes of Golf" set in
+   it wraps to three lines on a phone. Those keep `.extruded`. */
+@utility marquee {
+  font-family: var(--font-title);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  text-shadow:
+    1px 1px 0 var(--bevel-dark),
+    2px 2px 0 var(--bevel-dark),
+    3px 3px 0 var(--bevel-dark),
+    4px 4px 0 var(--bevel-dark),
+    5px 5px 6px oklch(0 0 0 / 45%);
 }
 
 @layer components {
@@ -292,6 +351,16 @@
   the reduced-motion block below turns all of it off, and no screen depends
   on an animation having run to become usable or readable.
 */
+/* The arcade attract-mode blink on "Press Start".
+
+   Deliberately still a hard `steps(1)` switch rather than a fade — the
+   instant on/off IS the idiom, and easing it would just read as a generic
+   web pulse. What changed is the floor: the off-phase used to be `opacity:
+   0`, so the screen's only call to action was completely absent half of
+   every second. That's bad on its own terms (a first-time player can look
+   straight at the screen during an off-phase and see nothing to do) and it
+   made the title screen photograph as broken. Dropping to 0.3 keeps the
+   blink obvious while leaving the prompt continuously readable. */
 @keyframes n64-blink {
   0%,
   49% {
@@ -299,7 +368,7 @@
   }
   50%,
   100% {
-    opacity: 0;
+    opacity: 0.3;
   }
 }
 

@@ -4,12 +4,20 @@ import { cn } from "@/lib/utils";
 /**
  * The chunky extruded title logo.
  *
- * Built as layered SVG rather than styled HTML text for two reasons: the
- * extrusion needs a dozen stacked copies of the same glyphs (which
- * `text-shadow` can fake but not light properly), and `textLength` pins the
- * logo to an exact width so it looks identical whether the machine resolves
- * Arial Black, Helvetica Bold, or a fallback. A logo that reflows depending on
- * installed fonts isn't a logo.
+ * Built as layered SVG rather than styled HTML text because the extrusion
+ * needs a dozen stacked copies of the same glyphs, which `text-shadow` can
+ * fake but not light properly.
+ *
+ * `textLength` pins the logo to an exact width so it can't reflow. It used to
+ * carry a second job — papering over the fact that the display font was a
+ * system stack, so the machine might resolve Arial Black, Helvetica Bold, or
+ * anything at all. That was never really working: it pinned the *width* while
+ * the letterforms underneath still changed completely, which is why the logo
+ * looked wrong on every phone (no iOS or Android device has Arial Black).
+ * The font is now a real self-hosted webfont (src/app/fonts.ts), so the
+ * glyphs are guaranteed and `lengthAdjust` is set to `spacing` — it flexes
+ * the tracking to hit the target width but never stretches the glyphs
+ * themselves. Distorted letterforms are the one thing a logo can't have.
  *
  * The gradients are the era's whole visual trick: a bright top half, a hard
  * midpoint, a saturated bottom half, and a dark outline thick enough to read
@@ -23,9 +31,20 @@ const VIEWBOX_HEIGHT = 260;
 export function GameLogo({ className }: { className?: string }) {
   // Rendered twice at different x positions so "PARTY" can carry its own
   // palette, the way cartridge logos always split an accent word out.
-  const nameWidth = 950;
-  const suffixWidth = 480;
-  const gap = 40;
+  //
+  // These widths are the two words' MEASURED natural advance in the real
+  // title face at `fontSize` (measured via getComputedTextLength in a
+  // browser, not estimated). Getting this right matters because `textLength`
+  // forces each word to its number: the previous values (950 / 480) were
+  // inherited from a different, un-loadable font, and against Bungee they
+  // tracked "BACHELOR" ~14px looser per gap while squeezing "PARTY" ~10px
+  // tighter — two words in one logo visibly disagreeing about letter-spacing.
+  // Matching the natural widths means `lengthAdjust` has essentially nothing
+  // to correct, so both words track identically, while `textLength` still
+  // does its real job of guaranteeing the logo can never reflow.
+  const nameWidth = 851;
+  const suffixWidth = 521;
+  const gap = 58;
   const totalWidth = nameWidth + gap + suffixWidth;
   const startX = (VIEWBOX_WIDTH - totalWidth) / 2;
 
@@ -119,12 +138,13 @@ function LogoWord({
   const shared = {
     x,
     textAnchor: "middle" as const,
-    fontFamily: "var(--font-display)",
-    fontSize: 200,
-    fontWeight: 900,
-    // Pins the glyphs to an exact width no matter which font actually resolves.
+    fontFamily: "var(--font-title)",
+    fontSize: 150,
+    fontWeight: 400,
+    // Locks the logo's width so it can never reflow, while `spacing` (rather
+    // than `spacingAndGlyphs`) guarantees the letterforms stay undistorted.
     textLength: width,
-    lengthAdjust: "spacingAndGlyphs" as const,
+    lengthAdjust: "spacing" as const,
   };
 
   return (

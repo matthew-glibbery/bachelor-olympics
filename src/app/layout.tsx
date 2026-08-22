@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { fontVariables } from "./fonts";
 import { IdentityGate } from "@/components/identity-gate";
 import { CrtOverlay } from "@/components/n64/crt-overlay";
 
@@ -21,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={fontVariables}>
       <body className="antialiased">
         <IdentityGate>{children}</IdentityGate>
         <CrtOverlay />

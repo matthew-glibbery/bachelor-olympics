@@ -10,10 +10,12 @@
  */
 const [, , outDir, widthArg, label, ...routes] = process.argv;
 const width = Number(widthArg);
-const BASE = "http://localhost:3000";
+// Overridable so a second worktree/agent running its own dev server on
+// another port can screenshot ITS app rather than whatever holds 3000.
+const BASE = process.env.BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 const PLAYER_ID = process.env.PLAYER_ID ?? "";
 
-const res = await fetch("http://localhost:9222/json/list");
+const res = await fetch(`http://localhost:${process.env.CDP_PORT ?? 9222}/json/list`);
 const targets = await res.json();
 const page = targets.find((t) => t.type === "page");
 if (!page) throw new Error("no page target");

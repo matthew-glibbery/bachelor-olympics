@@ -1,6 +1,6 @@
 // Check for page-level horizontal overflow at the narrowest phone width.
 const routes = ["/", "/events", "/bets", "/setup", "/multipliers"];
-const res = await fetch("http://localhost:9222/json/list");
+const res = await fetch(`http://localhost:${process.env.CDP_PORT ?? 9222}/json/list`);
 const page = (await res.json()).find((t) => t.type === "page");
 const ws = new WebSocket(page.webSocketDebuggerUrl);
 let id = 0; const pending = new Map();
@@ -12,7 +12,7 @@ await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, devi
 const PLAYER_ID = process.env.PLAYER_ID ?? "";
 await send("Page.addScriptToEvaluateOnNewDocument", { source: `try{localStorage.setItem("bo.selectedPlayerId",${JSON.stringify(PLAYER_ID)});localStorage.setItem("bo.groomUnlocked","1")}catch(e){}` });
 for (const r of routes) {
-  await send("Page.navigate", { url: "http://localhost:3000" + r });
+  await send("Page.navigate", { url: (process.env.BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`) + r });
   await new Promise((res2) => setTimeout(res2, 4200));
   const { result } = await send("Runtime.evaluate", {
     expression: `(() => {
