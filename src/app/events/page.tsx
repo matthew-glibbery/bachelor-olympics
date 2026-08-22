@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarDays, ChevronLeft, PartyPopper } from "lucide-react";
 import Image from "next/image";
 
@@ -40,6 +41,28 @@ import { cn } from "@/lib/utils";
  * roster where "look at a portrait, it lights up" is the point.
  */
 export default function EventsPage() {
+  // Which event (if any) is open lives in the URL (`?open=<id>` or
+  // `?open=bonus`), not local component state — a plain `useState` couldn't
+  // tell AppNav's "Events" tab apart from any other click while already on
+  // this route, so tapping it while a detail view was open silently did
+  // nothing (same URL, no navigation, nothing to react to). Reading it from
+  // `useSearchParams` means AppNav's href="/events" (no query) really is a
+  // different URL whenever a detail view is open, so it actually navigates
+  // and clears back to the grid — same mechanism that also makes Back
+  // (browser gesture, not just the on-screen button) work correctly.
+  // `useSearchParams` requires a Suspense boundary around it.
+  return (
+    <Suspense fallback={null}>
+      <EventsPageInner />
+    </Suspense>
+  );
+}
+
+function EventsPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const openParam = searchParams.get("open");
+
   const {
     players,
     events,
@@ -47,6 +70,7 @@ export default function EventsPage() {
     eventRankings,
     perEventBets,
     bonusEvents,
+    overallBets,
     multipliers,
     connect,
     loading,
@@ -89,8 +113,18 @@ export default function EventsPage() {
   // results tab keeps showing a live badge on whoever's actually scoring
   // right now) — only the standalone preview *section* on this page is
   // gone. The leaderboard (src/app/page.tsx) is now where players see the
-  // preview before an event starts.
-  const preview = upcomingCatchUp(events, eventResults, multipliers, playerIds);
+  // preview before an event starts. Same bonusAwards folding as the
+  // leaderboard's own preview — without it, this could disagree with the
+  // leaderboard about who's actually in the bottom three.
+  const bonusAwards = [
+    ...bonusEvents
+      .filter((b) => b.winner_player_id)
+      .map((b) => ({ playerId: b.winner_player_id as string, points: b.points })),
+    ...overallBets
+      .filter((b) => b.status === "won" && b.payout != null)
+      .map((b) => ({ playerId: b.player_id, points: b.payout as number })),
+  ];
+  const preview = upcomingCatchUp(events, eventResults, multipliers, playerIds, bonusAwards);
   if (preview && preview.bonuses.size > 0) {
     catchUpByEvent.set(preview.eventId, preview.bonuses);
   }
@@ -102,23 +136,26 @@ export default function EventsPage() {
   const bonusIndex = events.length;
   const itemCount = events.length + (showBonusTile ? 1 : 0);
 
-  // Two-step flow: the grid is a menu, "confirming" an item enters its
-  // detail view instead of routing anywhere (this screen has no sub-routes
-  // of its own). `enabled: !entered` keeps the D-pad from moving the grid
-  // cursor while a detail view is open; a separate useGameInput below
-  // handles Back (B/Escape) to leave it.
-  const [entered, setEntered] = useState(false);
+  // Two-step flow: the grid is a menu, "confirming" an item pushes
+  // `?open=<id>` instead of routing anywhere new (this screen has no
+  // sub-routes of its own). `enabled: !entered` keeps the D-pad from moving
+  // the grid cursor while a detail view is open; a separate useGameInput
+  // below handles Back (B/Escape) the same way the on-screen button does.
+  const entered = openParam != null;
   const { index, getItemProps } = useMenuNav({
     count: itemCount,
     columns: 1,
     selectOnHover: false,
     enabled: !entered,
-    onConfirm: () => setEntered(true),
+    onConfirm: (i) => {
+      const id = i < events.length ? events[i]?.id : "bonus";
+      if (id) router.push(`/events?open=${id}`);
+    },
   });
-  useGameInput({ enabled: entered, onBack: () => setEntered(false) });
+  useGameInput({ enabled: entered, onBack: () => router.push("/events") });
 
-  const focused = index < events.length ? (events[index] ?? null) : null;
-  const bonusSelected = showBonusTile && index === bonusIndex;
+  const focused = entered ? (events.find((e) => e.id === openParam) ?? null) : null;
+  const bonusSelected = entered ? openParam === "bonus" : showBonusTile && index === bonusIndex;
 
   return (
     <GameScreen
@@ -216,7 +253,7 @@ export default function EventsPage() {
           <div className="flex flex-col gap-3">
             <button
               type="button"
-              onClick={() => setEntered(false)}
+              onClick={() => router.push("/events")}
               className="text-muted-foreground hover:text-foreground font-display inline-flex w-fit items-center gap-1 text-xs tracking-wider uppercase"
             >
               <ChevronLeft className="size-4" />

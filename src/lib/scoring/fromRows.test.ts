@@ -244,4 +244,40 @@ describe("upcomingCatchUp", () => {
     ];
     expect(upcomingCatchUp(events, [], [], ["p1"])).toBeNull();
   });
+
+  it("folds bonusAwards into the standings before picking the bottom three", () => {
+    // Without this, "who's behind" here can disagree with the leaderboard's
+    // own displayed standings, which does fold bonus-event/overall-bet
+    // points in — a real bug: p3 finishes last on raw event scoring alone,
+    // but a big bonus-event win actually puts them in the lead, so the
+    // catch-up bonus should follow p1/p2 (the real bottom two), not p2/p3.
+    const events: EventRow[] = [
+      {
+        ...baseEvent,
+        id: "e1",
+        scoring_mode: "placement",
+        status: "resolved",
+        sort_order: 0,
+        resolved_at: "2026-01-01T00:00:00Z",
+      },
+      { ...baseEvent, id: "e2", scoring_mode: "placement", status: "scoring", sort_order: 1 },
+    ];
+    const results: EventResultRow[] = [
+      { event_id: "e1", player_id: "p1", position: 1, raw: null },
+      { event_id: "e1", player_id: "p2", position: 2, raw: null },
+      { event_id: "e1", player_id: "p3", position: 3, raw: null },
+    ];
+
+    const withoutAwards = upcomingCatchUp(events, results, [], ["p1", "p2", "p3"]);
+    expect(withoutAwards?.bonuses.get("p3")).toBeCloseTo(0.3, 5);
+    expect(withoutAwards?.bonuses.get("p2")).toBeCloseTo(0.2, 5);
+    expect(withoutAwards?.bonuses.has("p1")).toBe(false);
+
+    const withAwards = upcomingCatchUp(events, results, [], ["p1", "p2", "p3"], [
+      { playerId: "p3", points: 1000 },
+    ]);
+    expect(withAwards?.bonuses.get("p2")).toBeCloseTo(0.3, 5);
+    expect(withAwards?.bonuses.get("p1")).toBeCloseTo(0.2, 5);
+    expect(withAwards?.bonuses.has("p3")).toBe(false);
+  });
 });

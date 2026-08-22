@@ -47,12 +47,20 @@ function isGroom(player: PlayerRow): boolean {
  */
 export default function SelectPage() {
   const router = useRouter();
-  const { players, connect, ready } = useGameStore();
+  const { players: rosterFromStore, connect, ready } = useGameStore();
   const { selectedPlayerId, selectPlayer, groomUnlocked, unlockGroom } = useSessionStore();
 
   useEffect(() => {
     connect();
   }, [connect]);
+
+  // Alphabetical roster order for display and menu navigation — independent
+  // of `stable` below (id-sorted, for color/number assignment), which
+  // deliberately doesn't follow display order.
+  const players = useMemo(
+    () => [...rosterFromStore].sort((a, b) => a.name.localeCompare(b.name)),
+    [rosterFromStore],
+  );
 
   // Set once "Let's go" is hit, if the chosen player has a confirm clip —
   // plays full-bleed before actually routing into the app.
