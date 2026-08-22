@@ -221,7 +221,7 @@ function EventsPageInner() {
                     </span>
                     <span
                       className={cn(
-                        "font-display block text-center text-xs tracking-wider uppercase",
+                        "hud-label block text-center",
                         isActive ? "text-foreground" : "text-muted-foreground",
                       )}
                     >
@@ -248,7 +248,7 @@ function EventsPageInner() {
                   </span>
                   <span
                     className={cn(
-                      "font-display block text-center text-xs tracking-wider uppercase",
+                      "hud-label block text-center",
                       bonusSelected ? "text-foreground" : "text-muted-foreground",
                     )}
                   >
@@ -266,7 +266,7 @@ function EventsPageInner() {
             <button
               type="button"
               onClick={() => router.push("/events")}
-              className="text-muted-foreground hover:text-foreground font-display inline-flex w-fit items-center gap-1 text-xs tracking-wider uppercase"
+              className="hud-label text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1"
             >
               <ChevronLeft className="size-4" />
               Back to events

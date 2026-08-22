@@ -289,7 +289,7 @@ function ProgressLegend({
               color={colorByPlayer[p.id]}
             />
             {isYou ? (
-              <span className="text-primary font-display text-[9px] tracking-widest uppercase">You</span>
+              <span className="hud-label text-primary">You</span>
             ) : null}
           </span>
         );

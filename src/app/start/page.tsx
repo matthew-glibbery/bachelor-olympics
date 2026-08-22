@@ -157,10 +157,10 @@ export default function StartPage() {
         aria-hidden
       />
       <footer className="absolute inset-x-0 bottom-[calc(1.5rem+var(--safe-bottom))] flex flex-col items-center gap-1 px-6">
-        <p className="font-display text-center text-[9px] tracking-[0.14em] text-balance text-white/70 uppercase sm:tracking-[0.2em]">
+        <p className="hud-label text-center text-balance text-white/70 sm:tracking-[0.2em]">
           {GAME_COPYRIGHT}
         </p>
-        <p className="font-display text-center text-[9px] tracking-[0.2em] text-white/50 uppercase">
+        <p className="hud-label text-center text-white/50">
           Keyboard · Gamepad · Touch
         </p>
       </footer>

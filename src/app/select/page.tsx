@@ -206,7 +206,7 @@ export default function SelectPage() {
                       </span>
                       <span
                         className={cn(
-                          "font-display mt-1 block truncate text-[10px] tracking-wider uppercase",
+                          "hud-label mt-1 block truncate",
                           isActive ? "text-foreground" : "text-muted-foreground",
                         )}
                       >
@@ -252,7 +252,7 @@ export default function SelectPage() {
                   <button
                     type="button"
                     onClick={() => onConfirm(index)}
-                    className="bevel-raised is-cursor bg-primary text-primary-foreground font-display mt-1 flex items-center gap-2 rounded-md px-8 py-3 text-sm tracking-widest uppercase focus-visible:outline-none"
+                    className="font-display bevel-raised is-cursor bg-primary text-primary-foreground mt-1 flex items-center gap-2 rounded-md px-8 py-3 text-sm tracking-widest uppercase focus-visible:outline-none"
                   >
                     Let&apos;s go
                     {/* A lucide glyph, not a literal "\u25B6" character. iOS

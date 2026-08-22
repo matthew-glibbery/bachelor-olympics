@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { Lock, Minus, Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { playSfx } from "@/lib/sfx";
@@ -112,7 +112,7 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
       )}
     >
       <div className="flex items-center justify-between gap-2 sm:contents">
-        <span className="font-display flex min-w-0 shrink items-center gap-1.5 text-xs tracking-wider uppercase sm:w-28 sm:shrink-0">
+        <span className="hud-label flex min-w-0 shrink items-center gap-1.5 sm:w-28 sm:shrink-0">
           {/* The lock icon plus the segments' own desaturated colour (below)
               carry this now — a text "Locked" badge alongside both read as
               redundant. */}
@@ -127,6 +127,35 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
           {value.toFixed(1)}×
         </span>
       </div>
+
+      {/* Coarse step controls flanking the track.
+
+          The segments themselves are ~30px wide — eleven of them have to
+          share a phone's width, so no amount of layout work makes a single
+          notch a comfortable 44px target. This app is used outdoors by
+          people several drinks in, and a mis-tap here silently moves real
+          budget, so precision tapping needs a fallback rather than just a
+          bigger version of itself. These two give every adjustment a large,
+          unambiguous target; tapping a segment directly still works for
+          anyone who wants to jump straight to a value.
+
+          `tabIndex={-1}` + `aria-hidden` for the same reason the segment
+          buttons already carry them: the `role="slider"` below is the one
+          accessible control, with the full valuemin/max/now semantics and
+          arrow-key handling. Exposing these as extra tab stops would give
+          the same control three focusable entry points and interfere with
+          the screen's own D-pad row navigation. */}
+      <div className="flex flex-1 items-center gap-2">
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden
+          disabled={locked}
+          onClick={() => attempt(currentIndex - 1)}
+          className="bevel-raised bg-card grid size-9 shrink-0 place-items-center rounded-md active:translate-y-px disabled:opacity-50"
+        >
+          <Minus className="size-4" />
+        </button>
 
       <div
         role="slider"
@@ -157,7 +186,7 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
               disabled={locked}
               onClick={() => attempt(i)}
               className={cn(
-                "h-6 flex-1 rounded-[2px] border transition-colors duration-75",
+                "h-9 flex-1 rounded-[2px] border transition-colors duration-75",
                 isBaseline ? "border-foreground/70" : "border-bevel-dark/60",
                 !filled && "bg-bevel-dark/45",
               )}
@@ -183,6 +212,18 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
             />
           );
         })}
+      </div>
+
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden
+          disabled={locked}
+          onClick={() => attempt(currentIndex + 1)}
+          className="bevel-raised bg-card grid size-9 shrink-0 place-items-center rounded-md active:translate-y-px disabled:opacity-50"
+        >
+          <Plus className="size-4" />
+        </button>
       </div>
 
       <span className={cn(valueClass, "hidden w-16 sm:block")}>

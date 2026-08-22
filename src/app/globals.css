@@ -370,7 +370,15 @@
 
 /* The ONE small tracked-uppercase register: every field label, column
    header, tab, nav item, badge and caption in the app. 11px rather than the
-   old 8-10px because this is read on a phone, outdoors, in sunlight. */
+   old 8-10px because this is read on a phone, outdoors, in sunlight.
+
+   Never combine this with a `text-*` size utility. Both set font-size, and
+   because tailwind-merge doesn't know `.hud-label` IS a size, it won't drop
+   the loser -- you get two declarations racing on stylesheet order, which is
+   not something you want deciding how big a label renders. If something
+   needs to be bigger than this, it isn't a label: give it its own
+   treatment (see /select's confirm CTA and /start's tagline, both
+   deliberately left out of this register). */
 @utility hud-label {
   font-family: var(--font-display);
   font-size: 0.6875rem; /* 11px */

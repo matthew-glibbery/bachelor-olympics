@@ -173,7 +173,7 @@ export function OverallBetting({
               <span
                 key={type}
                 className={cn(
-                  "font-display text-muted-foreground text-[10px] tracking-wide uppercase",
+                  "hud-label text-muted-foreground",
                   COLUMN_CLASS,
                 )}
               >
@@ -252,7 +252,7 @@ export function OverallBetting({
 
       {currentPlayerId && (myBets.win || myBets.top3) ? (
         <div className="bevel-sunken bg-sunken flex flex-col gap-3 rounded-md p-3">
-          <span className="font-display text-muted-foreground text-[10px] tracking-wide uppercase">
+          <span className="hud-label text-muted-foreground">
             Your picks
           </span>
           {BET_TYPES.map(({ type, label }) => {

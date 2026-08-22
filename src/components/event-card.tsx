@@ -334,20 +334,20 @@ export function EventCard({
           <TabsList className="bevel-sunken bg-sunken h-auto w-fit gap-1 rounded-md p-1">
             <TabsTrigger
               value="results"
-              className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="hud-label data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               Results
             </TabsTrigger>
             <TabsTrigger
               value="odds"
-              className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="hud-label data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               Odds
             </TabsTrigger>
             {bettingClosed ? (
               <TabsTrigger
                 value="bets"
-                className="font-display data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 text-xs tracking-wide uppercase shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="hud-label data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 Bets
               </TabsTrigger>
@@ -480,13 +480,13 @@ export function EventCard({
                   fault rather than a stripe. The empty spans are spacer
                   columns for the same reason. */}
               <div className="grid grid-cols-[2rem_1fr_auto_1rem_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_1rem_auto_1.5rem_auto]">
-                <span className="font-display text-muted-foreground text-[10px] uppercase">#</span>
-                <span className="font-display text-muted-foreground text-[10px] uppercase">Player</span>
-                <span className="font-display text-muted-foreground text-right text-[10px] uppercase">Raw</span>
+                <span className="hud-label text-muted-foreground">#</span>
+                <span className="hud-label text-muted-foreground">Player</span>
+                <span className="hud-label text-muted-foreground text-right">Raw</span>
                 <span aria-hidden />
-                <span className="font-display text-muted-foreground hidden text-right text-[10px] uppercase sm:block">×</span>
+                <span className="hud-label text-muted-foreground hidden text-right sm:block">×</span>
                 <span className="hidden sm:block" aria-hidden />
-                <span className="font-display text-muted-foreground text-right text-[10px] uppercase">
+                <span className="hud-label text-muted-foreground text-right">
                   Total
                 </span>
                 {finishingOrder.map((p, i) => {
