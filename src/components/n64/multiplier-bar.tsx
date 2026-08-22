@@ -98,11 +98,16 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
   );
 
   // Below `sm` this is a two-row layout — name and value on one line, the
-  // bar full-width underneath — because at `w-28` beside the bar, real
-  // event names ("Super Smash Bros. (N64)", "Nine Holes of Golf") truncated
-  // to "SUPER SMAS…", so the row you were adjusting was the one row you
-  // couldn't identify. From `sm` up it's the original single row, where
-  // 112px is enough for the longest name.
+  // bar full-width underneath — because beside the bar, real event names
+  // ("Super Smash Bros. (N64)", "Nine Holes of Golf") truncated to
+  // "SUPER SMAS…", so the row you were adjusting was the one row you
+  // couldn't identify. From `sm` up it's a single row.
+  //
+  // That column was a flat `w-28` (112px), which was NOT in fact enough for
+  // the longest name: at 1280px four of the eight rows still truncated
+  // ("NINE HOLES OF…", "BEACH VOLLEY…", "SUPER SMASH …", "SETTLERS OF C…")
+  // while ~600px of the viewport sat empty to the right. It widens with the
+  // breakpoint now, since the room is there to spend.
   return (
     <div
       className={cn(
@@ -112,7 +117,7 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
       )}
     >
       <div className="flex items-center justify-between gap-2 sm:contents">
-        <span className="hud-label flex min-w-0 shrink items-center gap-1.5 sm:w-28 sm:shrink-0">
+        <span className="hud-label flex min-w-0 shrink items-center gap-1.5 sm:w-40 sm:shrink-0 lg:w-56">
           {/* The lock icon plus the segments' own desaturated colour (below)
               carry this now — a text "Locked" badge alongside both read as
               redundant. */}
