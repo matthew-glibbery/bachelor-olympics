@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ListOrdered, TrendingUp } from "lucide-react";
+import { ListOrdered, Trophy, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
 import { CatchUpBadge } from "@/components/event-card";
@@ -23,11 +23,6 @@ import { useSessionStore } from "@/store/sessionStore";
 import { cn } from "@/lib/utils";
 
 const MEDAL_COLOR = ["var(--medal-gold)", "var(--medal-silver)", "var(--medal-bronze)"];
-// 1st / 2nd / 3rd step heights. 2nd and 3rd were both `sm:h-28`, so above
-// the `sm` breakpoint the podium had two equal-height steps and stopped
-// reading as a podium at all — the one shape this whole section exists to
-// make. Each step is now visibly shorter than the one before it.
-const PODIUM_HEIGHT = ["min-h-28 sm:h-36", "min-h-22 sm:h-28", "min-h-18 sm:h-22"];
 
 /**
  * The leaderboard (docs/VISUAL_SPEC.md — renamed from "medal table" per a
@@ -98,11 +93,16 @@ export default function Home() {
   // live in its own section on /events; it's the standings' job now, since
   // "who currently has the multiplier" is a fact about the whole field, not
   // about whichever event tile you happen to have open.
+  // Folds in the same bonusAwards used just above for `ranked` — without
+  // this, "who's behind" here could pick different players than the
+  // standings actually show (a bonus-event win or a won overall bet moves
+  // someone's real rank but wasn't otherwise visible to this calculation).
   const catchUp = upcomingCatchUp(
     events,
     eventResults,
     multipliers,
     players.map((p) => p.id),
+    bonusAwards,
   );
 
   return (
@@ -125,19 +125,27 @@ export default function Home() {
           </p>
         ) : (
           <>
-            {/* Podium. Order is 2–1–3 so first place stands in the middle. */}
-            <section className="flex items-end justify-center gap-2 sm:gap-4" aria-label="Top three">
-              {[podium[1], podium[0], podium[2]].map((total, slot) => {
-                if (!total) return null;
-                const player = players.find((p) => p.id === total.playerId);
-                if (!player) return null;
-                const place = slot === 1 ? 1 : slot === 0 ? 2 : 3;
-                const medal = MEDAL_COLOR[place - 1]!;
-                const color = colorByPlayer[player.id]!;
+            {/* Podium — one shared frame around the whole top three (same
+                `Panel` shell as Standings below it, so the two sections read
+                as the same width and the same kind of thing), 1st/2nd/3rd
+                left to right rather than a stepped stand. Each
+                `CharacterRender` opts out of its own individual bevel
+                (`framed={false}`) since the group already has one; a
+                gradient scrim overlaid on the bottom of each clip carries
+                the rank number and name, rather than a separate plate below
+                it competing with the group's own frame. */}
+            <Panel title="Podium" icon={Trophy}>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4" aria-label="Top three">
+                {podium.map((total, i) => {
+                  if (!total) return null;
+                  const player = players.find((p) => p.id === total.playerId);
+                  if (!player) return null;
+                  const place = i + 1;
+                  const medal = MEDAL_COLOR[place - 1]!;
+                  const color = colorByPlayer[player.id]!;
 
-                return (
-                  <div key={player.id} className="flex flex-col items-center">
-                    <div className={cn("aspect-[9/16] w-auto", place === 1 ? "h-28 sm:h-36" : "h-20 sm:h-28")}>
+                  return (
+                    <div key={player.id} className="relative aspect-[3/4] overflow-hidden rounded-lg">
                       <CharacterRender
                         name={player.name}
                         nickname={player.nickname}
@@ -146,26 +154,21 @@ export default function Home() {
                         color={color}
                         pose="full"
                         idle={place === 1}
+                        framed={false}
                       />
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-0.5 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-1 pt-8 pb-1.5 sm:pt-10 sm:pb-2">
+                        <span className="font-display text-xl leading-none sm:text-2xl" style={{ color: medal }}>
+                          {place}
+                        </span>
+                        <span className="font-display max-w-full truncate px-1 text-[9px] tracking-wider text-white uppercase sm:text-[10px]">
+                          {player.name}
+                        </span>
+                      </div>
                     </div>
-                    <div
-                      className={cn(
-                        "bevel-raised bg-card flex w-20 flex-col items-center justify-start rounded-t-md border-t-4 px-1 pt-2 pb-2 sm:w-28",
-                        PODIUM_HEIGHT[place - 1],
-                      )}
-                      style={{ borderTopColor: medal }}
-                    >
-                      <span className="font-display text-2xl leading-none" style={{ color: medal }}>
-                        {place}
-                      </span>
-                      <span className="font-display mt-1 max-w-full truncate px-1 text-[10px] tracking-wider uppercase">
-                        {player.name}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </section>
+                  );
+                })}
+              </div>
+            </Panel>
 
             {/* Full standings, in the same raised-card `Panel` frame as the
                 Progress chart below it — this used to be a bare

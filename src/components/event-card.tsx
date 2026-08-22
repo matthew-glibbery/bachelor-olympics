@@ -465,26 +465,25 @@ export function EventCard({
               </div>
             </div>
           ) : event.status !== "planned" ? (
-            // Was `min-w-[26rem]` in a horizontal scroller, which hid the
-            // Total column off the right edge on a phone — the one figure
-            // this table exists to show. Pts and the multiplier are the
-            // working-out behind it, so they drop below `sm` instead.
+            // Raw and Total are the two figures this table exists to show
+            // (what you actually scored, and what it's worth once the
+            // multiplier/catch-up bonus apply) — both always visible, with a
+            // real spacer column between them so they don't read as one
+            // squeezed-together number. The multiplier (×), being the
+            // working-out behind Total rather than a result in its own
+            // right, is still the one column that drops below `sm`.
             <div className="bevel-sunken bg-sunken rounded-md px-3 py-2">
               {/* Column gap is padding on the cells, not `gap-x`: these rows
                   are `display: contents`, so the zebra stripe has to be
                   painted per-cell, and a real gap left unpainted vertical
                   slots through every striped row — it read as a rendering
-                  fault rather than a stripe. */}
-              {/* The two `sm:block`-only empty spans are spacer columns, not
-                  a real `gap-x` (see the note above on why) — they widen
-                  the previously-cramped run of Pts/×/Total without breaking
-                  the per-cell zebra stripe. Hidden on mobile along with the
-                  columns they separate. */}
-              <div className="grid grid-cols-[2rem_1fr_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_1.5rem_auto_1.5rem_auto]">
+                  fault rather than a stripe. The empty spans are spacer
+                  columns for the same reason. */}
+              <div className="grid grid-cols-[2rem_1fr_auto_1rem_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_1rem_auto_1.5rem_auto]">
                 <span className="font-display text-muted-foreground text-[10px] uppercase">#</span>
                 <span className="font-display text-muted-foreground text-[10px] uppercase">Player</span>
-                <span className="font-display text-muted-foreground hidden text-right text-[10px] uppercase sm:block">Pts</span>
-                <span className="hidden sm:block" aria-hidden />
+                <span className="font-display text-muted-foreground text-right text-[10px] uppercase">Raw</span>
+                <span aria-hidden />
                 <span className="font-display text-muted-foreground hidden text-right text-[10px] uppercase sm:block">×</span>
                 <span className="hidden sm:block" aria-hidden />
                 <span className="font-display text-muted-foreground text-right text-[10px] uppercase">
@@ -512,10 +511,10 @@ export function EventCard({
                         <PlayerName name={p.name} size="sm" photoUrl={p.photo_url} color={colorByPlayer[p.id]} />
                         {catchUpBonuses?.has(p.id) ? <CatchUpBadge bonus={catchUpBonus} /> : null}
                       </span>
-                      <span className="font-score hidden text-right tabular-nums sm:block">
+                      <span className="font-score text-right tabular-nums">
                         {points != null ? Math.round(points) : "—"}
                       </span>
-                      <span className="hidden sm:block" aria-hidden />
+                      <span aria-hidden />
                       <span className="font-score hidden text-right tabular-nums sm:block">
                         {multiplier.toFixed(1)}×
                       </span>

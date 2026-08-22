@@ -142,12 +142,23 @@ export function deriveScoreLines(
  * group (they're all "tied for last" together), not just the bottom three.
  * Without this guard the very first event started would preview a bonus for
  * nearly everyone instead of nobody.
+ *
+ * `bonusAwards` folds in bonus-event/overall-bet points, same shape and
+ * effect as bonusEvent.ts's `applyBonusAwards` (duplicated inline rather
+ * than imported — that module's own doc comment makes this a deliberate
+ * one-way dependency, bonus -> scoring types only, never the reverse).
+ * Without this, "who's behind" here could disagree with the standings
+ * actually shown on the leaderboard (which does fold those awards in) —
+ * e.g. a player who just won a bonus event and jumped out of the bottom
+ * three would still show as catching up here, and someone else's bonus
+ * multiplier could land on the wrong player entirely.
  */
 export function upcomingCatchUp(
   events: EventRow[],
   results: EventResultRow[],
   multipliers: MultiplierRow[],
   playerIds: string[],
+  bonusAwards: { playerId: string; points: number }[] = [],
 ): { eventId: string; bonuses: Map<string, number>; confirmed: boolean } | null {
   const scoring = events
     .filter((e) => e.status === "scoring")
@@ -167,5 +178,24 @@ export function upcomingCatchUp(
   if (!hasAnyResolvedResults) return { eventId: target.id, bonuses: new Map(), confirmed };
 
   const { finalTotals } = deriveScoreLinesWithStandings(events, results, multipliers, playerIds);
-  return { eventId: target.id, bonuses: catchUpBonuses(finalTotals), confirmed };
+  const withAwards = foldBonusAwards(finalTotals, bonusAwards);
+  return { eventId: target.id, bonuses: catchUpBonuses(withAwards), confirmed };
+}
+
+/** Add flat bonus-award points (bonus events, won overall bets) onto both
+ * `raw` and `adjusted` — same folding `applyBonusAwards` (bonusEvent.ts)
+ * does for the leaderboard's own standings, kept as a separate copy here so
+ * this module doesn't import from bonus/. */
+function foldBonusAwards(
+  totals: PlayerTotal[],
+  awards: { playerId: string; points: number }[],
+): PlayerTotal[] {
+  const byPlayer = new Map(totals.map((t) => [t.playerId, { ...t }]));
+  for (const award of awards) {
+    const existing = byPlayer.get(award.playerId) ?? { playerId: award.playerId, raw: 0, adjusted: 0 };
+    existing.raw += award.points;
+    existing.adjusted += award.points;
+    byPlayer.set(award.playerId, existing);
+  }
+  return [...byPlayer.values()];
 }

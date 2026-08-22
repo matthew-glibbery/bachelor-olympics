@@ -38,6 +38,12 @@ export type CharacterRenderProps = {
   /** Whether the video (if any) should be visible/playing right now — e.g.
    * only while hovered/focused for a roster bust. Defaults to true. */
   playing?: boolean;
+  /** Set false when a caller already provides its own single frame around a
+   * *group* of renders (e.g. the leaderboard podium's shared Panel) — skips
+   * this component's own bevel-sunken mat so the group doesn't end up with
+   * one frame around each character plus a second one around all of them.
+   * Still clips the media to a rounded box either way. Default true. */
+  framed?: boolean;
   className?: string;
 };
 
@@ -51,6 +57,7 @@ export function CharacterRender({
   pose = "full",
   idle = false,
   playing = true,
+  framed = true,
   className,
 }: CharacterRenderProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -62,6 +69,47 @@ export function CharacterRender({
     if (showVideo) v.play().catch(() => {});
     else v.pause();
   }, [showVideo]);
+
+  const media = (
+    <div className={cn("relative h-full w-full overflow-hidden", framed ? "rounded-md" : "rounded-lg")}>
+      {photoUrl ? (
+        /* Uploaded player photo — intrinsic size unknown ahead of time and
+           there's a handful of these at most, so next/image's optimizer
+           buys nothing; a plain <img> is the right call.
+
+           Faded out while the video is actively showing, not just left
+           opaque underneath it, so the video's own opacity fade-in isn't
+           fighting a fully opaque photo of a different crop underneath it
+           (a ghosted double-exposure) — both layers now sit on the same
+           bounded plate, so hiding one while the other shows is enough on
+           its own, no edge-masking trick needed either side. */
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={photoUrl}
+          alt={name}
+          className={cn("h-full w-full object-cover transition-opacity duration-300", showVideo ? "opacity-0" : "opacity-100")}
+        />
+      ) : (
+        <ProceduralBust name={name} nickname={nickname} color={color} number={number} pose={pose} idle={idle} />
+      )}
+      {videoUrl ? (
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          loop
+          muted
+          playsInline
+          poster={photoUrl ?? undefined}
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
+            showVideo ? "opacity-100" : "opacity-0",
+          )}
+        />
+      ) : null}
+    </div>
+  );
+
+  if (!framed) return <div className={cn("h-full w-full", className)}>{media}</div>;
 
   return (
     // A bounded plate, not an attempt to blend the render into the page —
@@ -82,51 +130,7 @@ export function CharacterRender({
     // is a real mat, not a different effect — the bevel lives on this outer
     // box with real padding, so the media (in its own inner, clipped box)
     // physically can't reach the bevelled edge.
-    <div className={cn("bevel-sunken bg-sunken h-full w-full rounded-lg p-1", className)}>
-      <div className="relative h-full w-full overflow-hidden rounded-md">
-        {photoUrl ? (
-          /* Uploaded player photo — intrinsic size unknown ahead of time and
-             there's a handful of these at most, so next/image's optimizer
-             buys nothing; a plain <img> is the right call.
-
-             Faded out while the video is actively showing, not just left
-             opaque underneath it, so the video's own opacity fade-in isn't
-             fighting a fully opaque photo of a different crop underneath it
-             (a ghosted double-exposure) — both layers now sit on the same
-             bounded plate, so hiding one while the other shows is enough on
-             its own, no edge-masking trick needed either side. */
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={photoUrl}
-            alt={name}
-            className={cn("h-full w-full object-cover transition-opacity duration-300", showVideo ? "opacity-0" : "opacity-100")}
-          />
-        ) : (
-          <ProceduralBust
-            name={name}
-            nickname={nickname}
-            color={color}
-            number={number}
-            pose={pose}
-            idle={idle}
-          />
-        )}
-        {videoUrl ? (
-          <video
-            ref={videoRef}
-            src={videoUrl}
-            loop
-            muted
-            playsInline
-            poster={photoUrl ?? undefined}
-            className={cn(
-              "absolute inset-0 h-full w-full object-cover transition-opacity duration-300",
-              showVideo ? "opacity-100" : "opacity-0",
-            )}
-          />
-        ) : null}
-      </div>
-    </div>
+    <div className={cn("bevel-sunken bg-sunken h-full w-full rounded-lg p-1", className)}>{media}</div>
   );
 }
 
