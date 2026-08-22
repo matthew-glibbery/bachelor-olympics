@@ -11,6 +11,7 @@ import { GameScreen } from "@/components/n64/game-screen";
 import { Panel } from "@/components/n64/panel";
 import { PlayerName } from "@/components/player-name";
 import { ProgressChart } from "@/components/progress-chart";
+import { RankLadder } from "@/components/rank-ladder";
 import { useGameInput } from "@/hooks/use-game-input";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { applyBonusAwards } from "@/lib/bonus/bonusEvent";
@@ -317,14 +318,43 @@ export default function Home() {
               </p>
             </Panel>
 
-            {/* Progress panel — same ProgressChart as before, reskinned frame.
-                Sits below the leaderboard now, not above it. */}
+            {/* Progress. Two genuinely different objects for two genuinely
+                different widths, not one component squeezed.
+
+                The line chart is good on a desktop and bad on a phone: at
+                430px it is ~300px wide carrying eight series that clump
+                into an unreadable pile as soon as the field tightens, and
+                its eight-item wrapping legend eats a chunk of the viewport
+                on the app's primary device. It also answers a quantitative
+                question when the one players actually have is ordinal —
+                "did I move up?". Below `sm` that's the RankLadder's job;
+                from `sm` up the chart has the room to be the better object,
+                so it keeps it. */}
             <Panel
               title="Progress"
               icon={TrendingUp}
-              description="Cumulative points after each event or bonus event, in the order they actually happened."
+              description={
+                <>
+                  <span className="sm:hidden">
+                    Where everyone sat after each event or bonus event, in the order they
+                    actually happened.
+                  </span>
+                  <span className="hidden sm:inline">
+                    Cumulative points after each event or bonus event, in the order they
+                    actually happened.
+                  </span>
+                </>
+              }
             >
-              <ProgressChart players={players} series={series} currentPlayerId={selectedPlayerId} />
+              <RankLadder
+                players={players}
+                series={series}
+                currentPlayerId={selectedPlayerId}
+                className="sm:hidden"
+              />
+              <div className="hidden sm:block">
+                <ProgressChart players={players} series={series} currentPlayerId={selectedPlayerId} />
+              </div>
             </Panel>
           </>
       )}
