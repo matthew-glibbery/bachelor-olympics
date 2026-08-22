@@ -9,8 +9,16 @@
  * The palette lives in CSS as `oklch()`; PNGs need sRGB, so the tokens are
  * converted here (oklab -> linear sRGB -> sRGB) rather than hand-picked
  * hexes being duplicated out of the stylesheet by eye.
+ *
+ * Two icon subjects, same frame:
+ *   pnpm run gen:icons                          -- the medal mark (default)
+ *   pnpm run gen:icons -- --photo <path.jpg>     -- a player's headshot
+ * `--photo` composites the given square image into the exact same beveled
+ * plate instead of drawing the medal, so a personalized icon still reads as
+ * this app's icon rather than a bare cropped photo. See the bottom of this
+ * file for which player's headshot is actually live right now.
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
@@ -57,27 +65,47 @@ const COLORS = {
   bevelDark: oklch(0.14, 0.05, 274),
 };
 
+/** The frame shared by both icon subjects: a beveled console plate (light
+ * top-left edge, dark bottom-right, exactly like `.bevel-raised`) on the
+ * app's real background color. Returns the opening markup up through the
+ * bevel ring — callers fill in the plate's *content* (medal or photo)
+ * before the closing `</svg>`. */
+function plateFrame({ size, scale, radius }) {
+  const S = size;
+  const inset = (S * (1 - scale)) / 2;
+  const plate = S * scale;
+  const bevel = Math.max(2, plate * 0.035);
+  const r = plate * radius;
+  const cx = inset + plate / 2;
+  const cy = inset + plate / 2;
+
+  const open = `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">
+  <rect width="${S}" height="${S}" fill="${COLORS.background}"/>
+  <rect x="${inset}" y="${inset}" width="${plate}" height="${plate}" rx="${r}" fill="${COLORS.card}"/>
+  <clipPath id="plate"><rect x="${inset}" y="${inset}" width="${plate}" height="${plate}" rx="${r}"/></clipPath>
+  <clipPath id="br"><polygon points="${S},0 ${S},${S} 0,${S}"/></clipPath>`;
+
+  const bevelRing = `<g clip-path="url(#plate)">
+    <rect x="${inset}" y="${inset}" width="${plate}" height="${plate}" rx="${r}" fill="none" stroke="${COLORS.bevelLight}" stroke-width="${bevel * 2}"/>
+    <g clip-path="url(#br)">
+      <rect x="${inset}" y="${inset}" width="${plate}" height="${plate}" rx="${r}" fill="none" stroke="${COLORS.bevelDark}" stroke-width="${bevel * 2}"/>
+    </g>
+  </g>`;
+
+  return { open, bevelRing, inset, plate, cx, cy };
+}
+
 /**
- * The mark: a beveled console plate (light top-left edge, dark
- * bottom-right, exactly like `.bevel-raised`) holding a gold medal disc
- * with a star — the leaderboard/trophy idea the whole app is built around,
- * drawn as pure geometry so it rasterizes identically everywhere with no
- * font dependency.
+ * The mark: a gold medal disc with a star inside the plate — the
+ * leaderboard/trophy idea the whole app is built around, drawn as pure
+ * geometry so it rasterizes identically everywhere with no font dependency.
  *
  * `scale` shrinks the artwork inside the canvas: 1 for a normal icon,
  * ~0.62 for the maskable variant, whose safe area is only the middle 80%
  * of a circle that platforms are free to crop to any shape.
  */
 function iconSvg({ size = 512, scale = 1, radius = 0.18 } = {}) {
-  const c = COLORS;
-  const S = size;
-  const inset = (S * (1 - scale)) / 2;
-  const plate = S * scale;
-  const bevel = Math.max(2, plate * 0.035);
-  const r = plate * radius;
-
-  const cx = inset + plate / 2;
-  const cy = inset + plate / 2;
+  const { open, bevelRing, cx, cy, plate } = plateFrame({ size, scale, radius });
   const discR = plate * 0.29;
 
   const star = (() => {
@@ -92,22 +120,34 @@ function iconSvg({ size = 512, scale = 1, radius = 0.18 } = {}) {
     return pts.join(" ");
   })();
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">
-  <rect width="${S}" height="${S}" fill="${c.background}"/>
-  <rect x="${inset}" y="${inset}" width="${plate}" height="${plate}" rx="${r}" fill="${c.card}"/>
-  <clipPath id="plate"><rect x="${inset}" y="${inset}" width="${plate}" height="${plate}" rx="${r}"/></clipPath>
-  <clipPath id="br"><polygon points="${S},0 ${S},${S} 0,${S}"/></clipPath>
-  <g clip-path="url(#plate)">
-    <rect x="${inset}" y="${inset}" width="${plate}" height="${plate}" rx="${r}" fill="none" stroke="${c.bevelLight}" stroke-width="${bevel * 2}"/>
-    <g clip-path="url(#br)">
-      <rect x="${inset}" y="${inset}" width="${plate}" height="${plate}" rx="${r}" fill="none" stroke="${c.bevelDark}" stroke-width="${bevel * 2}"/>
-    </g>
-  </g>
-  <rect x="${cx - discR * 0.62}" y="${cy - discR * 1.5}" width="${discR * 0.42}" height="${discR * 0.85}" rx="${discR * 0.12}" fill="${c.accent}"/>
-  <rect x="${cx + discR * 0.2}" y="${cy - discR * 1.5}" width="${discR * 0.42}" height="${discR * 0.85}" rx="${discR * 0.12}" fill="${c.accent}"/>
-  <circle cx="${cx}" cy="${cy + discR * 0.18}" r="${discR}" fill="${c.primary}"/>
-  <circle cx="${cx}" cy="${cy + discR * 0.18}" r="${discR * 0.84}" fill="${c.bevelDark}" opacity="0.28"/>
-  <polygon points="${star}" transform="translate(0 ${(discR * 0.18).toFixed(2)})" fill="${c.primary}"/>
+  return `${open}
+  ${bevelRing}
+  <rect x="${cx - discR * 0.62}" y="${cy - discR * 1.5}" width="${discR * 0.42}" height="${discR * 0.85}" rx="${discR * 0.12}" fill="${COLORS.accent}"/>
+  <rect x="${cx + discR * 0.2}" y="${cy - discR * 1.5}" width="${discR * 0.42}" height="${discR * 0.85}" rx="${discR * 0.12}" fill="${COLORS.accent}"/>
+  <circle cx="${cx}" cy="${cy + discR * 0.18}" r="${discR}" fill="${COLORS.primary}"/>
+  <circle cx="${cx}" cy="${cy + discR * 0.18}" r="${discR * 0.84}" fill="${COLORS.bevelDark}" opacity="0.28"/>
+  <polygon points="${star}" transform="translate(0 ${(discR * 0.18).toFixed(2)})" fill="${COLORS.primary}"/>
+</svg>`;
+}
+
+/**
+ * A player's headshot, clipped into the same plate the medal uses instead
+ * of drawn geometry — same frame language, personalized content. The
+ * headshot itself is expected square (character-gen's `headshot.png`
+ * output always is), so `xMidYMid slice` is just a defensive cover-fit
+ * rather than doing any real cropping.
+ *
+ * `scale` does double duty here versus the medal: it's not just "how much
+ * canvas the art fills" but "how much safety margin the FACE gets" — the
+ * maskable variant needs the face to survive a platform-chosen circular
+ * crop, which a face-filling photo (unlike an abstract disc) doesn't
+ * survive nearly as gracefully if cut too close.
+ */
+function photoIconSvg({ size = 512, scale = 1, radius = 0.18, photoBase64, photoMime }) {
+  const { open, bevelRing, inset, plate } = plateFrame({ size, scale, radius });
+  return `${open}
+  <image href="data:${photoMime};base64,${photoBase64}" x="${inset}" y="${inset}" width="${plate}" height="${plate}" preserveAspectRatio="xMidYMid slice" clip-path="url(#plate)"/>
+  ${bevelRing}
 </svg>`;
 }
 
@@ -121,11 +161,30 @@ const TARGETS = [
   { file: "favicon-32.png", size: 32, scale: 0.94 },
 ];
 
+const photoFlagIndex = process.argv.indexOf("--photo");
+const photoPath = photoFlagIndex !== -1 ? process.argv[photoFlagIndex + 1] : undefined;
+
 await mkdir(OUT_DIR, { recursive: true });
-await writeFile(path.join(OUT_DIR, "icon.svg"), iconSvg({ size: 512, scale: 0.88 }));
-for (const { file, size, scale, radius } of TARGETS) {
-  const svg = iconSvg({ size, scale, radius });
-  await sharp(Buffer.from(svg)).png().toFile(path.join(OUT_DIR, file));
-  console.log(`wrote public/${file} (${size}x${size})`);
+
+if (photoPath) {
+  const buf = await readFile(photoPath);
+  const photoBase64 = buf.toString("base64");
+  const photoMime = photoPath.endsWith(".png") ? "image/png" : "image/jpeg";
+  // icon.svg is left as the medal mark deliberately — it's the one format
+  // any browser can rescale losslessly for a favicon, and a face is
+  // photographic content, not vector content; embedding it here would just
+  // be a bigger version of the same PNG with none of the benefit.
+  for (const { file, size, scale, radius } of TARGETS) {
+    const svg = photoIconSvg({ size, scale, radius, photoBase64, photoMime });
+    await sharp(Buffer.from(svg)).png().toFile(path.join(OUT_DIR, file));
+    console.log(`wrote public/${file} (${size}x${size}) from ${photoPath}`);
+  }
+} else {
+  await writeFile(path.join(OUT_DIR, "icon.svg"), iconSvg({ size: 512, scale: 0.88 }));
+  for (const { file, size, scale, radius } of TARGETS) {
+    const svg = iconSvg({ size, scale, radius });
+    await sharp(Buffer.from(svg)).png().toFile(path.join(OUT_DIR, file));
+    console.log(`wrote public/${file} (${size}x${size})`);
+  }
 }
 console.log("palette:", COLORS);

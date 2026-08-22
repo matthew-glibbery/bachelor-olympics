@@ -2,6 +2,104 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-22 (3) — Bespoke per-player victory prompts, Tyler excluded, app icon is Matthew's headshot
+
+Follow-up on the same day's victory-clip work, after direct feedback that
+the first pass (a single template with the name swapped, generic "opposing
+characters") wasn't what was wanted. 164 tests (unchanged — no app code
+touched, this is entirely the character-gen pipeline + a generated asset
+pair), lint/typecheck/build all green.
+
+- **Every player's victory clip now names and defeats the real rest of the
+  cast**, not generic rivals — direct ask. New
+  `scripts/character-gen/victoryBeats.ts`: one hand-written `{ pose, action
+  }` pair per player, each a genuinely different comedic mechanism (Isaac
+  buries the group in a sand rooster-tail, Anthony mogul-bounces off their
+  backs skiing down a dune, Joe lassoes everyone into one dogpile, Josh
+  tornado-flattens them on a victory lap, Andrew's breakdance headspin
+  blast-waves them, Adam rubber-stamps them "REJECTED" one by one) rather
+  than one move re-skinned seven times.
+- **Tyler is excluded** — not attending the actual weekend, so he neither
+  wins a clip nor appears as someone the others defeat.
+  `VICTORY_EXCLUDED` in victoryBeats.ts is the single point of control;
+  both `gen:char:composite` and `gen:char:clip` throw a clear error if
+  asked to generate his. Deliberately scoped to victory-clip *content*
+  only — his `players` row, betting, scoring, and every other pipeline
+  step are untouched, since removing a live competitor is a much bigger
+  call than this ask and wasn't part of it.
+- **All seven share one Lake Tahoe beach**
+  (`background.ts`'s new `VICTORY_BEACH_BACKGROUND`) instead of each
+  player's own hex-gradient background — this is docs/VISUAL_SPEC.md's own
+  "Lake Tahoe beach" direction, which that doc's character-gen section
+  already flagged as deferred for victory/boot; done here for victory on
+  direct ask. Boot's still on the older "arena" language — separate,
+  still-open follow-up, not touched.
+- **Composite is now required for every player, not just Matthew.**
+  `victoryScenePrompt`/`victorySceneClipPrompt` (Matthew-only) became
+  `namedVictoryScenePrompt`/`namedVictorySceneClipPrompt`, taking the real
+  rival list + guest list so the scaffolding (which images are attached,
+  background, likeness-fidelity instruction, tone footer) can't drift
+  between players while `pose`/`action` stay bespoke.
+  `gen:char:composite -- victory <player>` no longer rejects non-Matthew
+  players; `gen:char:clip` no longer silently falls back to a generic solo
+  clip when the composite scene is missing — it throws, since that silent
+  fallback is exactly the wrong-content problem this session fixed.
+  README.md's walkthrough updated to match (composite is a per-player step
+  now, generate victory last after the whole roster's fullbody images
+  exist).
+- **Verified by generating the real prompts, not by reading the code** — a
+  scratch script (deleted, never committed) ran the actual
+  `namedVictoryScenePrompt`/`VICTORY_BEATS` functions against the real
+  8-player roster and printed what cli.ts would actually send. Confirmed:
+  Tyler excluded from every rival list; each player's own name absent from
+  their own rival list; Matthew's scene lists all 6 rivals + Cassandra +
+  Bailey (9 reference images) and his clip still closes on them jumping
+  into his arms.
+
+**PWA icon set to Matthew's actual headshot**, on direct ask ("unless you
+have a better idea" — considered it and didn't have one that beat this:
+the medal mark is a fine generic icon but this is a small private group's
+app, and a face they'll recognize instantly beats an abstract trophy for a
+home-screen icon at a glance).
+
+- `scripts/generate-icons.mjs` gained a `--photo <path>` mode: composites a
+  given square image into the *same* beveled-plate frame the medal icon
+  uses (same background/bevel colors, same rounded-corner geometry) rather
+  than shipping a bare cropped photo — keeps every icon variant reading as
+  this app's icon regardless of which subject is inside it. Implemented as
+  one shared `plateFrame()` the medal and photo renderers both build on,
+  so the frame can't drift between the two modes. `icon.svg` is
+  deliberately left as the medal vector in photo mode — a face is
+  photographic content, not vector content, so there's no lossless-rescale
+  benefit to embedding it there, and it doubles as a fallback if the group
+  ever wants to switch back.
+  Default (`pnpm run gen:icons`, no flag) is unchanged and still produces
+  the medal icon — that path isn't gone, just not what's live now.
+- Regenerated all five PNGs (`icon-192`, `icon-512`, `icon-maskable-512`,
+  `apple-touch-icon`, `favicon-32`) from Matthew's current live `photo_url`
+  — which, per the character-gen pipeline's own design, is already his
+  stylized N64-headshot render (`gen:char:upload-photo` pushes that live
+  as `photo_url`, superseding the real photo), fetched via `curl` (Node's
+  own `fetch` can't reach Supabase through this machine's TLS
+  interception, same limitation noted in earlier sessions).
+  **The source photo itself is intentionally not committed** — matches
+  this repo's existing convention of gitignoring `character-assets/` and
+  `reference-photos/`, source art lives outside git and only derived
+  output does. To regenerate after Matthew's headshot changes:
+  `curl -o /tmp/matthew.jpg <his current photo_url>` then
+  `pnpm run gen:icons -- --photo /tmp/matthew.jpg`.
+- Checked legibility at real small sizes before committing to this, not
+  just at 512px — the source headshot's generous headroom/high background
+  contrast (purple radial gradient vs. warm skin/dark hair/white shirt)
+  holds up down to the 180px apple-touch-icon and even the 32px favicon.
+  The maskable variant scales the photo down further than the medal did
+  (same `scale: 0.62` parameter, reused) so a platform's circular safe-zone
+  crop doesn't clip his forehead or shoulders.
+- Verified: production build + `next start`, confirmed `/manifest.
+  webmanifest` and all five PNGs serve 200 with correct dimensions, and
+  the rendered `<head>` still links `apple-touch-icon.png` (180x180),
+  `favicon-32.png`, `icon-192.png`, and `icon.svg` in that order.
+
 ## 2026-08-22 (2) — Real webfonts, a type scale, and a design-review pass
 
 User ask: improve the UI generally, with three specifics — the font
