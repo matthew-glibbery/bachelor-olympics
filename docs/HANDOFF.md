@@ -2,6 +2,155 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-23 — Second mobile pass: header removal, one shared table style, self-bet lockout, a real iOS PWA fix
+
+Direct follow-up feedback after the previous session's PR (#50) merged. 174
+tests (unchanged), lint/typecheck/build all green. Verified live against
+the real Supabase project via headless Chrome + CDP throughout; no live
+data was written by this session (checked before/after — see below). Note:
+another session/user was actively placing real per-event bets against the
+same live project while this one ran (two new bets appeared mid-session,
+neither created here) — a live, shared-editing hazard worth having in mind
+for any future "verify against production" session, not something this
+session's own testing touched.
+
+### Screen headers and subheaders removed
+
+- **No page title** on `/` (Leaderboard), `/multipliers` (Set Your
+  Multipliers), or `/bets` (Bets) — `GameScreen`'s `title` prop just isn't
+  passed on these three now, matching `/events`, which already went title-
+  less in the previous session. `/setup` keeps its title/subtitle; it wasn't
+  named in the ask and its heading isn't purely redundant with the nav the
+  way the other three's were (the Tools nav tab doesn't say "Player
+  Settings").
+- **The leaderboard's standing-line subtitle is gone** ("3RD · 127 PTS · 47
+  BEHIND ANDREW") along with the `standingLine`/`ORDINALS` computation that
+  built it — dead code once nothing renders it.
+- **Panel headers are vertically centered against their icon now**
+  (`n64/panel.tsx`): both the icon+title row and the icon well itself were
+  `items-start`, which top-aligned the 32px icon chip against the first line
+  of text instead of centering it. One `items-center` swap, applies to every
+  `Panel` in the app (Standings, Podium, Progress, every groom-tools card on
+  `/setup`) since they all go through the same component.
+
+### One roster-row style, not three
+
+New `src/components/n64/roster-table.tsx` — the leaderboard Standings
+table's own look (colour rank-badge, alternating row tint, `px-3 py-2` rows
+tall enough for a real button) factored into shared pieces (`RankBadge`,
+`rosterRowClass`, `ROSTER_HEAD_ROW`/`ROSTER_HEAD_CELL`/`ROSTER_CELL`) rather
+than copied. Standings itself now consumes these rather than defining its
+own copy, so there's one source rather than one original plus however many
+imitations drift from it.
+
+- **The Odds tab's win/place list** (`event-odds-betting.tsx`) is a real
+  `<table>` now instead of bordered flex-row divs with a plain grey rank
+  number — same row language as Standings.
+- **The overall-betting roster list and its "Your picks" panel**
+  (`overall-betting.tsx`) got the same treatment. "Your picks" specifically
+  was rebuilt into the requested column shape — Player / Bet / To win /
+  Status — replacing the old one-line-per-bet-type layout that mixed a label,
+  a name, and a badge into a single sentence-shaped row. The switch-pick
+  control (select + button, for an eliminated pick) now renders as a
+  `colSpan` row directly under the bet it belongs to, same pattern
+  `placed-bets-table.tsx` already uses for its per-event group headers.
+- **Fitting this onto a 390px phone surfaced a real, previously-latent
+  overflow bug**: a `<table>` isn't a flex row, and `table-fixed` with fixed-
+  width odds/badge columns still left the *name* column column sized to its
+  unclipped content — on Super Smash Bros.'s 8-player list this pushed the
+  whole table wider than the viewport, clipping the Place column and its
+  buttons off-screen. Root cause was in `player-name.tsx`: its outer element
+  was `inline-flex` with no `min-w-0`, and the name text itself had no
+  `truncate` — so nothing in the component could ever actually shrink below
+  its content's width no matter how tight the surrounding cell was. Fixed
+  at the component level (`min-w-0` on the wrapper, `min-w-0 truncate` on
+  the name and nickname spans) rather than per call site, since
+  `placed-bets-table.tsx` had the identical latent issue and every other
+  `PlayerName` usage is either unconstrained (no-op change) or already
+  relies on being inside a flex row that assumed this. Re-verified
+  overflow-clean at 390px on the fixed table via a direct CDP
+  `scrollWidth`/`clientWidth` check (not just a screenshot).
+
+### Can't bet on yourself in a per-event bet
+
+`event-odds-betting.tsx`'s Win/Place buttons no longer render for the
+bettor's own row — a plain "YOU" tag and read-only odds text instead, same
+treatment the rest of the app already gives a row you can't act on.
+
+**This reverses an explicit statement in PRODUCT_SPEC.md**, not something
+inferred from the code — the per-event betting section previously said flat
+out that "the bettor and the pick can be different players (or the same
+one)," on the reasoning that a side wager isn't the same conflict-of-interest
+as ranking your own event. Per CLAUDE.md's own rule (spec is the source of
+truth, flag contradictions rather than silently overriding them), this
+session updated the spec to match the explicit direct-feedback ask rather
+than just changing the code: it now states no self-picks, and cites overall
+betting's own rule as the reason — which sent a reviewing agent back to find
+that rule was never actually *written down* in the Overall betting section
+either, only implemented as a code comment. Added it there too, so the new
+per-event text isn't pointing at a rule the reader can't find. This is
+UI-enforced only, no DB constraint — same pattern every other betting rule
+in this app already uses (see `mutations.ts`'s own doc comments).
+
+### Delete moved off the row, edit is full height
+
+`placed-bets-table.tsx`'s row used to carry two 24-28px icon buttons
+(pencil + trash) side by side — both shrunk below the height every other
+button in the app uses just to fit two of them in one cell. The trash icon
+is gone; `onDelete` is removed from the component entirely. Edit is now a
+single `Button size="icon"` (36px, the same height as everything else),
+and "cancel this bet outright" moved into whatever editor Edit opens —
+a new destructive "Delete bet" button next to Save/Discard, in both
+`event-odds-betting.tsx`'s inline editor and `/bets`' shared editor panel.
+`bets/page.tsx`'s `handleCancelPerEvent` now takes `(eventId, betId)` and
+resets the editor's drafts on success, since deleting a bet the editor was
+open for needs to close that editor rather than leave it pointed at a row
+that no longer exists.
+
+### Multipliers' "Reset to even" uses the real Button component
+
+It was a hand-rolled `<button>` at `hud-label` text size with `px-4 py-2`,
+which came out visibly shorter than the odds/wager buttons elsewhere on the
+same screen. Swapped for `<Button variant="outline">` — same click handler,
+now the standard height.
+
+### The /start /select "unused space at the bottom" — a third attempt, on new information
+
+Two prior sessions each shipped what looked like the right fix
+(`min-h-dvh` → `position: fixed; inset: 0`) and the user reported the gap
+persisting on their **installed iPhone PWA** specifically — a detail this
+session got by asking directly, since headless Chrome (this sandbox's only
+way to look at the app) cannot install a PWA or reproduce iOS Safari's
+standalone-mode rendering, and had shown zero gap at every viewport height
+tried across both prior attempts. That combination — "fixed on all sides"
+should be unambiguous, works everywhere it can be tested, still reported
+wrong on one specific real device — means the bug most likely isn't in the
+CSS positioning logic at all, but in what the browser itself computes as
+"the viewport" for a `bottom: 0` box to resolve against, which is a
+narrower, previously-reported class of WebKit issue specific to standalone
+home-screen web apps.
+
+New `useAppViewportHeight` (`src/hooks/`) sidesteps the question entirely
+instead of guessing at another CSS unit: it reads `window.visualViewport`
+directly — the one API that reports the actually-rendered viewport rather
+than any unit's implementation-defined computation of it — and writes the
+real pixel height to a `--app-vh` custom property, kept live across
+`resize` and the visual viewport's own `resize`/`scroll` events (the latter
+is what actually fires on iOS when the OS chrome or on-screen keyboard
+changes what's visible). `/start` and `/select` now set `height: var(
+--app-vh, 100dvh)` explicitly instead of relying on `bottom: 0`'s implied
+height, with `100dvh` only covering the one frame before the effect runs.
+
+**Not verified against the real failing device** — no way to do that from
+this sandbox. Re-verified everything else (no regression, no new overflow)
+at 375×667/393×852/430×932 in headless Chrome, where the old and new
+approach were already indistinguishable, which is exactly why this needed a
+different fix strategy rather than a fourth CSS guess. If this specific
+symptom is *still* reported after this lands, that's a strong signal the
+mechanism above isn't it either, and the next session should ask for a
+screen recording or exact device/iOS version rather than trying a fourth
+theory blind.
+
 ## 2026-08-22 (6) — Mobile PWA pass: bets as a table, wagers as a stepper, decluttering, two real bugs
 
 A punch list of real-use feedback from the installed PWA on a phone, plus

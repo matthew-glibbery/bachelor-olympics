@@ -9,6 +9,7 @@ import { CatchUpBadge } from "@/components/event-card";
 import { CharacterRender } from "@/components/n64/character-render";
 import { GameScreen } from "@/components/n64/game-screen";
 import { Panel } from "@/components/n64/panel";
+import { RankBadge, ROSTER_CELL, ROSTER_HEAD_CELL, ROSTER_HEAD_ROW, rosterRowClass } from "@/components/n64/roster-table";
 import { PlayerName } from "@/components/player-name";
 import { ProgressChart } from "@/components/progress-chart";
 import { useGameInput } from "@/hooks/use-game-input";
@@ -37,10 +38,6 @@ const MEDAL_COLOR = ["var(--medal-gold)", "var(--medal-silver)", "var(--medal-br
  * changing `MedalTable` itself (kept around undisturbed in case anything
  * else wants the plain version later).
  */
-/** 1st..8th, for the standings readout under the title. Eight players is
- *  the whole field (PRODUCT_SPEC.md), so a table beats a suffix rule. */
-const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"] as const;
-
 export default function Home() {
   const router = useRouter();
   const { players, events, eventResults, multipliers, bonusEvents, overallBets, connect, loading, error, ready } =
@@ -109,35 +106,12 @@ export default function Home() {
     bonusAwards,
   );
 
-  // The subtitle slot on this screen used to repeat `/start`'s marketing
-  // tagline verbatim ("Eight events · Eight competitors · One leaderboard").
-  // On the title screen that line is doing a job; here it was spending the
-  // most valuable 40px of the app's primary screen — directly under the
-  // title, above the fold — saying something the player already knew and
-  // could not act on. Replaced with the one thing they actually open this
-  // screen to find out: where they stand right now.
-  //
-  // Falls back to the tagline before anyone has been picked or scored,
-  // since there is genuinely no standing to report yet.
-  const myIndex = ranked.findIndex((t) => t.playerId === selectedPlayerId);
-  const me = myIndex >= 0 ? ranked[myIndex] : undefined;
-  const leader = ranked[0];
-  const standingLine = (() => {
-    if (!me || !leader) return "Eight events · Eight competitors · One leaderboard";
-    const place = ORDINALS[myIndex] ?? `${myIndex + 1}th`;
-    const pts = `${Math.round(me.adjusted)} pts`;
-    if (myIndex === 0) {
-      const chaser = ranked[1];
-      if (!chaser) return `${place} · ${pts}`;
-      return `${place} · ${pts} · ${Math.round(me.adjusted - chaser.adjusted)} ahead`;
-    }
-    const ahead = players.find((pl) => pl.id === ranked[myIndex - 1]!.playerId);
-    const gap = Math.round(ranked[myIndex - 1]!.adjusted - me.adjusted);
-    return `${place} · ${pts} · ${gap} behind${ahead ? ` ${ahead.name}` : ""}`;
-  })();
-
   return (
-    <GameScreen title="Leaderboard" tone="gold" subtitle={standingLine}>
+    // No screen title or standing-line subtitle — the nav's own
+    // highlighted "Leaderboard" tab already says which screen this is, and
+    // the podium immediately below answers "where do I stand" faster than a
+    // sentence would.
+    <GameScreen>
       {error ? (
           <p className="text-destructive text-center text-sm">{error}</p>
         ) : !ready && loading ? (
@@ -213,13 +187,18 @@ export default function Home() {
               <div className="bevel-sunken bg-sunken rounded-md">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-bevel-dark border-b-2">
-                      {["", "Competitor", "Raw", "Points"].map((h, i) => (
+                    {/* "Competitor" and "Points" labelled what a name and a
+                        bold right-aligned number already say for themselves;
+                        "Raw" stays since a bare secondary figure next to the
+                        real score would otherwise read as a second point
+                        total rather than the pre-multiplier one. */}
+                    <tr className={ROSTER_HEAD_ROW}>
+                      {["", "", "Raw", ""].map((h, i) => (
                         <th
-                          key={h || i}
+                          key={i}
                           scope="col"
                           className={cn(
-                            "hud-label text-muted-foreground px-3 py-2",
+                            ROSTER_HEAD_CELL,
                             i >= 2 ? "text-right" : "text-left",
                             i === 2 && "hidden sm:table-cell",
                           )}
@@ -239,16 +218,16 @@ export default function Home() {
                       return (
                         <tr
                           key={player.id}
-                          className={cn(
-                            "border-bevel-dark/40 border-b-2 last:border-b-0",
-                            i % 2 === 1 && !isYou && "bg-black/15",
-                            // The previous highlight was a flat 70%-opacity
-                            // card tint — barely distinguishable from the
-                            // zebra striping already on the table. A left
-                            // border in the player's own colour (same colour
-                            // as their rank badge and chart line elsewhere on
-                            // this screen) plus a real background tint reads
-                            // unambiguously as "this row is different."
+                          className={rosterRowClass(
+                            i,
+                            // A flat 70%-opacity card tint was barely
+                            // distinguishable from the zebra striping the row
+                            // already has, so "your" row instead gets a left
+                            // border in your own colour (same colour as your
+                            // rank badge and chart line elsewhere on this
+                            // screen) plus a real background tint on top,
+                            // which reads unambiguously as "different" rather
+                            // than "next in the stripe."
                             isYou && "border-l-4",
                           )}
                           style={
@@ -260,15 +239,10 @@ export default function Home() {
                               : undefined
                           }
                         >
-                          <td className="px-3 py-2">
-                            <span
-                              className="font-display flex size-7 items-center justify-center rounded-sm text-sm"
-                              style={{ backgroundColor: color, color: "oklch(0.14 0.04 275)" }}
-                            >
-                              {i + 1}
-                            </span>
+                          <td className={ROSTER_CELL}>
+                            <RankBadge rank={i + 1} color={color} />
                           </td>
-                          <td className="px-3 py-2">
+                          <td className={ROSTER_CELL}>
                             <span className="flex items-center gap-2">
                               <PlayerName
                                 name={player.name}
@@ -294,12 +268,13 @@ export default function Home() {
                               number on the event card, so the leaderboard was
                               both off-spec and disagreeing with another
                               screen about the same player's score. */}
-                          <td className="font-score text-muted-foreground hidden px-3 py-2 text-right text-sm tabular-nums sm:table-cell">
+                          <td className={cn(ROSTER_CELL, "font-score text-muted-foreground hidden text-right text-sm tabular-nums sm:table-cell")}>
                             {Math.round(total.raw)}
                           </td>
                           <td
                             className={cn(
-                              "font-score px-3 py-2 text-right text-base tabular-nums",
+                              ROSTER_CELL,
+                              "font-score text-right text-base tabular-nums",
                               i === 0 ? "text-primary" : "text-foreground",
                             )}
                           >

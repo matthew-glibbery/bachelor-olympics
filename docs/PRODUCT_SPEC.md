@@ -161,9 +161,15 @@ allocates.
 Separate from the multiplier sliders themselves, players can wager a portion
 of their **unallocated multiplier reserve** (the leftover budget described
 above — not any specific event's own multiplier) on a chosen PLAYER'S
-win/place outcome in a specific upcoming event. Like the overall bet, this
-is a pick — the bettor and the pick can be different players (or the same
-one).
+win/place outcome in a specific upcoming event.
+
+**A player can't bet on themselves.** This reverses an earlier version of
+this doc, which explicitly allowed it ("the bettor and the pick can be
+different players, or the same one") on the reasoning that a per-event bet
+is a side wager, not a competitive conflict-of-interest the way ranking your
+own event would be. Direct product feedback overrode that: it should match
+overall betting's own no-self-pick rule rather than being the one betting
+mechanic in the app with a different answer to "can I pick myself."
 
 - Betting on an event closes once that event starts — wagers can only be
   placed while it's still "planned."
@@ -200,6 +206,9 @@ as its currency.
   and every player's picks become visible to everyone (no suspense once
   it's locked in). Switching an already-placed, now-eliminated pick is still
   allowed after lock — the halving is deterrent enough.
+- **No self-picks**: a player can't bet on themselves to win or place —
+  standard for any pick-the-winner pool. Per-event betting's own no-self-pick
+  rule (above) was made to match this one, not the other way around.
 - **Bet types** (deliberately kept to exactly two, do not add more without
   revisiting this decision — the whole design intent here was "simple, not a
   spreadsheet"; a third "pick who finishes last" joke bet was considered and

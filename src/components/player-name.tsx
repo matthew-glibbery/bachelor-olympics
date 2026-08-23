@@ -46,7 +46,15 @@ export function PlayerName({
   const ringStyle = color ? { borderColor: color } : undefined;
   const ringClassName = color ? undefined : "border-primary/60";
   return (
-    <span className={cn("inline-flex items-center gap-2", className)} {...props}>
+    // `min-w-0`: this needs to be shrinkable, not just its name span, or a
+    // long name inside a fixed-width table column (event-odds-betting.tsx,
+    // placed-bets-table.tsx) pushes the whole row wider than its column
+    // instead of eliding — an `inline-flex` item is exactly as wide as its
+    // content by default, `min-w-0` is what lets a flex/grid ancestor
+    // actually shrink it below that. Harmless where nothing constrains
+    // width (the common case): `truncate` on the name span only shows an
+    // ellipsis once something upstream actually clips it.
+    <span className={cn("inline-flex min-w-0 items-center gap-2", className)} {...props}>
       {/* A thin bordered ring — a small nod to game-portrait framing without
           the full bevel treatment, which would be too heavy repeated dozens
           of times in a dense list. */}
@@ -67,9 +75,9 @@ export function PlayerName({
           <UserRound className="size-3" />
         </span>
       )}
-      <span className="font-medium">{name}</span>
+      <span className="min-w-0 truncate font-medium">{name}</span>
       {nickname ? (
-        <span className="text-muted-foreground text-sm">“{nickname}”</span>
+        <span className="text-muted-foreground truncate text-sm">“{nickname}”</span>
       ) : null}
       {state ? <span className="sr-only">{`, repping ${state}`}</span> : null}
     </span>
