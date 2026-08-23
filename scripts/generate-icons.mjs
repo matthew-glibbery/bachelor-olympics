@@ -1,22 +1,28 @@
 /**
  * Generates the PWA app icons in `public/` from one on-theme SVG.
  *
- * Reproducible on purpose: the icons are a beveled console plate in the
- * exact palette `src/app/globals.css` defines, so re-running this after a
- * palette change regenerates matching icons instead of leaving a stale
- * hand-drawn PNG behind. Run with `pnpm run gen:icons`.
+ * Reproducible on purpose: the icons are drawn from the exact palette
+ * `src/app/globals.css` defines, so re-running this after a palette change
+ * regenerates matching icons instead of leaving a stale hand-drawn PNG
+ * behind. Run with `pnpm run gen:icons`.
  *
  * The palette lives in CSS as `oklch()`; PNGs need sRGB, so the tokens are
  * converted here (oklab -> linear sRGB -> sRGB) rather than hand-picked
  * hexes being duplicated out of the stylesheet by eye.
  *
- * Two icon subjects, same frame:
+ * Two icon subjects, two different treatments:
  *   pnpm run gen:icons                          -- the medal mark (default)
  *   pnpm run gen:icons -- --photo <path.jpg>     -- a player's headshot
- * `--photo` composites the given square image into the exact same beveled
- * plate instead of drawing the medal, so a personalized icon still reads as
- * this app's icon rather than a bare cropped photo. See the bottom of this
- * file for which player's headshot is actually live right now.
+ * The medal keeps its own beveled console-plate frame (`iconSvg` below) —
+ * that's decorative chrome drawn ON TOP of an abstract mark, and it's the
+ * app's own bevel language. A photo doesn't want that: iOS/Android already
+ * apply their own shape mask (squircle, adaptive icon, circle) to whatever
+ * this script outputs, so a *second* rounded-rect-plus-border drawn here
+ * became a visible double frame that didn't line up with the OS's own
+ * shape. `--photo` mode (`photoIconSvg`) is full-bleed instead — no plate,
+ * no border, no bevel — so the photo IS the icon and the OS owns the only
+ * shape being applied. See the bottom of this file for which player's
+ * headshot is actually live right now.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -65,11 +71,12 @@ const COLORS = {
   bevelDark: oklch(0.14, 0.05, 274),
 };
 
-/** The frame shared by both icon subjects: a beveled console plate (light
- * top-left edge, dark bottom-right, exactly like `.bevel-raised`) on the
- * app's real background color. Returns the opening markup up through the
- * bevel ring — callers fill in the plate's *content* (medal or photo)
- * before the closing `</svg>`. */
+/** The medal icon's own frame: a beveled console plate (light top-left
+ * edge, dark bottom-right, exactly like `.bevel-raised`) on the app's real
+ * background color. Returns the opening markup up through the bevel ring —
+ * `iconSvg` fills in the medal itself before the closing `</svg>`. Only
+ * the medal uses this now — see the file header for why the photo doesn't.
+ */
 function plateFrame({ size, scale, radius }) {
   const S = size;
   const inset = (S * (1 - scale)) / 2;
@@ -131,23 +138,30 @@ function iconSvg({ size = 512, scale = 1, radius = 0.18 } = {}) {
 }
 
 /**
- * A player's headshot, clipped into the same plate the medal uses instead
- * of drawn geometry — same frame language, personalized content. The
- * headshot itself is expected square (character-gen's `headshot.png`
- * output always is), so `xMidYMid slice` is just a defensive cover-fit
- * rather than doing any real cropping.
+ * A player's headshot, full-bleed — no plate, no border, no bevel ring.
  *
- * `scale` does double duty here versus the medal: it's not just "how much
- * canvas the art fills" but "how much safety margin the FACE gets" — the
- * maskable variant needs the face to survive a platform-chosen circular
- * crop, which a face-filling photo (unlike an abstract disc) doesn't
- * survive nearly as gracefully if cut too close.
+ * This used to share the medal's beveled-plate frame, which drew a second
+ * rounded-rect-plus-border on top of a photo the OS was *already* going to
+ * mask into its own shape (iOS squircle, Android adaptive icon, etc.) —
+ * two frames stacked, visibly misaligned since they never agreed on the
+ * exact corner radius. A photo doesn't need a drawn frame to read as
+ * "this app's icon" the way an abstract medal mark does; it just needs to
+ * fill the canvas so the OS's own mask is the only shape applied.
+ *
+ * `scale` still exists for the maskable variant only, and it's doing a
+ * real job there, not a decorative one: Android can crop a maskable icon
+ * to any shape using only the middle ~66-80% "safe zone," so the photo has
+ * to be inset and centered smaller than the full canvas or a circular crop
+ * clips his forehead/shoulders. That margin is just plain background color
+ * showing through — never a border or bevel drawn around the inset photo.
  */
-function photoIconSvg({ size = 512, scale = 1, radius = 0.18, photoBase64, photoMime }) {
-  const { open, bevelRing, inset, plate } = plateFrame({ size, scale, radius });
-  return `${open}
-  <image href="data:${photoMime};base64,${photoBase64}" x="${inset}" y="${inset}" width="${plate}" height="${plate}" preserveAspectRatio="xMidYMid slice" clip-path="url(#plate)"/>
-  ${bevelRing}
+function photoIconSvg({ size = 512, scale = 1, photoBase64, photoMime }) {
+  const S = size;
+  const inset = (S * (1 - scale)) / 2;
+  const plate = S * scale;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">
+  <rect width="${S}" height="${S}" fill="${COLORS.background}"/>
+  <image href="data:${photoMime};base64,${photoBase64}" x="${inset}" y="${inset}" width="${plate}" height="${plate}" preserveAspectRatio="xMidYMid slice"/>
 </svg>`;
 }
 
@@ -159,6 +173,18 @@ const TARGETS = [
   // iOS squircle-masks this itself and never wants transparency.
   { file: "apple-touch-icon.png", size: 180, scale: 0.9 },
   { file: "favicon-32.png", size: 32, scale: 0.94 },
+];
+
+// Photo mode's own scales — full-bleed (1) everywhere except maskable,
+// which keeps the real safe-zone inset the medal used (0.62). No `radius`:
+// there's no plate to round, the OS applies whatever shape it wants to the
+// full-bleed square this produces.
+const PHOTO_TARGETS = [
+  { file: "icon-192.png", size: 192, scale: 1 },
+  { file: "icon-512.png", size: 512, scale: 1 },
+  { file: "icon-maskable-512.png", size: 512, scale: 0.62 },
+  { file: "apple-touch-icon.png", size: 180, scale: 1 },
+  { file: "favicon-32.png", size: 32, scale: 1 },
 ];
 
 const photoFlagIndex = process.argv.indexOf("--photo");
@@ -174,8 +200,8 @@ if (photoPath) {
   // any browser can rescale losslessly for a favicon, and a face is
   // photographic content, not vector content; embedding it here would just
   // be a bigger version of the same PNG with none of the benefit.
-  for (const { file, size, scale, radius } of TARGETS) {
-    const svg = photoIconSvg({ size, scale, radius, photoBase64, photoMime });
+  for (const { file, size, scale } of PHOTO_TARGETS) {
+    const svg = photoIconSvg({ size, scale, photoBase64, photoMime });
     await sharp(Buffer.from(svg)).png().toFile(path.join(OUT_DIR, file));
     console.log(`wrote public/${file} (${size}x${size}) from ${photoPath}`);
   }
