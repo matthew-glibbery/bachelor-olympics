@@ -1,12 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { PlayerName } from "@/components/player-name";
-import { Badge } from "@/components/ui/badge";
+import { PlacedBetsTable } from "@/components/placed-bets-table";
+import { WagerStepper } from "@/components/wager-stepper";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   cancelPerEventBet,
@@ -16,16 +16,11 @@ import {
 import type { BettingReserve } from "@/lib/betting/reserve";
 import {
   payoutMultipliers,
-  perEventPayoutMultiplier,
+  perEventPayoutMultiplierOrNull,
   type RankingEntry,
 } from "@/lib/odds/ranking";
-import { MULTIPLIER_STEP } from "@/lib/multipliers/budget";
+import { fitsBudget, stepAmount, stepsWithin } from "@/lib/multipliers/budget";
 import type { EventRow, PerEventBetRow, PlayerRow } from "@/lib/data/database.types";
-
-const TARGET_LABEL: Record<PerEventBetRow["target"], string> = {
-  win: "win",
-  place: "place top 3",
-};
 
 // Fixed width for the win/place odds cells so the button/text in each row
 // lines up under its column header regardless of digit count (e.g. "2.3x"
@@ -59,11 +54,12 @@ export function EventOddsBetting({
 }) {
   const [pick, setPick] = useState<string | null>(null);
   const [target, setTarget] = useState<PerEventBetRow["target"]>("win");
-  const [wager, setWager] = useState("");
+  // A number, not a text draft: the amount is stepped rather than typed
+  // (WagerStepper), so there is no in-between "1." string state to model.
+  const [wager, setWager] = useState(0);
   const [editingBet, setEditingBet] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const wagerInputRef = useRef<HTMLInputElement>(null);
 
   if (ranking.length === 0) {
     return (
@@ -83,18 +79,21 @@ export function EventOddsBetting({
   const maxWager = reserve
     ? Math.max(0, reserve.available) + (isEditing && myBet ? myBet.wager : 0)
     : 0;
-  const odds = pick ? perEventPayoutMultiplier(ranking, pick, target) : null;
-  const wagerNum = Number(wager);
-  const hasValidWager = Number.isFinite(wagerNum) && wagerNum > 0;
-  const payoutPreview = odds != null && hasValidWager ? wagerNum * odds : null;
+  const odds = pick ? perEventPayoutMultiplierOrNull(ranking, pick, target) : null;
+  // `fitsBudget`, not `wager <= maxWager`: maxWager is a derived reserve and
+  // arrives float-dirty (0.2999999999999998 for what the screen calls 0.3),
+  // so a straight comparison rejects the top step the stepper offers.
+  const hasValidWager = wager > 0 && fitsBudget(wager, maxWager);
+  const payoutPreview = odds != null && hasValidWager ? wager * odds : null;
 
   function selectPick(playerId: string, nextTarget: PerEventBetRow["target"]) {
     setPick(playerId);
     setTarget(nextTarget);
-    // Picking a player/target is step one of placing a bet — jump straight
-    // to the wager field next, rather than making them hunt for it below.
-    wagerInputRef.current?.focus();
-    wagerInputRef.current?.select();
+    // Picking someone with nothing staked yet leaves the form in a state
+    // where the only enabled control is a "+" — so the first pick seeds one
+    // step, which is both the minimum legal wager and a real default. Once
+    // there is an amount, changing your mind about the pick leaves it alone.
+    setWager((w) => (w > 0 ? w : stepAmount(Math.min(1, stepsWithin(maxWager)))));
   }
 
   function startEditing() {
@@ -103,13 +102,13 @@ export function EventOddsBetting({
     setEditingBet(true);
     setPick(myBet.pick_player_id);
     setTarget(myBet.target);
-    setWager(String(myBet.wager));
+    setWager(myBet.wager);
   }
 
   function discardEditing() {
     setEditingBet(false);
     setPick(null);
-    setWager("");
+    setWager(0);
   }
 
   async function handleWager() {
@@ -121,7 +120,7 @@ export function EventOddsBetting({
         await updatePerEventBet(getSupabaseBrowserClient(), myBet.id, {
           pick_player_id: pick,
           target,
-          wager: wagerNum,
+          wager,
         });
         setEditingBet(false);
       } else {
@@ -130,11 +129,11 @@ export function EventOddsBetting({
           event_id: event.id,
           pick_player_id: pick,
           target,
-          wager: wagerNum,
+          wager,
         });
       }
       setPick(null);
-      setWager("");
+      setWager(0);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -209,7 +208,7 @@ export function EventOddsBetting({
                 {showForm ? (
                   <Button
                     size="sm"
-                    variant={isPick && target === "win" ? "default" : "outline"}
+                    variant={isPick && target === "win" ? "default" : "secondary"}
                     className={ODDS_CELL_CLASS}
                     onClick={() => selectPick(playerId, "win")}
                   >
@@ -223,7 +222,7 @@ export function EventOddsBetting({
                 {showForm ? (
                   <Button
                     size="sm"
-                    variant={isPick && target === "place" ? "default" : "outline"}
+                    variant={isPick && target === "place" ? "default" : "secondary"}
                     className={ODDS_CELL_CLASS}
                     onClick={() => selectPick(playerId, "place")}
                   >
@@ -247,39 +246,28 @@ export function EventOddsBetting({
           </span>
 
           {myBet && !isEditing ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span className="flex flex-wrap items-center gap-1.5">
-                <PlayerName
-                  name={players.get(myBet.pick_player_id)?.name ?? "?"}
-                  state={players.get(myBet.pick_player_id)?.state ?? "??"}
-                  size="sm"
-                  photoUrl={players.get(myBet.pick_player_id)?.photo_url}
-                  color={colorByPlayer[myBet.pick_player_id]}
-                />
-                <span className="text-muted-foreground">
-                  to {TARGET_LABEL[myBet.target]} — wagered {myBet.wager.toFixed(1)}
-                </span>
-              </span>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">Awaiting result</Badge>
-                {event.status === "planned" ? (
-                  <>
-                    <Button size="sm" variant="outline" onClick={startEditing} disabled={busy}>
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive"
-                      onClick={handleCancelBet}
-                      disabled={busy}
-                    >
-                      Cancel
-                    </Button>
-                  </>
-                ) : null}
-              </div>
-            </div>
+            /* The same table every other bet listing in the app uses, rather
+               than this screen's own sentence — one bet or twenty, a wager
+               reads as a row of figures you can compare. */
+            <PlacedBetsTable
+              framed={false}
+              colorByPlayer={colorByPlayer}
+              onEdit={startEditing}
+              onDelete={handleCancelBet}
+              bets={[
+                {
+                  id: myBet.id,
+                  pick: players.get(myBet.pick_player_id) ?? null,
+                  target: myBet.target,
+                  odds: perEventPayoutMultiplierOrNull(ranking, myBet.pick_player_id, myBet.target),
+                  wager: myBet.wager,
+                  status: myBet.status,
+                  payout: myBet.payout,
+                  canEdit: myBet.status === "open" && event.status === "planned",
+                  busy,
+                },
+              ]}
+            />
           ) : showForm ? (
             <div className="flex flex-col gap-2">
               {error ? <p className="text-destructive text-sm">{error}</p> : null}
@@ -295,47 +283,50 @@ export function EventOddsBetting({
                   baseline. The trailing button group has no label of its
                   own, and is the one thing allowed to wrap onto its own
                   line on a narrow phone when editing shows two buttons. */}
-              <div className="flex items-center gap-4">
-                <span className="text-muted-foreground w-28 text-[10px] uppercase">Wager</span>
-                <span className="text-muted-foreground w-14 text-[10px] uppercase">Odds</span>
-                <span className="text-muted-foreground w-16 text-[10px] uppercase">Payout</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-4">
-                <Input
-                  ref={wagerInputRef}
-                  type="number"
-                  step={MULTIPLIER_STEP}
-                  min={MULTIPLIER_STEP}
-                  max={maxWager}
-                  placeholder={`up to ${maxWager.toFixed(1)}`}
-                  className="w-28"
-                  value={wager}
-                  onChange={(e) => setWager(e.target.value)}
-                />
-                <span className="font-score w-14 tabular-nums">
-                  {odds != null ? `${odds.toFixed(1)}×` : "—"}
-                </span>
-                <span className="font-score w-16 tabular-nums">
-                  {payoutPreview != null ? payoutPreview.toFixed(1) : "—"}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleWager}
-                    disabled={busy || !pick || !hasValidWager || wagerNum > maxWager}
-                  >
-                    {isEditing ? "Save changes" : "Wager"}
-                  </Button>
-                  {isEditing ? (
-                    <Button size="sm" variant="ghost" onClick={discardEditing} disabled={busy}>
-                      Discard
-                    </Button>
-                  ) : null}
+              {/* Stake on its own row with the two derived figures beside
+                  it. The stepper is ~150px wide on its own, so the old
+                  three-column label/value grid (which assumed a 112px text
+                  field) no longer fits a 390px phone — labels sit directly on
+                  each figure instead of in a separate header row. */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-col gap-1">
+                  <span className="hud-label text-muted-foreground">Stake</span>
+                  <WagerStepper value={wager} max={maxWager} onChange={setWager} disabled={busy} />
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-1">
+                    <span className="hud-label text-muted-foreground">Odds</span>
+                    <span className="font-score text-base leading-9 tabular-nums">
+                      {odds != null ? `${odds.toFixed(1)}×` : "—"}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="hud-label text-muted-foreground">To win</span>
+                    <span className="font-score text-primary text-base leading-9 tabular-nums">
+                      {payoutPreview != null ? payoutPreview.toFixed(1) : "—"}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={handleWager}
+                  disabled={busy || !pick || !hasValidWager}
+                >
+                  {isEditing ? "Save changes" : "Place wager"}
+                </Button>
+                {isEditing ? (
+                  <Button variant="outline" onClick={discardEditing} disabled={busy}>
+                    Discard
+                  </Button>
+                ) : null}
+              </div>
+
               <span className="text-muted-foreground text-xs">
                 {reserve
-                  ? `${reserve.available.toFixed(1)} available from your multiplier reserve (${reserve.tiedUp.toFixed(1)} tied up in open wagers)${isEditing ? ", plus this bet's current wager while you're editing it" : ""}.`
+                  ? `${maxWager.toFixed(1)} available to stake · ${reserve.tiedUp.toFixed(1)} tied up in open wagers`
                   : null}
               </span>
             </div>

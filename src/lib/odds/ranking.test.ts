@@ -3,6 +3,7 @@ import {
   impliedProbabilities,
   payoutMultipliers,
   perEventPayoutMultiplier,
+  perEventPayoutMultiplierOrNull,
   RankingEntry,
 } from "./ranking";
 
@@ -78,5 +79,26 @@ describe("perEventPayoutMultiplier", () => {
   it("returns the top3 multiplier for a place target", () => {
     const expected = payoutMultipliers(ranking).get("p3")!.top3;
     expect(perEventPayoutMultiplier(ranking, "p3", "place")).toBeCloseTo(expected, 9);
+  });
+});
+
+describe("perEventPayoutMultiplierOrNull", () => {
+  it("agrees with the throwing version for a player in the ranking", () => {
+    for (const target of ["win", "place"] as const) {
+      expect(perEventPayoutMultiplierOrNull(ranking, "p3", target)).toBeCloseTo(
+        perEventPayoutMultiplier(ranking, "p3", target),
+        9,
+      );
+    }
+  });
+
+  it("returns null rather than throwing for a player the ranking doesn't cover", () => {
+    // The case this exists for: a bet whose pick isn't in the event's ranking
+    // rows (a player added or removed after the groom ranked it). Settlement
+    // should still throw on that; a bets table rendering the odds behind each
+    // wager must not take the whole screen down over one cell.
+    expect(() => perEventPayoutMultiplier(ranking, "nobody", "win")).toThrow();
+    expect(perEventPayoutMultiplierOrNull(ranking, "nobody", "win")).toBeNull();
+    expect(perEventPayoutMultiplierOrNull([], "p1", "place")).toBeNull();
   });
 });

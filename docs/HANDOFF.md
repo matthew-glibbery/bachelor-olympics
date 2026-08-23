@@ -2,6 +2,230 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-22 (6) — Mobile PWA pass: bets as a table, wagers as a stepper, decluttering, two real bugs
+
+A punch list of real-use feedback from the installed PWA on a phone, plus
+two genuine bugs. 174 tests (+10, all for the two helpers added while fixing
+the review findings below), lint/typecheck/build all green. **Verified live against the
+real Supabase project** throughout via headless Chrome + CDP
+(`scripts/devtools/`), including two scripted interaction tests, not just
+screenshots. Nothing in the live database was written to (checked before and
+after, see below).
+
+### The two real bugs
+
+- **Adjusting a multiplier restarted the character's full-body clip.**
+  `/multipliers` bumped a `reactionKey` and used it as a `key` on the wrapper
+  around `CharacterRender` to replay the reaction pop. A changed `key` does
+  not re-run an animation — it unmounts and remounts the whole subtree, and
+  that subtree contains the `<video>`. So every single tap of a `+`/`-` built
+  a fresh, unbuffered video element: the idle clip snapped to frame zero and
+  re-decoded from scratch. Now `pulseCharacter()` restarts the CSS animation
+  on a *stable* element (drop the class, force a reflow so the removal is
+  flushed as its own style change — without that the browser coalesces the
+  remove and re-add into no change at all — then add it back). The video is
+  never touched. **Verified for real, not reasoned about**: new
+  `scripts/devtools/probe-multiplier-clip.mjs` tags the live `<video>` node,
+  taps a `+`, and confirms the same node is still there with its playback
+  position advanced (3.98s → 5.10s, still playing). It taps `-` again inside
+  the 500ms autosave debounce so nothing is written; Matthew's six multiplier
+  rows were byte-identical before and after.
+- **The `/start` and `/select` dead space at the bottom — fixed, but not by
+  this branch.** This session diagnosed it as the character render being a
+  fixed `h-96` centred in the leftover (so a taller screen bought a bigger
+  empty band rather than a bigger character) and rebuilt it as a `flex-1
+  min-h-0` box. Section (5) below landed the same `flex-1 min-h-0` change
+  *plus* a better root-cause fix this branch had missed — `min-h-dvh` only
+  sets a floor, and on an installed PWA `dvh` can sit a hair under the true
+  visual viewport, so the shortfall became unfilled space; `fixed inset-0`
+  resolves against the viewport directly. **Both screens here are main's
+  version verbatim**, taken wholesale on the rebase; this branch's own
+  attempt was dropped, along with the `screen-boot-pad` utility it added
+  (nothing uses it now) and its PRESS START / scrim / tagline work, since (5)
+  removed the tagline and footer outright. Recorded because the *diagnosis*
+  differs and the difference matters: if bottom dead space ever comes back on
+  a boot screen, `min-height` versus a fixed inset is the first thing to
+  check, not the flex chain.
+
+### Placed bets are one table now, everywhere
+
+- **New `src/components/placed-bets-table.tsx`.** Bets used to render as a
+  differently-worded sentence on each of the three screens that show them —
+  "Josh to place top 3 — wagered 1.5" on `/bets`, "Matthew wagered 1.5 on
+  Josh to place" on the event Bets tab, a two-column list on the Odds tab —
+  three shapes for one fact, none of which let you compare two bets by
+  scanning a column. One table now, columns **Player · Bet · Odds · Stake ·
+  To win**, with edit/cancel as pencil and trash icons. Used by
+  `event-odds-betting.tsx` (your own bet on an event), `/bets` (every
+  per-event wager you have running), and `event-bets-list.tsx` (the reveal of
+  everyone's bets, which switches on a `showBettor` column).
+- **Fitting six columns into a 390px phone took real work, and the details
+  matter if anyone touches this.** `table-fixed` with an explicit width on
+  every column but the first — auto layout spends width on whichever cell
+  holds the longest string, which pushed the controls off the right edge into
+  a horizontal scroll nobody would find. The event name is a full-width group
+  header row rather than a line inside the name cell (at ~110px it truncated
+  to "SETTLER…", which names nothing) and is emitted only when the context
+  changes, so a run of bets on one event is labelled once. Header type is
+  9px at reduced tracking because `hud-label`'s tracking alone forced "To
+  win" onto two lines and left the header row visibly ragged. `framed={false}`
+  drops the table's own bevel where it sits inside a sunken panel already —
+  two nested bevels read as a rendering fault and the inner inset shadow ate
+  into the controls column. `check-overflow.mjs` clean at 390px on all five
+  routes afterwards.
+- **`/bets`' per-event editing** went from a dormant form per row to one
+  shared editor below the table, opened by a row's pencil. Same mutations as
+  before (`updatePerEventBet` / `cancelPerEventBet`), same "add this bet's own
+  wager back before capping the new amount" rule. **Exercised live**: clicked
+  the pencil on the real open Catan bet, confirmed the editor came up
+  pre-filled (Josh / to place top 3 / stake 0.3, correct odds and payout),
+  then clicked Discard — never Save, so the live bet is untouched.
+
+### Wagers are stepped, not typed
+
+- **New `src/components/wager-stepper.tsx`** replaces the `<input
+  type="number">` on both the Odds tab and `/bets`. This app is used
+  one-handed, outdoors, on a phone; a number field there means summoning the
+  numeric keyboard over half the screen to enter one of the ~10 legal values
+  a wager can be. Wagers move in fixed `MULTIPLIER_STEP` increments off a
+  small reserve, so every reachable value is a couple of taps from either
+  end. Clamping and step-snapping live in the component, not in each caller's
+  submit handler — the point of a stepper is that an illegal value is
+  unreachable, not rejected afterwards. Picking a player with nothing staked
+  seeds one step, so the form is never in a state where the only live control
+  is a "+".
+
+### Inactive buttons look like buttons again
+
+- `Button`'s disabled state was `bevel-sunken` + `bg-sunken`. That fixed an
+  older problem (`opacity-50` over the gold primary went muddy olive) but
+  broke the affordance: a sunken plate is this app's vocabulary for a *well*,
+  the thing inputs and readouts sit inside — so "Wager", disabled until you
+  have picked someone, stopped reading as a button at all and looked like a
+  label pressed into the panel. Disabled is now an **unlit** plate: it keeps
+  the raised bevel and loses only its colour (`bg-muted`). Applied to the
+  same-shaped hand-rolled controls too (`multiplier-bar.tsx`'s `+`/`-`, which
+  were still on `disabled:opacity-50`), so there is one answer app-wide. The
+  unpicked Win/Place odds buttons also moved `outline` → `secondary`; against
+  this dark panel a transparent plate with a hairline border read as an inert
+  label, and those are the primary things you tap on that screen.
+
+### Decluttering, per the punch list
+
+- **`/events` has no screen title on either step.** The grid sat under an
+  "EVENTS" plate with the nav's own highlighted Events tab directly beneath
+  it; the detail step repeated the event's name as a subtitle immediately
+  above the event card's own heading. Two labels, one fact, both times.
+  `GameScreen`'s `title` is optional now.
+- **The back button** on the event detail gets `gap-5` and its own hit
+  padding — with the title gone it is the only thing above the card, and at
+  `gap-3` it read as part of the card's frame rather than the way out of it.
+- **Results tab is gone for an event that hasn't been played** — it opened
+  onto an empty panel, which is worse than no tab, since a tab is a promise
+  that something is behind it. This required moving the groom's own controls
+  (start scoring, enter/edit results, reset, cancel) *out* of the Results tab
+  to above the tab strip, since that tab existing for a planned event was the
+  only reason those were reachable. They are now reachable in every state.
+  A tab strip left holding exactly one tab isn't drawn at all.
+- **`event.notes` is no longer rendered** on the event card ("Scored on
+  strokes, lowest wins", and so on). It mostly restated the scoring-mode badge
+  next to the title, and on a phone it pushed the tabs below the fold. Still
+  editable in groom tools — this is a display change only.
+- **Explainer copy removed**: the Progress panel's description and the
+  chart's eight-entry player key on the leaderboard; `/bets`' screen subtitle
+  and both panel descriptions ("Flat 100 points…", "Your wagers on…"). On the
+  chart specifically, the key was identifying lines that are already
+  identified — every marker carries the player's own photo or initial and the
+  tooltip names everyone at the hovered event — while costing three wrapped
+  rows on the app's primary device.
+
+### Deliberately not done
+
+- The **"Adjusted = raw points × …" line under Standings** was deliberately
+  left alone here — the ask named the explainer under *Progress*, and this
+  was a different line in a different panel. Moot now: (5) removed it
+  independently, so both are gone on this branch after the rebase.
+- The **event Bets tab's reveal view** (`showBettor`) could not be
+  screenshot-verified with real data: the only two events carrying bets right
+  now (Catan, Smash Bros.) are both still `planned`, and that tab only exists
+  once betting has closed. The code path typechecks and shares the table with
+  the two views that *were* verified, but it hasn't been looked at on screen.
+- **Player photos render as broken-image glyphs** in every screenshot here.
+  Pre-existing and not caused by this work — Next's image optimizer can't
+  reach Supabase Storage through this machine's TLS interception. Fine on the
+  real Vercel deploy.
+
+### Five bugs a review pass caught in this work, all fixed
+
+An independent review of the diff found five real problems, three of them
+regressions introduced by this session's own restructuring. Worth recording
+because two are traps anyone touching these files could fall into again.
+
+- **Radix `Tabs` was uncontrolled while its tabs came and went.**
+  `event-card.tsx` used `defaultValue`, and the card is keyed on event id so
+  it never remounts on a status change. Two failures fell out of that. Reset a
+  resolved event with the Results tab open and `hasResults` flips false: both
+  Results and Bets unmount, the now-single-tab strip hides itself, and Radix
+  still holds `"results"` internally — matching no panel, so the card rendered
+  its header and nothing else with no way back to Odds. And moving the groom
+  controls above the strip (see above) meant "Enter results" could be clicked
+  from the Odds tab, where the editor it opens is unmounted: it set `editing`,
+  put nothing on screen, and hid its own button. The strip is controlled now;
+  an effect keeps the value pointing at a panel that exists, and `openEditing`
+  switches to Results.
+- **`busyEventId` on `/bets` was set to an event id on save and a bet id on
+  cancel**, while every consumer compared it to a bet id — so during an
+  in-flight save nothing was disabled and a second tap fired a second
+  `updatePerEventBet`. Renamed to `busyBetId` and keyed consistently.
+- **The wager cap rounded the wrong way.** `WagerStepper` derived its ceiling
+  by *rounding* `max`, so a cap of 0.25 offered a 0.3 step the submit guard
+  then rejected. Worse in practice: a reserve is a sum of 0.1s, so "0.3
+  available" really arrives as 0.2999999999999998, and a stepper adding floats
+  reached 0.30000000000000004 — greater than the cap — which greyed the submit
+  button out at exactly the amount the screen had just said was available.
+  The stepper counts whole integer steps now, and three new helpers in
+  `budget.ts` carry the rule: `stepsWithin` (floors, so the top step always
+  fits), `stepAmount` (snaps back onto the grid), and `fitsBudget` (the
+  float-tolerant comparison every submit guard should use instead of `<=`).
+  **Use these rather than comparing reserve figures directly** — 8 new tests
+  pin the behaviour with the real dirty values.
+- **`perEventPayoutMultiplier` throws on a pick that isn't in the ranking**,
+  and this session put it in three render paths that only guarded
+  `ranking.length > 0`. A player added or removed after the groom ranked an
+  event would have taken out the whole event card or bets page during render
+  rather than showing "—" in one cell. New
+  `perEventPayoutMultiplierOrNull` for display; the throwing one stays for
+  settlement, where an unknown pick genuinely should stop the payout.
+  174 tests now (+10).
+- **Verified the max-stake case live afterwards**, since that's the one a test
+  can't fully cover: opened the real Catan bet's editor and stepped to the
+  ceiling (0.5 = 0.2 available + its own 0.3 back), confirming Save stayed
+  enabled and the To-win figure stayed live at every rung, with "+" correctly
+  dead at the top. Discarded rather than saved; `per_event_bets` and
+  `multipliers` were byte-identical before and after everything in this
+  session.
+
+### Rebased onto (5), which overlapped
+
+(5) landed on `main` while this was in flight and covered a lot of the same
+ground from the same feedback. Resolution, for the record: `/start` and
+`/select` are main's files verbatim (see the first bullet at the top);
+`/events`' subtitle is gone in *both* steps now — (5) had removed the grid
+step's, this removes the detail step's, which repeated the event's name
+directly above the event card's own heading; the leaderboard keeps main's
+"line chart at every width" decision (`rank-ladder.tsx` stays deleted) with
+only this branch's `description` removal applied on top; and
+`/multipliers` carries both (5)'s hard budget wall and this branch's
+character-clip fix, which touch different parts of the file.
+
+### New tooling
+
+`scripts/devtools/viewport-shot.mjs` (captures the viewport as a phone sees
+it, rather than stretching to the document like `screenshot.mjs` does — the
+stretch hides exactly the dead-space problems you'd be looking for, and this
+prints a measured gap per route) and `probe-multiplier-clip.mjs` (the
+video-remount regression test described above). Both documented in
+`scripts/devtools/README.md`.
 ## 2026-08-22 (5) — Real-use punch list: /start fullscreen+autoplay, /select fits one screen, chart reverted, budget hard-blocked, six text removals
 
 A long batch of direct feedback after actually using the PWA for a bit.

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import Image from "next/image";
 import { Flame, ImageUp, Pencil, Play, RotateCcw, X } from "lucide-react";
 
@@ -161,7 +161,41 @@ export function EventCard({
   // Betting closes once the event leaves "planned" — bets stay a secret
   // until then (src/app/bets/page.tsx handles placement while planned).
   const bettingClosed = event.status !== "planned";
+  // Nothing to put in a Results tab until the event has actually been
+  // started — see the tab strip below.
+  const hasResults = event.status !== "planned";
+  // Odds is always there; Results and Bets come and go with the event's
+  // state. A tab strip holding exactly one tab is a control that can't do
+  // anything — for a planned event that's what it had become, one lone
+  // "Odds" plate sitting above the only panel there is — so it isn't drawn.
+  const tabCount = 1 + (hasResults ? 1 : 0) + (bettingClosed ? 1 : 0);
   const myBet = bets.find((b) => b.player_id === currentPlayerId);
+
+  /**
+   * The tab strip is CONTROLLED, not `defaultValue`. Two things go wrong the
+   * moment tabs can appear and disappear under an uncontrolled Radix Tabs,
+   * and this card is keyed on the event id so it never remounts to reset:
+   *
+   *  1. Reset a resolved event while the Results tab is open and `hasResults`
+   *     flips false — Results and Bets both unmount and the (now single-tab)
+   *     strip is hidden, while Radix still holds "results" internally. That
+   *     matches no panel, so the card renders its header and nothing else,
+   *     with no way back to Odds short of navigating away.
+   *  2. "Enter results" lives above the strip now, but the editor it opens is
+   *     inside the Results panel — which Radix unmounts while Odds is
+   *     selected. Clicking it from Odds set `editing` and put nothing on
+   *     screen, and hid the button too, so the control looked broken.
+   *
+   * Owning the value fixes both: the effect below keeps it pointing at a
+   * panel that actually exists, and `openEditing` sends you to Results.
+   */
+  const [tab, setTab] = useState<string>(hasResults ? "results" : "odds");
+
+  useEffect(() => {
+    if ((tab === "results" && !hasResults) || (tab === "bets" && !bettingClosed)) {
+      setTab("odds");
+    }
+  }, [tab, hasResults, bettingClosed]);
 
   const [editing, setEditing] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -193,6 +227,9 @@ export function EventCard({
         ),
       );
     }
+    // The editor renders inside the Results panel, so make sure that's the
+    // panel on screen — this button is reachable from any tab now.
+    setTab("results");
     setEditing(true);
   }
 
@@ -321,7 +358,12 @@ export function EventCard({
               {isPlacement ? "Placement" : "Absolute"}
             </Badge>
           </div>
-          {event.notes ? <p className="text-muted-foreground text-sm">{event.notes}</p> : null}
+          {/* `event.notes` ("Scored on strokes, lowest wins", and so on) is
+              deliberately not rendered. It's groom-authored setup copy that
+              mostly restates the scoring-mode badge sitting next to the title,
+              and on a phone it pushed the tabs — the thing anyone actually
+              opens an event to reach — below the fold. Still editable in
+              groom tools (manage-event-row.tsx); just not on this card. */}
           {groomUnlocked ? (
             <Label className="text-muted-foreground inline-flex w-fit cursor-pointer items-center gap-1.5 text-xs">
               <ImageUp className="size-3.5" />
@@ -338,15 +380,91 @@ export function EventCard({
         </div>
       </div>
 
-      <Tabs defaultValue={event.status === "planned" ? "odds" : "results"}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <TabsList className="bevel-sunken bg-sunken h-auto w-fit gap-1 rounded-md p-1">
-            <TabsTrigger
-              value="results"
-              className="hud-label data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+      {/* The groom's own controls for this event — start scoring, enter or
+          edit results, reset, cancel. These used to live inside the Results
+          tab, which is the only reason that tab had to exist for an event
+          that hadn't been played yet. Above the tab strip they're reachable
+          in every state, and Results gets to be only about results. */}
+      {groomUnlocked ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {event.status === "planned" ? (
+            <Button size="sm" onClick={startScoring} disabled={busy}>
+              <Play className="size-4" />
+              Start scoring
+            </Button>
+          ) : null}
+          {(event.status === "scoring" || event.status === "resolved") && !editing ? (
+            <Button size="sm" variant="outline" onClick={openEditing}>
+              <Pencil className="size-4" />
+              {event.status === "resolved" ? "Edit results" : "Enter results"}
+            </Button>
+          ) : null}
+          {confirmingReset ? (
+            <>
+              <span className="text-sm">Clear results and reset to not started?</span>
+              <Button size="sm" variant="destructive" onClick={doReset} disabled={busy}>
+                Yes, reset
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setConfirmingReset(false)}>
+                No
+              </Button>
+            </>
+          ) : event.status !== "planned" ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground"
+              onClick={() => setConfirmingReset(true)}
             >
-              Results
-            </TabsTrigger>
+              <RotateCcw className="size-4" />
+              Reset event
+            </Button>
+          ) : null}
+          {confirmingCancel ? (
+            <>
+              <span className="text-sm">Cancel this event?</span>
+              <Button size="sm" variant="destructive" onClick={doCancel} disabled={busy}>
+                Yes, cancel
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setConfirmingCancel(false)}>
+                No
+              </Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground"
+              onClick={() => setConfirmingCancel(true)}
+            >
+              <X className="size-4" />
+              Cancel event
+            </Button>
+          )}
+        </div>
+      ) : null}
+
+      {error ? <p className="text-destructive text-sm">{error}</p> : null}
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <div
+          className={cn(
+            "flex flex-wrap items-center justify-between gap-2",
+            tabCount < 2 && "hidden",
+          )}
+        >
+          <TabsList className="bevel-sunken bg-sunken h-auto w-fit gap-1 rounded-md p-1">
+            {/* An event nobody has played has no results, and this tab used
+                to open onto an empty panel — worse than no tab at all, since
+                a tab is a promise that something is behind it. */}
+            {hasResults ? (
+              <TabsTrigger
+                value="results"
+                className="hud-label data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                Results
+              </TabsTrigger>
+            ) : null}
             <TabsTrigger
               value="odds"
               className="hud-label data-[state=active]:bevel-raised rounded-sm px-3 py-1.5 shadow-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -367,177 +485,118 @@ export function EventCard({
           ) : null}
         </div>
 
-        <TabsContent value="results" className="flex flex-col gap-3 pt-3">
-          {error ? <p className="text-destructive text-sm">{error}</p> : null}
-
-          {!groomUnlocked ? null : (
-            <div className="flex flex-wrap items-center gap-2">
-              {event.status === "planned" ? (
-                <Button size="sm" onClick={startScoring} disabled={busy}>
-                  <Play className="size-4" />
-                  Start scoring
-                </Button>
-              ) : null}
-              {(event.status === "scoring" || event.status === "resolved") && !editing ? (
-                <Button size="sm" variant="outline" onClick={openEditing}>
-                  <Pencil className="size-4" />
-                  {event.status === "resolved" ? "Edit results" : "Enter results"}
-                </Button>
-              ) : null}
-              {confirmingReset ? (
-                <>
-                  <span className="text-sm">Clear results and reset to not started?</span>
-                  <Button size="sm" variant="destructive" onClick={doReset} disabled={busy}>
-                    Yes, reset
+        {hasResults ? (
+          <TabsContent value="results" className="flex flex-col gap-3 pt-3">
+            {editing ? (
+              <div className="border-bevel-dark/40 flex flex-col gap-3 border-t pt-3">
+                {isPlacement ? (
+                  <RankedResultsEditor
+                    order={order}
+                    tied={tied}
+                    players={playerById}
+                    onReorder={setOrder}
+                    onToggleTie={toggleTie}
+                  />
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {players.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-3">
+                        <PlayerName
+                          name={p.name}
+                          state={p.state ?? "??"}
+                          size="sm"
+                          photoUrl={p.photo_url}
+                          color={colorByPlayer[p.id]}
+                        />
+                        <Input
+                          type="number"
+                          step="any"
+                          className="w-24"
+                          placeholder="result"
+                          value={rawDraft[p.id] ?? ""}
+                          onChange={(e) =>
+                            setRawDraft((d) => ({ ...d, [p.id]: e.target.value }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="outline" onClick={() => saveResults(false)} disabled={busy}>
+                    Save draft
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setConfirmingReset(false)}>
-                    No
+                  <Button size="sm" onClick={() => saveResults(true)} disabled={busy}>
+                    Finalize
                   </Button>
-                </>
-              ) : event.status !== "planned" ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-muted-foreground"
-                  onClick={() => setConfirmingReset(true)}
-                >
-                  <RotateCcw className="size-4" />
-                  Reset event
-                </Button>
-              ) : null}
-              {confirmingCancel ? (
-                <>
-                  <span className="text-sm">Cancel this event?</span>
-                  <Button size="sm" variant="destructive" onClick={doCancel} disabled={busy}>
-                    Yes, cancel
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setConfirmingCancel(false)}>
-                    No
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-muted-foreground"
-                  onClick={() => setConfirmingCancel(true)}
-                >
-                  <X className="size-4" />
-                  Cancel event
-                </Button>
-              )}
-            </div>
-          )}
-
-          {editing ? (
-            <div className="border-bevel-dark/40 flex flex-col gap-3 border-t pt-3">
-              {isPlacement ? (
-                <RankedResultsEditor
-                  order={order}
-                  tied={tied}
-                  players={playerById}
-                  onReorder={setOrder}
-                  onToggleTie={toggleTie}
-                />
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {players.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between gap-3">
-                      <PlayerName
-                        name={p.name}
-                        state={p.state ?? "??"}
-                        size="sm"
-                        photoUrl={p.photo_url}
-                        color={colorByPlayer[p.id]}
-                      />
-                      <Input
-                        type="number"
-                        step="any"
-                        className="w-24"
-                        placeholder="result"
-                        value={rawDraft[p.id] ?? ""}
-                        onChange={(e) =>
-                          setRawDraft((d) => ({ ...d, [p.id]: e.target.value }))
-                        }
-                      />
-                    </div>
-                  ))}
                 </div>
-              )}
-              <div className="flex gap-2 pt-1">
-                <Button size="sm" variant="outline" onClick={() => saveResults(false)} disabled={busy}>
-                  Save draft
-                </Button>
-                <Button size="sm" onClick={() => saveResults(true)} disabled={busy}>
-                  Finalize
-                </Button>
               </div>
-            </div>
-          ) : event.status !== "planned" ? (
-            // Raw and Total are the two figures this table exists to show
-            // (what you actually scored, and what it's worth once the
-            // multiplier/catch-up bonus apply) — both always visible, with a
-            // real spacer column between them so they don't read as one
-            // squeezed-together number. The multiplier (×), being the
-            // working-out behind Total rather than a result in its own
-            // right, is still the one column that drops below `sm`.
-            <div className="bevel-sunken bg-sunken rounded-md px-3 py-2">
-              {/* Column gap is padding on the cells, not `gap-x`: these rows
-                  are `display: contents`, so the zebra stripe has to be
-                  painted per-cell, and a real gap left unpainted vertical
-                  slots through every striped row — it read as a rendering
-                  fault rather than a stripe. The empty spans are spacer
-                  columns for the same reason. */}
-              <div className="grid grid-cols-[2rem_1fr_auto_1rem_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_1rem_auto_1.5rem_auto]">
-                <span className="hud-label text-muted-foreground">#</span>
-                <span className="hud-label text-muted-foreground">Player</span>
-                <span className="hud-label text-muted-foreground text-right">Raw</span>
-                <span aria-hidden />
-                <span className="hud-label text-muted-foreground hidden text-right sm:block">×</span>
-                <span className="hidden sm:block" aria-hidden />
-                <span className="hud-label text-muted-foreground text-right">
-                  Total
-                </span>
-                {finishingOrder.map((p, i) => {
-                  const r = results.find((x) => x.player_id === p.id);
-                  const hasResult = (isPlacement ? r?.position : r?.raw) != null;
-                  const points = pointsByPlayer.get(p.id);
-                  const multiplier = multiplierFor(p.id);
-                  const catchUpBonus = catchUpBonuses?.get(p.id) ?? 0;
-                  const total = points != null ? finalEventScore(points, multiplier, catchUpBonus) : null;
-                  return (
-                    <div
-                      key={p.id}
-                      className={cn(
-                        "contents",
-                        !hasResult && "text-muted-foreground",
-                        "[&>*]:py-1",
-                        i % 2 === 1 && "[&>*]:bg-black/15",
-                      )}
-                    >
-                      <span className="font-score tabular-nums">{hasResult ? i + 1 : "—"}</span>
-                      <span className="inline-flex min-w-0 items-center gap-1.5">
-                        <PlayerName name={p.name} size="sm" photoUrl={p.photo_url} color={colorByPlayer[p.id]} />
-                        {catchUpBonuses?.has(p.id) ? <CatchUpBadge bonus={catchUpBonus} /> : null}
-                      </span>
-                      <span className="font-score text-right tabular-nums">
-                        {points != null ? Math.round(points) : "—"}
-                      </span>
-                      <span aria-hidden />
-                      <span className="font-score hidden text-right tabular-nums sm:block">
-                        {multiplier.toFixed(1)}×
-                      </span>
-                      <span className="hidden sm:block" aria-hidden />
-                      <span className="font-score text-primary text-right font-medium tabular-nums">
-                        {total != null ? Math.round(total) : "—"}
-                      </span>
-                    </div>
-                  );
-                })}
+            ) : (
+              // Raw and Total are the two figures this table exists to show
+              // (what you actually scored, and what it's worth once the
+              // multiplier/catch-up bonus apply) — both always visible, with a
+              // real spacer column between them so they don't read as one
+              // squeezed-together number. The multiplier (×), being the
+              // working-out behind Total rather than a result in its own
+              // right, is still the one column that drops below `sm`.
+              <div className="bevel-sunken bg-sunken rounded-md px-3 py-2">
+                {/* Column gap is padding on the cells, not `gap-x`: these rows
+                    are `display: contents`, so the zebra stripe has to be
+                    painted per-cell, and a real gap left unpainted vertical
+                    slots through every striped row — it read as a rendering
+                    fault rather than a stripe. The empty spans are spacer
+                    columns for the same reason. */}
+                <div className="grid grid-cols-[2rem_1fr_auto_1rem_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_1rem_auto_1.5rem_auto]">
+                  <span className="hud-label text-muted-foreground">#</span>
+                  <span className="hud-label text-muted-foreground">Player</span>
+                  <span className="hud-label text-muted-foreground text-right">Raw</span>
+                  <span aria-hidden />
+                  <span className="hud-label text-muted-foreground hidden text-right sm:block">×</span>
+                  <span className="hidden sm:block" aria-hidden />
+                  <span className="hud-label text-muted-foreground text-right">
+                    Total
+                  </span>
+                  {finishingOrder.map((p, i) => {
+                    const r = results.find((x) => x.player_id === p.id);
+                    const hasResult = (isPlacement ? r?.position : r?.raw) != null;
+                    const points = pointsByPlayer.get(p.id);
+                    const multiplier = multiplierFor(p.id);
+                    const catchUpBonus = catchUpBonuses?.get(p.id) ?? 0;
+                    const total = points != null ? finalEventScore(points, multiplier, catchUpBonus) : null;
+                    return (
+                      <div
+                        key={p.id}
+                        className={cn(
+                          "contents",
+                          !hasResult && "text-muted-foreground",
+                          "[&>*]:py-1",
+                          i % 2 === 1 && "[&>*]:bg-black/15",
+                        )}
+                      >
+                        <span className="font-score tabular-nums">{hasResult ? i + 1 : "—"}</span>
+                        <span className="inline-flex min-w-0 items-center gap-1.5">
+                          <PlayerName name={p.name} size="sm" photoUrl={p.photo_url} color={colorByPlayer[p.id]} />
+                          {catchUpBonuses?.has(p.id) ? <CatchUpBadge bonus={catchUpBonus} /> : null}
+                        </span>
+                        <span className="font-score text-right tabular-nums">
+                          {points != null ? Math.round(points) : "—"}
+                        </span>
+                        <span aria-hidden />
+                        <span className="font-score hidden text-right tabular-nums sm:block">
+                          {multiplier.toFixed(1)}×
+                        </span>
+                        <span className="hidden sm:block" aria-hidden />
+                        <span className="font-score text-primary text-right font-medium tabular-nums">
+                          {total != null ? Math.round(total) : "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ) : null}
-        </TabsContent>
+            )}
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="odds" className="pt-3">
           <EventOddsBetting
@@ -553,7 +612,12 @@ export function EventCard({
 
         {bettingClosed ? (
           <TabsContent value="bets" className="pt-3">
-            <EventBetsList bets={bets} players={playerById} colorByPlayer={colorByPlayer} />
+            <EventBetsList
+              bets={bets}
+              players={playerById}
+              colorByPlayer={colorByPlayer}
+              ranking={ranking}
+            />
           </TabsContent>
         ) : null}
       </Tabs>
