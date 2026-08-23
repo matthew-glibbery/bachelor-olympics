@@ -1,11 +1,12 @@
 "use client";
 
 import { Fragment } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { PlayerName } from "@/components/player-name";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -55,24 +56,27 @@ export type PlacedBet = {
  * column. A wager is a row of numbers; numbers in columns is a table.
  *
  * Sized for the phone this is actually played on: the pick column is the
- * only flexible one and truncates, every figure column is fixed and narrow,
- * and the edit/cancel controls are icons rather than the two word-buttons
- * that used to push the row into a horizontal scroll at 390px.
+ * only flexible one and truncates, every figure column is fixed and narrow.
+ * Edit is the one control on the row itself, at `Button`'s own standard
+ * height — cancelling a bet outright now lives inside whatever editor
+ * "Edit" opens (event-odds-betting.tsx / bets/page.tsx), not as a second,
+ * necessarily-smaller icon squeezed in beside it. Two icons here meant
+ * shrinking both below the height every other button in the app uses just
+ * to fit them side by side; one control gets to be full height instead.
  */
 export function PlacedBetsTable({
   bets,
   colorByPlayer,
   onEdit,
-  onDelete,
   showBettor = false,
   framed = true,
   className,
 }: {
   bets: PlacedBet[];
   colorByPlayer: Record<string, string>;
-  /** Omit to render read-only (no controls column at all). */
+  /** Omit to render read-only (no controls column at all) — cancelling a
+   *  bet is reachable from inside the editor this opens, not from the row. */
   onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
   showBettor?: boolean;
   /** Set false where the surrounding panel is already a sunken well — two
    *  nested bevels read as a rendering fault, and the inner one's inset
@@ -80,7 +84,7 @@ export function PlacedBetsTable({
   framed?: boolean;
   className?: string;
 }) {
-  const showControls = Boolean(onEdit || onDelete);
+  const showControls = Boolean(onEdit);
   const columnCount = 5 + (showControls || bets.some((b) => b.status !== "open") ? 1 : 0);
   // A resolved bet's outcome has nowhere else to go once the controls column
   // is icon-only, so it takes that column's place per row.
@@ -196,29 +200,18 @@ export function PlacedBetsTable({
 
                 {showControls || showOutcome ? (
                   <TableCell className="px-1 py-2">
-                    <div className="flex items-center justify-end gap-1">
-                      {bet.canEdit && showControls ? (
-                        <>
-                          {onEdit ? (
-                            <IconControl
-                              label="Edit this bet"
-                              onClick={() => onEdit(bet.id)}
-                              disabled={bet.busy}
-                            >
-                              <Pencil className="size-3" />
-                            </IconControl>
-                          ) : null}
-                          {onDelete ? (
-                            <IconControl
-                              label="Cancel this bet"
-                              tone="destructive"
-                              onClick={() => onDelete(bet.id)}
-                              disabled={bet.busy}
-                            >
-                              <Trash2 className="size-3" />
-                            </IconControl>
-                          ) : null}
-                        </>
+                    <div className="flex items-center justify-end">
+                      {bet.canEdit && onEdit ? (
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          aria-label="Edit this bet"
+                          title="Edit this bet"
+                          onClick={() => onEdit(bet.id)}
+                          disabled={bet.busy}
+                        >
+                          <Pencil />
+                        </Button>
                       ) : bet.status === "won" ? (
                         <Badge>Won</Badge>
                       ) : bet.status === "lost" ? (
@@ -258,40 +251,4 @@ function Th({ className, children }: { className?: string; children: React.React
 
 function Td({ className, children }: { className?: string; children: React.ReactNode }) {
   return <TableCell className={cn("px-1 py-2 text-right", className)}>{children}</TableCell>;
-}
-
-/** A 28px icon plate. Same bevel language as `Button`, but sized to sit
- *  inside a compact table row without setting the row height. */
-function IconControl({
-  label,
-  onClick,
-  disabled,
-  tone = "default",
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  tone?: "default" | "destructive";
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "bevel-raised grid size-6 shrink-0 place-items-center rounded-md transition-all active:translate-y-px",
-        "focus-visible:is-cursor focus-visible:outline-none",
-        "disabled:bg-muted disabled:text-muted-foreground disabled:pointer-events-none",
-        tone === "destructive"
-          ? "bg-secondary text-destructive hover:bg-destructive hover:text-white"
-          : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-      )}
-    >
-      {children}
-    </button>
-  );
 }

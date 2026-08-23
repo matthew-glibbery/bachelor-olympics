@@ -40,8 +40,8 @@ export function Panel({
 }) {
   return (
     <section className={cn("bevel-raised bg-card rounded-xl p-4 sm:p-5", className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
           {Icon ? (
             // A lucide hairline (1.5px at 16px) reads visibly thinner than
             // the 2px hard bevel edge of the well it sits in, which is the

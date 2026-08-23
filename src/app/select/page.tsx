@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Play } from "lucide-react";
+import { useAppViewportHeight } from "@/hooks/use-app-viewport-height";
 import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -50,6 +51,8 @@ export default function SelectPage() {
   const router = useRouter();
   const { players: rosterFromStore, connect, ready } = useGameStore();
   const { selectedPlayerId, selectPlayer, groomUnlocked, unlockGroom } = useSessionStore();
+
+  useAppViewportHeight();
 
   useEffect(() => {
     connect();
@@ -142,16 +145,17 @@ export default function SelectPage() {
   const focused = players[index] ?? null;
 
   return (
-    // `fixed inset-0`, not `min-h-dvh` — the same PWA-viewport fix as
-    // /start (see that file's doc comment): `min-height` only sets a
-    // floor, and on an installed PWA `dvh` can be a hair off from the true
-    // visual viewport, so a `min-h-*` container could size a little too
-    // tall and force a scroll on exactly the device this screen is tuned
-    // for. `fixed inset-0` resolves against the real viewport directly and
-    // makes the screen unscrollable outright, which is also the explicit
-    // goal here: the roster fits at the top, "Let's go" at the bottom, no
-    // scroll on an iPhone PWA.
-    <main className="fixed inset-0 flex flex-col overflow-hidden">
+    // Fixed, `height` explicit rather than `bottom: 0` — see /start's own
+    // doc comment and useAppViewportHeight for why. Short version: this
+    // screen is tuned to fit exactly one screen (roster at top, "Let's go"
+    // at the bottom, no scroll) on the real device it runs on, and a
+    // `bottom: 0` box's own implied height turned out not to be trustworthy
+    // on a real installed iOS PWA even though the same fix reads correctly
+    // and works in every other environment this was tested in.
+    <main
+      className="fixed inset-x-0 top-0 flex flex-col overflow-hidden"
+      style={{ height: "var(--app-vh, 100dvh)" }}
+    >
       <Starfield className="opacity-60" />
 
       <div className="relative flex min-h-0 flex-1 flex-col gap-3 px-4 pt-[calc(1rem+var(--safe-top))] pb-[calc(1rem+var(--safe-bottom))] sm:gap-4 sm:px-8">

@@ -9,6 +9,7 @@ import { GameScreen } from "@/components/n64/game-screen";
 import { MultiplierBar } from "@/components/n64/multiplier-bar";
 import { Nameplate } from "@/components/n64/nameplate";
 import { Panel } from "@/components/n64/panel";
+import { Button } from "@/components/ui/button";
 import { useGameInput } from "@/hooks/use-game-input";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { bettingReserve } from "@/lib/betting/reserve";
@@ -220,7 +221,7 @@ export default function MultipliersPage() {
   // like it had dropped you somewhere else entirely.
   if (!ready) {
     return (
-      <GameScreen title="Set Your Multipliers" width="wide">
+      <GameScreen width="wide">
         <p className="text-muted-foreground text-center text-sm">Loading…</p>
       </GameScreen>
     );
@@ -228,7 +229,7 @@ export default function MultipliersPage() {
 
   if (!player) {
     return (
-      <GameScreen title="Set Your Multipliers" width="wide">
+      <GameScreen width="wide">
         <p className="text-muted-foreground text-center text-sm">
           Pick who you are on the{" "}
           <Link href="/setup" className="text-foreground underline">
@@ -243,7 +244,7 @@ export default function MultipliersPage() {
   const playerColor = colorByPlayer[player.id]!;
 
   return (
-    <GameScreen title="Set Your Multipliers" width="wide">
+    <GameScreen width="wide">
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
           {/* Character, carried over from /select and still idling. */}
           <aside className="flex flex-col items-center gap-3">
@@ -396,8 +397,16 @@ export default function MultipliersPage() {
 
               {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-              <button
+              {/* The standard `Button` component, not a hand-rolled one —
+                  this used to be a bare `<button>` at `hud-label` text size
+                  with `px-4 py-2`, which came out visibly shorter than every
+                  other button on this screen (the odds/wager buttons
+                  elsewhere all go through `Button`'s own height). Same
+                  control, same primitive as the rest of the app. */}
+              <Button
                 type="button"
+                variant="outline"
+                className="w-fit"
                 onClick={() => {
                   playSfx("back");
                   setDraft((d) => {
@@ -410,11 +419,10 @@ export default function MultipliersPage() {
                   pulseCharacter();
                   setJustSaved(false);
                 }}
-                className="hud-label bevel-raised bg-card flex w-fit items-center gap-2 rounded-md px-4 py-2 focus-visible:is-cursor focus-visible:outline-none"
               >
                 <RotateCcw className="size-3.5" />
                 Reset to even
-              </button>
+              </Button>
             </Panel>
           </section>
         </div>

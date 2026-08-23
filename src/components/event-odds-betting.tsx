@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { PlayerName } from "@/components/player-name";
 import { PlacedBetsTable } from "@/components/placed-bets-table";
 import { WagerStepper } from "@/components/wager-stepper";
+import { RankBadge, ROSTER_CELL, ROSTER_HEAD_CELL, ROSTER_HEAD_ROW, rosterRowClass } from "@/components/n64/roster-table";
 import { Button } from "@/components/ui/button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -22,11 +23,13 @@ import {
 import { fitsBudget, stepAmount, stepsWithin } from "@/lib/multipliers/budget";
 import type { EventRow, PerEventBetRow, PlayerRow } from "@/lib/data/database.types";
 
-// Fixed width for the win/place odds cells so the button/text in each row
-// lines up under its column header regardless of digit count (e.g. "2.3x"
-// vs. "12.4x"). text-center (not justify-center) so it centers a plain
-// <span>'s text too, not just a flex Button's content.
-const ODDS_CELL_CLASS = "w-16 shrink-0 text-center tabular-nums";
+// `w-full` (not a fixed pixel width) — the column itself is what's fixed
+// now (`table-fixed` + a `th` width below), so the button/text inside just
+// fills whatever the column gives it. A fixed `w-16` on the control itself
+// was the old flex-row layout's trick and overflowed a 390px phone once
+// this became a real `<table>`: two 64px buttons plus a rank badge plus an
+// unclipped name comfortably exceed the ~326px this panel actually has.
+const ODDS_CELL_CLASS = "w-full text-center tabular-nums";
 
 /** Odds tab: this event's own ranking as win/place payout odds, in rank
  * order (1 at top) — and, while the event is still "planned," the wager
@@ -156,87 +159,104 @@ export function EventOddsBetting({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2 px-2">
-          <span aria-hidden />
-          <div className="flex items-center gap-4">
-            <span
-              className={cn(
-                "hud-label text-muted-foreground",
-                ODDS_CELL_CLASS,
-              )}
-            >
-              Win
-            </span>
-            <span
-              className={cn(
-                "hud-label text-muted-foreground",
-                ODDS_CELL_CLASS,
-              )}
-            >
-              Place
-            </span>
-          </div>
-        </div>
+      {/* Same row language as the leaderboard's Standings table
+          (roster-table.tsx) — a real `<table>`, the colour-coded rank chip,
+          alternating row tint, `px-3 py-2` rows tall enough for a button to
+          sit in comfortably. This used to be its own thing (bordered divs,
+          a plain grey rank number), one more table in the app not styled
+          like the others for no reason. */}
+      <div className="bevel-sunken bg-sunken overflow-hidden rounded-md">
+        {/* `table-fixed` with explicit widths on every column but the
+            player's — a phone doesn't have room for auto layout to size two
+            odds columns AND an unclipped name off their natural content
+            width, which is what actually overflowed the viewport here. The
+            name column gets whatever's left and truncates. */}
+        <table className="w-full table-fixed border-collapse">
+          <thead>
+            <tr className={ROSTER_HEAD_ROW}>
+              <th scope="col" className={cn(ROSTER_HEAD_CELL, "w-10 text-left")} />
+              <th scope="col" className={cn(ROSTER_HEAD_CELL, "text-left")} />
+              <th scope="col" className={cn(ROSTER_HEAD_CELL, "w-16 text-right")}>
+                Win
+              </th>
+              <th scope="col" className={cn(ROSTER_HEAD_CELL, "w-16 text-right")}>
+                Place
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {order.map(({ playerId, rank }, i) => {
+              const player = players.get(playerId);
+              const mult = payouts.get(playerId);
+              if (!player || !mult) return null;
+              const isPick = pick === playerId;
+              // Can't bet on yourself — PRODUCT_SPEC.md → Per-event
+              // multiplier betting, matching overall betting's own rule
+              // (overall-betting.tsx). This used to be allowed here
+              // specifically; the spec's own history note explains why that
+              // changed.
+              const isSelf = playerId === currentPlayerId;
+              const canPickRow = showForm && !isSelf;
 
-        {order.map(({ playerId }, i) => {
-          const player = players.get(playerId);
-          const mult = payouts.get(playerId);
-          if (!player || !mult) return null;
-          const isPick = pick === playerId;
-          return (
-            <div
-              key={playerId}
-              className={cn(
-                "flex flex-wrap items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm",
-                isPick && "border-primary bg-primary/5",
-              )}
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <span className="text-muted-foreground w-4 text-right text-xs tabular-nums">
-                  {i + 1}
-                </span>
-                <PlayerName
-                  name={player.name}
-                  state={player.state ?? "??"}
-                  size="sm"
-                  photoUrl={player.photo_url}
-                  color={colorByPlayer[playerId]}
-                />
-              </span>
-              <div className="flex items-center gap-4">
-                {showForm ? (
-                  <Button
-                    size="sm"
-                    variant={isPick && target === "win" ? "default" : "secondary"}
-                    className={ODDS_CELL_CLASS}
-                    onClick={() => selectPick(playerId, "win")}
-                  >
-                    {mult.win.toFixed(1)}x
-                  </Button>
-                ) : (
-                  <span className={cn("text-muted-foreground text-xs", ODDS_CELL_CLASS)}>
-                    {mult.win.toFixed(1)}x
-                  </span>
-                )}
-                {showForm ? (
-                  <Button
-                    size="sm"
-                    variant={isPick && target === "place" ? "default" : "secondary"}
-                    className={ODDS_CELL_CLASS}
-                    onClick={() => selectPick(playerId, "place")}
-                  >
-                    {mult.top3.toFixed(1)}x
-                  </Button>
-                ) : (
-                  <span className={cn("text-muted-foreground text-xs", ODDS_CELL_CLASS)}>
-                    {mult.top3.toFixed(1)}x
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+              return (
+                <tr
+                  key={playerId}
+                  className={rosterRowClass(i, isPick && "bg-primary/10")}
+                >
+                  <td className={ROSTER_CELL}>
+                    <RankBadge rank={rank} color={colorByPlayer[playerId] ?? "var(--muted)"} />
+                  </td>
+                  <td className={cn(ROSTER_CELL, "max-w-0")}>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <PlayerName
+                        name={player.name}
+                        state={player.state ?? "??"}
+                        size="sm"
+                        photoUrl={player.photo_url}
+                        color={colorByPlayer[playerId]}
+                      />
+                      {isSelf ? (
+                        <span className="hud-label text-muted-foreground shrink-0">You</span>
+                      ) : null}
+                    </span>
+                  </td>
+                  <td className={cn(ROSTER_CELL, "text-right")}>
+                    {canPickRow ? (
+                      <Button
+                        size="sm"
+                        variant={isPick && target === "win" ? "default" : "secondary"}
+                        className={ODDS_CELL_CLASS}
+                        onClick={() => selectPick(playerId, "win")}
+                      >
+                        {mult.win.toFixed(1)}x
+                      </Button>
+                    ) : (
+                      <span className={cn("text-muted-foreground text-xs", ODDS_CELL_CLASS)}>
+                        {mult.win.toFixed(1)}x
+                      </span>
+                    )}
+                  </td>
+                  <td className={cn(ROSTER_CELL, "text-right")}>
+                    {canPickRow ? (
+                      <Button
+                        size="sm"
+                        variant={isPick && target === "place" ? "default" : "secondary"}
+                        className={ODDS_CELL_CLASS}
+                        onClick={() => selectPick(playerId, "place")}
+                      >
+                        {mult.top3.toFixed(1)}x
+                      </Button>
+                    ) : (
+                      <span className={cn("text-muted-foreground text-xs", ODDS_CELL_CLASS)}>
+                        {mult.top3.toFixed(1)}x
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {myBet || showForm ? (
@@ -253,7 +273,6 @@ export function EventOddsBetting({
               framed={false}
               colorByPlayer={colorByPlayer}
               onEdit={startEditing}
-              onDelete={handleCancelBet}
               bets={[
                 {
                   id: myBet.id,
@@ -318,9 +337,22 @@ export function EventOddsBetting({
                   {isEditing ? "Save changes" : "Place wager"}
                 </Button>
                 {isEditing ? (
-                  <Button variant="outline" onClick={discardEditing} disabled={busy}>
-                    Discard
-                  </Button>
+                  <>
+                    <Button variant="outline" onClick={discardEditing} disabled={busy}>
+                      Discard
+                    </Button>
+                    {/* Cancelling the bet outright lives in the editor now,
+                        not as a trash icon on the row — see PlacedBetsTable's
+                        own note on why that icon came out. */}
+                    <Button
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      onClick={handleCancelBet}
+                      disabled={busy}
+                    >
+                      Delete bet
+                    </Button>
+                  </>
                 ) : null}
               </div>
 

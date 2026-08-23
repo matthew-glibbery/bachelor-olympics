@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Image from "next/image";
 import { UserRound } from "lucide-react";
 
@@ -9,6 +9,13 @@ import { assignPlayerColors } from "@/lib/chartColors";
 import { PlayerName } from "@/components/player-name";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  RankBadge,
+  ROSTER_CELL,
+  ROSTER_HEAD_CELL,
+  ROSTER_HEAD_ROW,
+  rosterRowClass,
+} from "@/components/n64/roster-table";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { placeOverallBet, switchOverallBetPick } from "@/lib/data/mutations";
 import {
@@ -24,11 +31,6 @@ const BET_TYPES: { type: OverallBetType; label: string }[] = [
   { type: "win", label: "Win outright" },
   { type: "top3", label: "Top 3" },
 ];
-
-// Fixed width so the button/avatar-stack in each row lines up under its
-// column header, same reasoning as the Odds tab's win/place columns
-// (event-odds-betting.tsx).
-const COLUMN_CLASS = "w-20 shrink-0 flex items-center justify-center";
 
 /** Small overlapping avatar stack — who's picked this candidate for this
  * bet type, once picks are revealed. `-ml-2` overlap with a background ring
@@ -165,166 +167,221 @@ export function OverallBetting({
     <div className="flex flex-col gap-3">
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2 px-2">
-          <span aria-hidden />
-          <div className="flex items-center gap-4">
-            {BET_TYPES.map(({ type, label }) => (
-              <span
-                key={type}
-                className={cn(
-                  "hud-label text-muted-foreground",
-                  COLUMN_CLASS,
-                )}
-              >
-                {label === "Win outright" ? "Win" : "Place"}
-              </span>
-            ))}
-          </div>
-        </div>
+      {/* Same row language as the leaderboard's Standings table and the
+          Odds tab (roster-table.tsx) — a real `<table>`, the colour rank
+          chip, alternating row tint, rows tall enough for a button. This
+          used to be its own bordered-div thing, styled like neither. The
+          chip here is list position, not a competitive rank the way it is
+          on Standings/Odds — still worth keeping visually, since the point
+          is "this app has one roster-row look," not "every badge means the
+          exact same fact." */}
+      <div className="bevel-sunken bg-sunken rounded-md">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className={ROSTER_HEAD_ROW}>
+              <th scope="col" className={cn(ROSTER_HEAD_CELL, "text-left")} />
+              <th scope="col" className={cn(ROSTER_HEAD_CELL, "text-left")} />
+              {BET_TYPES.map(({ type, label }) => (
+                <th key={type} scope="col" className={cn(ROSTER_HEAD_CELL, "text-right")}>
+                  {label === "Win outright" ? "Win" : "Place"}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {orderedPlayers.map((candidate, i) => {
+              const mult = payouts.get(candidate.id);
+              if (!mult) return null;
 
-        {orderedPlayers.map((candidate) => {
-          const mult = payouts.get(candidate.id);
-          if (!mult) return null;
-
-          return (
-            <div
-              key={candidate.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
-            >
-              <PlayerName
-                name={candidate.name}
-                state={candidate.state ?? "??"}
-                size="sm"
-                photoUrl={candidate.photo_url}
-                color={colorByPlayer[candidate.id]}
-              />
-              <div className="flex items-center gap-4">
-                {BET_TYPES.map(({ type }) => {
-                  const oddsValue = type === "win" ? mult.win : mult.top3;
-                  const myBet = myBets[type];
-                  const isMine = myBet?.pick_player_id === candidate.id;
-
-                  if (weekendStarted) {
-                    const pickers = overallBets
-                      .filter((b) => b.bet_type === type && b.pick_player_id === candidate.id)
-                      .map((b) => playersById.get(b.player_id))
-                      .filter((p): p is PlayerRow => !!p);
-                    return (
-                      <div key={type} className={COLUMN_CLASS}>
-                        <PickerAvatars pickers={pickers} />
-                      </div>
-                    );
-                  }
-
-                  // Can't bet on yourself to win or place — same reasoning
-                  // as any pick-the-winner pool.
-                  const canPick = !!currentPlayerId && !myBet && candidate.id !== currentPlayerId;
-                  return canPick ? (
-                    <Button
-                      key={type}
+              return (
+                <tr key={candidate.id} className={rosterRowClass(i)}>
+                  <td className={ROSTER_CELL}>
+                    <RankBadge rank={i + 1} color={colorByPlayer[candidate.id] ?? "var(--muted)"} />
+                  </td>
+                  <td className={ROSTER_CELL}>
+                    <PlayerName
+                      name={candidate.name}
+                      state={candidate.state ?? "??"}
                       size="sm"
-                      variant="outline"
-                      className={COLUMN_CLASS}
-                      onClick={() => handlePick(type, candidate.id)}
-                      disabled={busyType === type}
-                    >
-                      {oddsValue.toFixed(1)}x
-                    </Button>
-                  ) : (
-                    <span
-                      key={type}
-                      className={cn(
-                        COLUMN_CLASS,
-                        "text-xs",
-                        isMine ? "text-primary font-medium" : "text-muted-foreground",
-                      )}
-                    >
-                      {isMine ? "Your pick" : `${oddsValue.toFixed(1)}x`}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+                      photoUrl={candidate.photo_url}
+                      color={colorByPlayer[candidate.id]}
+                    />
+                  </td>
+                  {BET_TYPES.map(({ type }) => {
+                    const oddsValue = type === "win" ? mult.win : mult.top3;
+                    const myBet = myBets[type];
+                    const isMine = myBet?.pick_player_id === candidate.id;
+
+                    if (weekendStarted) {
+                      const pickers = overallBets
+                        .filter((b) => b.bet_type === type && b.pick_player_id === candidate.id)
+                        .map((b) => playersById.get(b.player_id))
+                        .filter((p): p is PlayerRow => !!p);
+                      return (
+                        <td key={type} className={cn(ROSTER_CELL, "text-right")}>
+                          <span className="flex justify-end">
+                            <PickerAvatars pickers={pickers} />
+                          </span>
+                        </td>
+                      );
+                    }
+
+                    // Can't bet on yourself to win or place — same reasoning
+                    // as any pick-the-winner pool.
+                    const canPick = !!currentPlayerId && !myBet && candidate.id !== currentPlayerId;
+                    return (
+                      <td key={type} className={cn(ROSTER_CELL, "text-right")}>
+                        {canPick ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handlePick(type, candidate.id)}
+                            disabled={busyType === type}
+                          >
+                            {oddsValue.toFixed(1)}x
+                          </Button>
+                        ) : (
+                          <span
+                            className={cn(
+                              "text-xs",
+                              isMine ? "text-primary font-medium" : "text-muted-foreground",
+                            )}
+                          >
+                            {isMine ? "Your pick" : `${oddsValue.toFixed(1)}x`}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {currentPlayerId && (myBets.win || myBets.top3) ? (
-        <div className="bevel-sunken bg-sunken flex flex-col gap-3 rounded-md p-3">
-          <span className="hud-label text-muted-foreground">
-            Your picks
-          </span>
-          {BET_TYPES.map(({ type, label }) => {
-            const bet = myBets[type];
-            if (!bet) return null;
-            const pick = playersById.get(bet.pick_player_id);
-            if (!pick) return null;
-            const alive =
-              bet.status === "open" ? isPickAlive(type, bet.pick_player_id, eliminationField) : null;
-            const aliveCandidates = players.filter(
-              (p) =>
-                p.id !== bet.pick_player_id &&
-                p.id !== currentPlayerId &&
-                isPickAlive(type, p.id, eliminationField),
-            );
+        // Same roster-row language as the picker table above, not its own
+        // bordered-div shape with the odd label-then-badge line this used to
+        // be — Player / Bet / To win / Status, one row per pick.
+        <div className="bevel-sunken bg-sunken flex flex-col gap-1 rounded-md p-3">
+          <span className="hud-label text-muted-foreground">Your picks</span>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className={ROSTER_HEAD_ROW}>
+                <th scope="col" className={cn(ROSTER_HEAD_CELL, "text-left")}>
+                  Player
+                </th>
+                <th scope="col" className={cn(ROSTER_HEAD_CELL, "text-center")}>
+                  Bet
+                </th>
+                <th scope="col" className={cn(ROSTER_HEAD_CELL, "text-right")}>
+                  To win
+                </th>
+                <th scope="col" className={cn(ROSTER_HEAD_CELL, "text-right")}>
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {BET_TYPES.map(({ type, label }, i) => {
+                const bet = myBets[type];
+                if (!bet) return null;
+                const pick = playersById.get(bet.pick_player_id);
+                if (!pick) return null;
+                const alive =
+                  bet.status === "open"
+                    ? isPickAlive(type, bet.pick_player_id, eliminationField)
+                    : null;
+                const aliveCandidates = players.filter(
+                  (p) =>
+                    p.id !== bet.pick_player_id &&
+                    p.id !== currentPlayerId &&
+                    isPickAlive(type, p.id, eliminationField),
+                );
+                const toWin =
+                  bet.status === "won" ? bet.payout : overallPayoutValue(type, bet.switches);
+                const canSwitch = bet.status === "open" && !alive;
 
-            return (
-              <div key={type} className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 text-sm">
-                    <span className="text-muted-foreground">{label}:</span>
-                    <PlayerName
-                      name={pick.name}
-                      state={pick.state ?? "??"}
-                      size="sm"
-                      photoUrl={pick.photo_url}
-                      color={colorByPlayer[pick.id]}
-                    />
-                  </span>
-                  {bet.status !== "open" ? (
-                    <Badge variant={bet.status === "won" ? "default" : "destructive"}>
-                      {bet.status === "won" ? `Won ${bet.payout} pts` : "Lost"}
-                    </Badge>
-                  ) : (
-                    <Badge
-                      // Alive is good news and sits opposite a red
-                      // "Eliminated", so it takes the positive tag colour
-                      // rather than the neutral one — a grey "Alive" against
-                      // a red "Eliminated" read as though only one of the
-                      // two states mattered.
-                      variant={alive ? "default" : "destructive"}
-                    >
-                      {alive ? `Alive — worth ${overallPayoutValue(type, bet.switches)} pts` : "Eliminated"}
-                    </Badge>
-                  )}
-                </div>
-                {bet.status === "open" && !alive ? (
-                  <div className="flex items-end gap-2">
-                    <select
-                      className="bevel-sunken bg-sunken text-foreground h-9 w-full rounded-md border-0 px-3 text-sm outline-none focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2"
-                      value={switchPick[type]}
-                      onChange={(e) => setSwitchPick((d) => ({ ...d, [type]: e.target.value }))}
-                    >
-                      <option value="">Switch to…</option>
-                      {aliveCandidates.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      size="sm"
-                      onClick={() => handleSwitch(type)}
-                      disabled={!switchPick[type] || busyType === type}
-                    >
-                      Switch pick
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
+                return (
+                  <Fragment key={type}>
+                    <tr className={rosterRowClass(i)}>
+                      <td className={ROSTER_CELL}>
+                        <PlayerName
+                          name={pick.name}
+                          state={pick.state ?? "??"}
+                          size="sm"
+                          photoUrl={pick.photo_url}
+                          color={colorByPlayer[pick.id]}
+                        />
+                      </td>
+                      <td className={cn(ROSTER_CELL, "text-center")}>
+                        <Badge variant={type === "win" ? "default" : "secondary"}>
+                          {label === "Win outright" ? "Win" : "Top 3"}
+                        </Badge>
+                      </td>
+                      <td
+                        className={cn(
+                          ROSTER_CELL,
+                          "font-score text-right tabular-nums",
+                          bet.status === "won" && "text-primary",
+                        )}
+                      >
+                        {toWin} pts
+                      </td>
+                      <td className={cn(ROSTER_CELL, "text-right")}>
+                        {bet.status !== "open" ? (
+                          <Badge variant={bet.status === "won" ? "default" : "destructive"}>
+                            {bet.status === "won" ? "Won" : "Lost"}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            // Alive is good news opposite a red "Eliminated",
+                            // so it takes the positive tag colour rather than
+                            // the neutral one — a grey "Alive" against a red
+                            // "Eliminated" read as though only one state
+                            // actually mattered.
+                            variant={alive ? "default" : "destructive"}
+                          >
+                            {alive ? "Alive" : "Eliminated"}
+                          </Badge>
+                        )}
+                      </td>
+                    </tr>
+                    {canSwitch ? (
+                      <tr className={rosterRowClass(i)}>
+                        <td colSpan={4} className={cn(ROSTER_CELL, "pt-0")}>
+                          <div className="flex items-end gap-2">
+                            <select
+                              className="bevel-sunken bg-sunken text-foreground h-9 w-full rounded-md border-0 px-3 text-sm outline-none focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2"
+                              value={switchPick[type]}
+                              onChange={(e) =>
+                                setSwitchPick((d) => ({ ...d, [type]: e.target.value }))
+                              }
+                            >
+                              <option value="">Switch to…</option>
+                              {aliveCandidates.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              size="sm"
+                              onClick={() => handleSwitch(type)}
+                              disabled={!switchPick[type] || busyType === type}
+                            >
+                              Switch pick
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       ) : null}
     </div>

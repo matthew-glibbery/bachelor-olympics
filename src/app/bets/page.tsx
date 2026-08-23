@@ -213,11 +213,16 @@ export default function BetsPage() {
     }
   }
 
-  async function handleCancelPerEvent(betId: string) {
+  async function handleCancelPerEvent(eventId: string, betId: string) {
     setBusyBetId(betId);
     setPerEventError(null);
     try {
       await cancelPerEventBet(getSupabaseBrowserClient(), betId);
+      // The row this editor was open for is gone once the bet's cancelled —
+      // close it rather than leaving a stale editor pointed at nothing.
+      setEditingBetId(null);
+      setWagerDraft((d) => ({ ...d, [eventId]: 0 }));
+      setPickDraft((d) => ({ ...d, [eventId]: "" }));
     } catch (err) {
       setPerEventError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -227,7 +232,6 @@ export default function BetsPage() {
 
   return (
     <GameScreen
-      title="Bets"
       // Both these screens are stacked prose-and-form panels, not a grid —
       // they were `max-w-2xl` before the shared shell existed and reading
       // measure is the reason, so keep it rather than inheriting the
@@ -301,7 +305,6 @@ export default function BetsPage() {
                     const row = myPerEventBets.find((r) => r.bet.id === betId);
                     if (row) startEditingPerEvent(row.event.id, row.bet);
                   }}
-                  onDelete={handleCancelPerEvent}
                   bets={myPerEventBets.map(({ event, bet }) => {
                     const ranking = rankingByEvent.get(event.id) ?? [];
                     return {
@@ -410,8 +413,24 @@ export default function BetsPage() {
                     <Button
                       variant="outline"
                       onClick={() => discardPerEventEdit(editingRow.event.id)}
+                      disabled={busyBetId === editingRow.bet.id}
                     >
                       Discard
+                    </Button>
+                    {/* Cancelling the bet outright lives here now, not as a
+                        trash icon on the row itself — that icon crowded the
+                        row's controls column down to a smaller-than-usual
+                        square just to fit two buttons side by side. One
+                        real-height Edit button on the row, one real-height
+                        Delete here where there's a whole panel's width to
+                        work with. */}
+                    <Button
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleCancelPerEvent(editingRow.event.id, editingRow.bet.id)}
+                      disabled={busyBetId === editingRow.bet.id}
+                    >
+                      Delete bet
                     </Button>
                   </div>
                 </div>
