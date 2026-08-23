@@ -2,6 +2,66 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-23 (2) — /select's bottom gap: found the real cause and fixed it with numbers, not another guess
+
+Direct follow-up: the previous session in this file shipped
+`useAppViewportHeight` to fix "unused space at the bottom of /start and
+/select," and the user reported it was still there — installed iOS PWA
+specifically. 174 tests (unchanged), lint/typecheck/build all green.
+
+**The `visualViewport` fix from earlier today wasn't wrong, it was aimed at
+the wrong bug.** It solves "the browser's own notion of the viewport doesn't
+match what's actually rendered," which is a real, previously-reported class
+of issue — but it can only matter if something in the page relies on the
+viewport height in the first place. Neither screen's *content* actually does
+that once you look at what's really there.
+
+- **`/start` cannot have this bug, full stop, given the live project's
+  current data**: the boot video is `absolute inset-0 h-full w-full
+  object-cover`, which by definition of `object-cover` always fills its box
+  with no possibility of a gap — confirmed at 0px via a direct CDP
+  measurement (not a screenshot eyeballed for "looks fine"), at every height
+  tried. If this is genuinely still visible on `/start` specifically, the
+  next question isn't "gap" at all, it's "is the boot video actually
+  playing" — a black/blank frozen frame from a stalled `<video>` would read
+  completely differently from an empty background.
+- **`/select` had a real, measurable bug**, unrelated to viewport
+  measurement: the character render's box carried `max-h-[28rem]` (448px)
+  unconditionally. Below ~850px of available height that cap never binds and
+  the box grows to fill its space exactly, which is why every previous
+  round of testing — this sandbox's headless Chrome, and apparently whatever
+  the user tried outside the installed PWA — never caught it. But an
+  installed iOS PWA in standalone mode shows *more* usable height than the
+  same device in a Safari tab (no address bar reserving any of it), and once
+  available height passes the cap, the box stops growing while the
+  surrounding flex column's `justify-center` splits the now-real leftover
+  space as equal padding above and below the whole card+nameplate+button
+  group — visible, symmetric dead space, worse the taller the device.
+  **Measured directly via CDP (`getBoundingClientRect`) before touching
+  anything**: 0px slack at 667/852px available height, 70px at 932px
+  (roughly an iPhone 15/16 Pro Max), 140px at 1000px. Removed the
+  unconditional cap; `max-w-full` on the same box is what makes that safe
+  rather than trading one overflow for another — a portrait phone's own
+  width binds long before an ever-growing height could make the render
+  "comically large" (the reason the cap existed originally), so mobile just
+  fills the space it has, and the cap comes back at `lg:` for desktop, where
+  width genuinely doesn't self-limit. Re-measured after the fix: card and
+  button now touch the flex column's own top/bottom edges exactly (0px
+  slack) at 667 through 1000px+ of available height, confirmed a phone-width
+  screen doesn't overflow horizontally even at an absurd 390×1200 viewport,
+  and re-confirmed the short-phone case this cap was protecting (667px) is
+  unaffected — same rendered size as before, since it was already under the
+  old ceiling.
+
+**Lesson for whoever picks up a "still broken" report after this**: a fix
+that reads correctly and passes every test available in this sandbox can
+still be solving the wrong bug if the report is about one specific real
+device. The thing that actually cracked this one was asking the direct
+follow-up question ("what device, browser tab or installed PWA") and then
+measuring exact pixel geometry via CDP instead of screenshotting and
+eyeballing it — a symmetric ~70px gap doesn't jump out of a screenshot, but
+it's obvious the moment you print `getBoundingClientRect()` before and after.
+
 ## 2026-08-23 — Second mobile pass: header removal, one shared table style, self-bet lockout, a real iOS PWA fix
 
 Direct follow-up feedback after the previous session's PR (#50) merged. 174
