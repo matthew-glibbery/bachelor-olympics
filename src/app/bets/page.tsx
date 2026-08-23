@@ -8,10 +8,9 @@ import { GameScreen } from "@/components/n64/game-screen";
 import { Panel } from "@/components/n64/panel";
 import { Stat } from "@/components/n64/stat";
 import { OverallBetting } from "@/components/overall-betting";
-import { PlayerName } from "@/components/player-name";
-import { Badge } from "@/components/ui/badge";
+import { PlacedBetsTable } from "@/components/placed-bets-table";
+import { WagerStepper } from "@/components/wager-stepper";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { assignPlayerColors } from "@/lib/chartColors";
@@ -25,10 +24,10 @@ import { bettingReserve } from "@/lib/betting/reserve";
 import { aggregateRanking } from "@/lib/odds/aggregate";
 import {
   payoutMultipliers,
-  perEventPayoutMultiplier,
+  perEventPayoutMultiplierOrNull,
   type RankingEntry,
 } from "@/lib/odds/ranking";
-import { allocatedMultiplierTotal, MULTIPLIER_STEP } from "@/lib/multipliers/budget";
+import { allocatedMultiplierTotal, fitsBudget } from "@/lib/multipliers/budget";
 import type { PerEventBetRow } from "@/lib/data/database.types";
 
 // A native <select> can't be beveled convincingly (the popup is the OS's),
@@ -131,10 +130,15 @@ export default function BetsPage() {
     }))
     .filter((row): row is { event: (typeof events)[number]; bet: PerEventBetRow } => !!row.bet);
 
-  const [wagerDraft, setWagerDraft] = useState<Record<string, string>>({});
+  const [wagerDraft, setWagerDraft] = useState<Record<string, number>>({});
   const [targetDraft, setTargetDraft] = useState<Record<string, "win" | "place">>({});
   const [pickDraft, setPickDraft] = useState<Record<string, string>>({});
-  const [busyEventId, setBusyEventId] = useState<string | null>(null);
+  // Keyed by BET id, not event id — the editor and the table row are both
+  // bet-scoped. It was set to an event id on save and a bet id on cancel,
+  // which meant every consumer's `=== bet.id` check silently never matched
+  // during a save: the Save button stayed live and a second tap fired a
+  // second `updatePerEventBet`.
+  const [busyBetId, setBusyBetId] = useState<string | null>(null);
   const [perEventError, setPerEventError] = useState<string | null>(null);
   // The bet currently being edited (PRODUCT_SPEC.md doesn't forbid it, and
   // there's no reason to make someone cancel-then-replace by hand) — null
@@ -153,26 +157,45 @@ export default function BetsPage() {
       )
     : null;
 
+  // Whichever bet's pencil was tapped, plus the figures its editor needs.
+  // Editing doesn't cost anything on top of the existing wager — it replaces
+  // it rather than adding to it — so that bet's own current wager goes back
+  // into what's available before capping the new amount.
+  const editingRow = myPerEventBets.find((r) => r.bet.id === editingBetId) ?? null;
+  const editWager = editingRow ? (wagerDraft[editingRow.event.id] ?? 0) : 0;
+  const editMaxWager = editingRow
+    ? Math.max(0, reserve?.available ?? 0) + editingRow.bet.wager
+    : 0;
+  const editPick = editingRow ? (pickDraft[editingRow.event.id] ?? "") : "";
+  const editRanking = editingRow ? (rankingByEvent.get(editingRow.event.id) ?? []) : [];
+  const editOdds =
+    editingRow && editPick && editRanking.length > 0
+      ? perEventPayoutMultiplierOrNull(
+          editRanking,
+          editPick,
+          targetDraft[editingRow.event.id] ?? "win",
+        )
+      : null;
+
   function startEditingPerEvent(eventId: string, bet: PerEventBetRow) {
     setPerEventError(null);
     setEditingBetId(bet.id);
-    setWagerDraft((d) => ({ ...d, [eventId]: String(bet.wager) }));
+    setWagerDraft((d) => ({ ...d, [eventId]: bet.wager }));
     setPickDraft((d) => ({ ...d, [eventId]: bet.pick_player_id }));
     setTargetDraft((d) => ({ ...d, [eventId]: bet.target }));
   }
 
   function discardPerEventEdit(eventId: string) {
     setEditingBetId(null);
-    setWagerDraft((d) => ({ ...d, [eventId]: "" }));
+    setWagerDraft((d) => ({ ...d, [eventId]: 0 }));
     setPickDraft((d) => ({ ...d, [eventId]: "" }));
   }
 
   async function handleUpdatePerEvent(eventId: string, betId: string) {
-    const raw = wagerDraft[eventId];
-    const wager = raw ? Number(raw) : NaN;
+    const wager = wagerDraft[eventId] ?? 0;
     const pickPlayerId = pickDraft[eventId];
-    if (!Number.isFinite(wager) || wager <= 0 || !pickPlayerId) return;
-    setBusyEventId(eventId);
+    if (wager <= 0 || !pickPlayerId) return;
+    setBusyBetId(betId);
     setPerEventError(null);
     try {
       await updatePerEventBet(getSupabaseBrowserClient(), betId, {
@@ -181,36 +204,30 @@ export default function BetsPage() {
         wager,
       });
       setEditingBetId(null);
-      setWagerDraft((d) => ({ ...d, [eventId]: "" }));
+      setWagerDraft((d) => ({ ...d, [eventId]: 0 }));
       setPickDraft((d) => ({ ...d, [eventId]: "" }));
     } catch (err) {
       setPerEventError(err instanceof Error ? err.message : String(err));
     } finally {
-      setBusyEventId(null);
+      setBusyBetId(null);
     }
   }
 
   async function handleCancelPerEvent(betId: string) {
-    setBusyEventId(betId);
+    setBusyBetId(betId);
     setPerEventError(null);
     try {
       await cancelPerEventBet(getSupabaseBrowserClient(), betId);
     } catch (err) {
       setPerEventError(err instanceof Error ? err.message : String(err));
     } finally {
-      setBusyEventId(null);
+      setBusyBetId(null);
     }
   }
 
   return (
     <GameScreen
       title="Bets"
-      // U+2011 (non-breaking hyphen), not a plain "-": the subtitle is
-      // tracked uppercase and was breaking as "PER-" / "EVENT" across two
-      // lines. text-balance doesn't prevent that -- a real hyphen is a valid
-      // break opportunity, so the character itself has to be the unbreakable
-      // one.
-      subtitle={"Overall picks, plus every per\u2011event wager you've got open"}
       // Both these screens are stacked prose-and-form panels, not a grid —
       // they were `max-w-2xl` before the shared shell existed and reading
       // measure is the reason, so keep it rather than inheriting the
@@ -229,21 +246,13 @@ export default function BetsPage() {
         </p>
       ) : (
         <>
-          <Panel
-            title="Overall bets"
-            icon={Coins}
-            contentClassName="gap-4"
-            description={
-              <>
-                Flat 100 points for a win pick, 20 for top 3, whoever you
-                choose. Switching a pick after it&apos;s eliminated halves
-                the payout each time.{" "}
-                {weekendStarted
-                  ? "Picks are locked in — everyone's are visible below."
-                  : "Locks once the first event starts."}
-              </>
-            }
-          >
+          {/* No description line on either panel. The rules they spelled out
+              (payout amounts, the halving on a switch, where per-event bets
+              get placed) are all either visible as live numbers in the list
+              below or belong in the rules doc — as three lines of small
+              tracked prose above the fold on a phone, they were the first
+              thing on screen and the last thing anyone read. */}
+          <Panel title="Overall bets" icon={Coins} contentClassName="gap-4">
             <OverallBetting
               players={players}
               currentPlayerId={player.id}
@@ -254,23 +263,7 @@ export default function BetsPage() {
             />
           </Panel>
 
-          <Panel
-            title="Per-event bets"
-            icon={Percent}
-            contentClassName="gap-4"
-            description={
-              <>
-                Your wagers on other players&apos; win/place outcomes, wherever
-                they land on the calendar — place new ones from an
-                event&apos;s Odds tab. Edit or cancel here up until that event
-                starts.{" "}
-                <Link href="/multipliers" className="text-foreground underline">
-                  See the reserve breakdown on Multipliers
-                </Link>
-                .
-              </>
-            }
-          >
+          <Panel title="Per-event bets" icon={Percent} contentClassName="gap-4">
             {reserve ? (
               <div className="flex gap-3">
                 <Stat
@@ -293,144 +286,136 @@ export default function BetsPage() {
                   .
                 </p>
               ) : (
-                myPerEventBets.map(({ event, bet: myBet }) => {
-                  const ranking = rankingByEvent.get(event.id) ?? [];
-                  const target = targetDraft[event.id] ?? "win";
-                  const pickId = pickDraft[event.id] ?? "";
-                  const odds =
-                    ranking.length > 0 && pickId
-                      ? perEventPayoutMultiplier(ranking, pickId, target)
-                      : null;
-                  const isEditing = editingBetId === myBet.id;
-                  const canEdit = myBet.status === "open" && event.status === "planned";
-                  // Editing doesn't cost anything on top of the existing
-                  // wager — it's replacing it, not adding to it — so add
-                  // this bet's own current wager back to what's otherwise
-                  // available before capping the new amount.
-                  const maxWager = reserve
-                    ? Math.max(0, reserve.available) + (isEditing ? myBet.wager : 0)
-                    : 0;
-
-                  return (
-                    <div key={event.id} className="flex flex-col gap-2 border-t pt-3 first:border-t-0 first:pt-0">
-                      <span className="text-sm font-medium">{event.name}</span>
-
-                      {!isEditing ? (
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                          <span className="flex flex-wrap items-center gap-1.5">
-                            <PlayerName
-                              name={playersById.get(myBet.pick_player_id)?.name ?? "?"}
-                              state={playersById.get(myBet.pick_player_id)?.state ?? "??"}
-                              size="sm"
-                              photoUrl={playersById.get(myBet.pick_player_id)?.photo_url}
-                              color={colorByPlayer[myBet.pick_player_id]}
-                            />
-                            <span className="text-muted-foreground">
-                              {PER_EVENT_TARGETS.find((t) => t.target === myBet.target)?.label} —
-                              wagered {myBet.wager.toFixed(1)}
-                            </span>
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {myBet.status === "won" ? (
-                              <Badge>Won {myBet.payout} pts</Badge>
-                            ) : myBet.status === "lost" ? (
-                              <Badge variant="destructive">Lost</Badge>
-                            ) : myBet.status === "void" ? (
-                              <Badge variant="outline">Voided — event cancelled</Badge>
-                            ) : (
-                              <Badge variant="outline">Awaiting result</Badge>
-                            )}
-                            {canEdit ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => startEditingPerEvent(event.id, myBet)}
-                                  disabled={busyEventId === myBet.id}
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => handleCancelPerEvent(myBet.id)}
-                                  disabled={busyEventId === myBet.id}
-                                >
-                                  Cancel
-                                </Button>
-                              </>
-                            ) : null}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap items-end gap-2">
-                          <select
-                            className={SELECT_CLASS + " w-40"}
-                            value={pickId}
-                            onChange={(e) =>
-                              setPickDraft((d) => ({ ...d, [event.id]: e.target.value }))
-                            }
-                          >
-                            <option value="">Pick a player…</option>
-                            {players.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            className={SELECT_CLASS + " w-36"}
-                            value={target}
-                            onChange={(e) =>
-                              setTargetDraft((d) => ({
-                                ...d,
-                                [event.id]: e.target.value as "win" | "place",
-                              }))
-                            }
-                          >
-                            {PER_EVENT_TARGETS.map((t) => (
-                              <option key={t.target} value={t.target}>
-                                {t.label}
-                              </option>
-                            ))}
-                          </select>
-                          <Input
-                            type="number"
-                            step={MULTIPLIER_STEP}
-                            min={MULTIPLIER_STEP}
-                            max={maxWager}
-                            placeholder={`up to ${maxWager.toFixed(1)}`}
-                            className="w-24"
-                            value={wagerDraft[event.id] ?? ""}
-                            onChange={(e) =>
-                              setWagerDraft((d) => ({ ...d, [event.id]: e.target.value }))
-                            }
-                          />
-                          <span className="text-muted-foreground text-xs">
-                            {odds ? `pays ${odds.toFixed(1)}×` : ""}
-                          </span>
-                          <Button
-                            size="sm"
-                            onClick={() => handleUpdatePerEvent(event.id, myBet.id)}
-                            disabled={
-                              busyEventId === event.id ||
-                              !pickId ||
-                              !wagerDraft[event.id] ||
-                              Number(wagerDraft[event.id]) > maxWager
-                            }
-                          >
-                            Save changes
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => discardPerEventEdit(event.id)}>
-                            Discard
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                /* The same `PlacedBetsTable` the Odds tab and the per-event
+                   reveal use. This list is the one place a player sees every
+                   wager they have running at once, which is exactly the case
+                   the old per-event stack of sentences served worst: each bet
+                   was its own bordered block with its numbers written into
+                   prose, so comparing two of them meant reading rather than
+                   scanning. The event name rides along as the row's context
+                   line, since here — unlike on an event's own card — the
+                   surrounding UI doesn't say which event a bet belongs to. */
+                <PlacedBetsTable
+                  colorByPlayer={colorByPlayer}
+                  onEdit={(betId) => {
+                    const row = myPerEventBets.find((r) => r.bet.id === betId);
+                    if (row) startEditingPerEvent(row.event.id, row.bet);
+                  }}
+                  onDelete={handleCancelPerEvent}
+                  bets={myPerEventBets.map(({ event, bet }) => {
+                    const ranking = rankingByEvent.get(event.id) ?? [];
+                    return {
+                      id: bet.id,
+                      context: event.name,
+                      pick: playersById.get(bet.pick_player_id) ?? null,
+                      target: bet.target,
+                      odds: perEventPayoutMultiplierOrNull(ranking, bet.pick_player_id, bet.target),
+                      wager: bet.wager,
+                      status: bet.status,
+                      payout: bet.payout,
+                      canEdit: bet.status === "open" && event.status === "planned",
+                      busy: busyBetId === bet.id,
+                    };
+                  })}
+                />
               )}
+
+              {/* One editor, below the table, for whichever row's pencil was
+                  tapped — rather than the previous arrangement where every
+                  row carried its own dormant form. */}
+              {editingRow ? (
+                <div className="bevel-sunken bg-sunken flex flex-col gap-3 rounded-md p-3">
+                  <span className="hud-label text-muted-foreground">
+                    Editing your bet on {editingRow.event.name}
+                  </span>
+
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <select
+                      className={SELECT_CLASS}
+                      value={pickDraft[editingRow.event.id] ?? ""}
+                      onChange={(e) =>
+                        setPickDraft((d) => ({ ...d, [editingRow.event.id]: e.target.value }))
+                      }
+                    >
+                      <option value="">Pick a player…</option>
+                      {players.map((pl) => (
+                        <option key={pl.id} value={pl.id}>
+                          {pl.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className={SELECT_CLASS}
+                      value={targetDraft[editingRow.event.id] ?? "win"}
+                      onChange={(e) =>
+                        setTargetDraft((d) => ({
+                          ...d,
+                          [editingRow.event.id]: e.target.value as "win" | "place",
+                        }))
+                      }
+                    >
+                      {PER_EVENT_TARGETS.map((t) => (
+                        <option key={t.target} value={t.target}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="hud-label text-muted-foreground">Stake</span>
+                      <WagerStepper
+                        value={editWager}
+                        max={editMaxWager}
+                        onChange={(next) =>
+                          setWagerDraft((d) => ({ ...d, [editingRow.event.id]: next }))
+                        }
+                        disabled={busyBetId === editingRow.bet.id}
+                      />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="hud-label text-muted-foreground">Odds</span>
+                        <span className="font-score text-base leading-9 tabular-nums">
+                          {editOdds != null ? `${editOdds.toFixed(1)}×` : "—"}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="hud-label text-muted-foreground">To win</span>
+                        <span className="font-score text-primary text-base leading-9 tabular-nums">
+                          {editOdds != null && editWager > 0
+                            ? (editWager * editOdds).toFixed(1)
+                            : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      className="flex-1"
+                      onClick={() =>
+                        handleUpdatePerEvent(editingRow.event.id, editingRow.bet.id)
+                      }
+                      disabled={
+                        busyBetId === editingRow.bet.id ||
+                        !pickDraft[editingRow.event.id] ||
+                        editWager <= 0 ||
+                        !fitsBudget(editWager, editMaxWager)
+                      }
+                    >
+                      Save changes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => discardPerEventEdit(editingRow.event.id)}
+                    >
+                      Discard
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </>
           </Panel>
         </>

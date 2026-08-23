@@ -31,6 +31,41 @@ const MIN_T = toTenths(MULTIPLIER_MIN); // 5
 const MAX_T = toTenths(MULTIPLIER_MAX); // 15
 const DEFAULT_T = toTenths(MULTIPLIER_DEFAULT); // 10
 
+/**
+ * A wager cap is a *reserve* figure, and reserves are computed by summing and
+ * subtracting a pile of 0.1s (src/lib/betting/reserve.ts) — so in practice
+ * "0.3 available" arrives as 0.2999999999999998. The three helpers below are
+ * what any wager UI should use instead of comparing those figures directly.
+ *
+ * The bug they exist to prevent is specific and was live: a stepper offering
+ * every 0.1 up to `available` would happily reach 0.30000000000000004, which
+ * is `> 0.2999999999999998`, so the submit button greyed out at exactly the
+ * amount the screen had just told the player they had, with no explanation.
+ */
+
+/** Tolerance for comparing two figures that are both meant to be on the 0.1
+ *  grid but have been through float arithmetic. Far below a tenth, far above
+ *  accumulated IEEE error on the handful of terms a reserve involves. */
+const GRID_EPSILON = 1e-9;
+
+/** How many whole `MULTIPLIER_STEP`s fit inside `max`. */
+export function stepsWithin(max: number): number {
+  if (!Number.isFinite(max) || max <= 0) return 0;
+  return Math.max(0, Math.floor(max / MULTIPLIER_STEP + GRID_EPSILON));
+}
+
+/** `steps × MULTIPLIER_STEP`, snapped back onto the grid — so three steps is
+ *  0.3, not 0.30000000000000004. */
+export function stepAmount(steps: number): number {
+  return Math.round(steps * MULTIPLIER_STEP * 10) / 10;
+}
+
+/** Whether `amount` fits inside `max`, tolerating grid float error. Use this
+ *  rather than `amount <= max` wherever `max` is a derived reserve. */
+export function fitsBudget(amount: number, max: number): boolean {
+  return amount <= max + GRID_EPSILON;
+}
+
 /** One event's multiplier allocation for a player. */
 export interface MultiplierAllocation {
   eventId: string;

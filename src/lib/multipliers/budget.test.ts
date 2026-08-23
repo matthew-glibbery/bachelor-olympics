@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   allocatedMultiplierTotal,
   budgetTotal,
+  fitsBudget,
   isValidMultiplierValue,
   MultiplierAllocation,
+  stepAmount,
+  stepsWithin,
   unlockedBudgetRemaining,
   validateAllocations,
 } from "./budget";
@@ -145,5 +148,63 @@ describe("unlockedBudgetRemaining", () => {
     const allocs = [alloc("a", 1.5, true), alloc("b", 1.0), alloc("c", 1.0)];
     // total 3.0, spent 3.5 → -0.5 still needs to be clawed back.
     expect(unlockedBudgetRemaining(allocs)).toBeCloseTo(-0.5, 5);
+  });
+});
+
+/* The three grid helpers exist because of one specific live bug: the wager
+   stepper offered every 0.1 up to the player's reserve, and a reserve arrives
+   as a sum of 0.1s — so "0.3 available" is really 0.2999999999999998, the
+   stepper reached 0.30000000000000004, and the submit button greyed out at
+   exactly the amount the screen had just promised. These pin the behaviour
+   that stops that recurring. */
+describe("stepsWithin", () => {
+  it("counts whole steps that fit", () => {
+    expect(stepsWithin(0.5)).toBe(5);
+    expect(stepsWithin(1)).toBe(10);
+  });
+
+  it("floors a partial step rather than rounding up past the cap", () => {
+    // 0.25 must not offer 0.3 — that's more than the player actually has.
+    expect(stepsWithin(0.25)).toBe(2);
+    expect(stepsWithin(0.29)).toBe(2);
+  });
+
+  it("still offers the top step when the cap is float-dirty just under it", () => {
+    // What `bettingReserve` really hands over for a nominal 0.3.
+    expect(stepsWithin(0.1 + 0.1 + 0.1)).toBe(3);
+    expect(stepsWithin(0.2999999999999998)).toBe(3);
+  });
+
+  it("offers nothing for a zero, negative, or non-finite cap", () => {
+    expect(stepsWithin(0)).toBe(0);
+    expect(stepsWithin(-1)).toBe(0);
+    expect(stepsWithin(Number.NaN)).toBe(0);
+  });
+});
+
+describe("stepAmount", () => {
+  it("lands exactly on the grid rather than drifting", () => {
+    expect(stepAmount(3)).toBe(0.3);
+    expect(stepAmount(7)).toBe(0.7);
+    expect(stepAmount(0)).toBe(0);
+    // The naive version of this is 0.30000000000000004.
+    expect(String(stepAmount(3))).toBe("0.3");
+  });
+});
+
+describe("fitsBudget", () => {
+  it("accepts an on-grid amount against a float-dirty cap of the same value", () => {
+    expect(fitsBudget(0.3, 0.1 + 0.1 + 0.1)).toBe(true);
+    expect(fitsBudget(0.3, 0.2999999999999998)).toBe(true);
+  });
+
+  it("still rejects an amount that is genuinely over", () => {
+    expect(fitsBudget(0.4, 0.3)).toBe(false);
+    expect(fitsBudget(0.31, 0.3)).toBe(false);
+  });
+
+  it("accepts anything at or under the cap", () => {
+    expect(fitsBudget(0.1, 0.3)).toBe(true);
+    expect(fitsBudget(0, 0)).toBe(true);
   });
 });

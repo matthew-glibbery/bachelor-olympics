@@ -71,8 +71,31 @@ export default function MultipliersPage() {
    *  already showing the draft), which is indistinguishable from a save that
    *  did nothing at all. */
   const [justSaved, setJustSaved] = useState(false);
-  /** Bumped on every change, to retrigger the character's reaction pop. */
-  const [reactionKey, setReactionKey] = useState(0);
+  /**
+   * The character's reaction pop on every slider change.
+   *
+   * This used to be a `key` on the wrapper, bumped per adjustment. A changed
+   * `key` doesn't re-run an animation — it unmounts and remounts the whole
+   * subtree, and that subtree contains `CharacterRender`'s `<video>`. So a
+   * fresh, unbuffered video element was created on every single tap of a
+   * multiplier segment: the idle clip snapped back to frame zero and had to
+   * decode from scratch each time, which is the "hitting + or - restarts the
+   * full body clip" symptom exactly.
+   *
+   * Restarting a CSS animation on a *stable* element is the actual job, so
+   * that's what this does — drop the class, force a reflow so the removal is
+   * flushed as its own style change (without it the browser coalesces the
+   * remove and re-add into no change at all, and nothing replays), add it
+   * back. The video element is never touched and keeps playing throughout.
+   */
+  const reactionRef = useRef<HTMLDivElement>(null);
+  const pulseCharacter = useCallback(() => {
+    const el = reactionRef.current;
+    if (!el) return;
+    el.classList.remove("anim-pop-in");
+    void el.offsetWidth;
+    el.classList.add("anim-pop-in");
+  }, []);
 
   useEffect(() => {
     setDraft(committed);
@@ -225,9 +248,11 @@ export default function MultipliersPage() {
           {/* Character, carried over from /select and still idling. */}
           <aside className="flex flex-col items-center gap-3">
             <div className="relative aspect-[9/16] w-full max-w-36 sm:max-w-52">
-              {/* Re-keyed on each adjustment so the character reacts to the
-                  bars rather than just sitting there. */}
-              <div key={reactionKey} className="anim-pop-in relative h-full w-full">
+              {/* Replays its pop on each adjustment so the character reacts
+                  to the bars rather than just sitting there — see
+                  `pulseCharacter` for why this is a class restart and not a
+                  `key` bump. */}
+              <div ref={reactionRef} className="anim-pop-in relative h-full w-full">
                 <CharacterRender
                   name={player.name}
                   nickname={player.nickname}
@@ -359,7 +384,7 @@ export default function MultipliersPage() {
                             }
                             setDraft(nextDraft);
                             setCursor(i);
-                            setReactionKey((k) => k + 1);
+                            pulseCharacter();
                             setJustSaved(false);
                           }}
                         />
@@ -382,7 +407,7 @@ export default function MultipliersPage() {
                     }
                     return next;
                   });
-                  setReactionKey((k) => k + 1);
+                  pulseCharacter();
                   setJustSaved(false);
                 }}
                 className="hud-label bevel-raised bg-card flex w-fit items-center gap-2 rounded-md px-4 py-2 focus-visible:is-cursor focus-visible:outline-none"

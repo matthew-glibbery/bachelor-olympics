@@ -157,3 +157,25 @@ export function perEventPayoutMultiplier(
   if (!mult) throw new Error(`unknown player: ${playerId}`);
   return target === "win" ? mult.win : mult.top3;
 }
+
+/**
+ * Same, but `null` instead of a throw when `playerId` isn't in this event's
+ * ranking.
+ *
+ * For settlement, throwing is right — a bet on somebody the event doesn't
+ * know about is a real inconsistency and should stop the payout. For *display*
+ * it's a footgun: the bets table quotes the odds behind every wager it lists,
+ * and a ranking that doesn't cover a pick (a player added or removed after the
+ * groom ranked the event, or a partly-saved ranking) would take out the whole
+ * event card or bets page during render, instead of showing "—" in one cell.
+ * Rendering paths should use this one.
+ */
+export function perEventPayoutMultiplierOrNull(
+  ranking: RankingEntry[],
+  playerId: string,
+  target: "win" | "place",
+): number | null {
+  const mult = payoutMultipliers(ranking).get(playerId);
+  if (!mult) return null;
+  return target === "win" ? mult.win : mult.top3;
+}

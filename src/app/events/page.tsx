@@ -159,14 +159,12 @@ function EventsPageInner() {
   const bonusSelected = entered ? openParam === "bonus" : showBonusTile && index === bonusIndex;
 
   return (
-    <GameScreen
-      title="Events"
-      subtitle={
-        entered && (focused ?? bonusSelected)
-          ? (bonusSelected ? "Bonus events" : focused!.name)
-          : undefined
-      }
-    >
+    // No screen title on either step, deliberately. The grid step sat under
+    // an "EVENTS" plate with the nav's own highlighted "Events" tab directly
+    // beneath it, and the detail step repeated the event's name as a subtitle
+    // immediately above the event card's own heading — two labels, one fact,
+    // both times. The tiles and the card are self-evidently what they are.
+    <GameScreen>
       {error ? (
           <p className="text-destructive text-center text-sm">{error}</p>
         ) : !ready && loading ? (
@@ -262,11 +260,14 @@ function EventsPageInner() {
           /* Step 2: the picked tile's full detail — the real event's card,
              or the bonus-events card, never both, and never alongside the
              grid. */
-          <div className="flex flex-col gap-3">
+          /* gap-5, not gap-3: with the screen title gone this small back
+             link is the only thing above the event card, and at gap-3 it read
+             as part of the card's own frame rather than as the way out of it. */
+          <div className="flex flex-col gap-5">
             <button
               type="button"
               onClick={() => router.push("/events")}
-              className="hud-label text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1"
+              className="hud-label text-muted-foreground hover:text-foreground -mb-1 inline-flex w-fit items-center gap-1.5 rounded-sm py-1"
             >
               <ChevronLeft className="size-4" />
               Back to events

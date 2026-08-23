@@ -157,7 +157,7 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
           aria-hidden
           disabled={locked}
           onClick={() => attempt(currentIndex - 1)}
-          className="bevel-raised bg-card grid size-9 shrink-0 place-items-center rounded-md active:translate-y-px disabled:opacity-50"
+          className="bevel-raised bg-card grid size-9 shrink-0 place-items-center rounded-md active:translate-y-px disabled:bg-muted disabled:text-muted-foreground"
         >
           <Minus className="size-4" />
         </button>
@@ -225,7 +225,7 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
           aria-hidden
           disabled={locked}
           onClick={() => attempt(currentIndex + 1)}
-          className="bevel-raised bg-card grid size-9 shrink-0 place-items-center rounded-md active:translate-y-px disabled:opacity-50"
+          className="bevel-raised bg-card grid size-9 shrink-0 place-items-center rounded-md active:translate-y-px disabled:bg-muted disabled:text-muted-foreground"
         >
           <Plus className="size-4" />
         </button>

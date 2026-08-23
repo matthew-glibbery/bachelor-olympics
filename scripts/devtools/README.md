@@ -69,6 +69,39 @@ viewport. Worth running after touching a table or a wide layout — the app
 has no page-level `overflow-x` guard, so one overflowing cell scrolls the
 whole page sideways.
 
+## Viewport screenshots (for "dead space" problems)
+
+```bash
+# outDir width height label routes…
+PLAYER_ID=<id> node scripts/devtools/viewport-shot.mjs \
+  ./shots 430 932 tall /start /select
+```
+
+`screenshot.mjs` stretches the viewport to the full document before it
+captures, which is what you want for reviewing a long page — and exactly
+wrong for "there's unused space at the bottom on my phone", because the
+stretch hides the gap you're looking for. This one captures the viewport as
+a phone actually sees it and prints a geometry line per route (viewport
+height, document height, deepest content edge) so a gap can be measured
+rather than eyeballed. Useful heights: 852 (iPhone 15/16), 932 (Pro Max),
+667 (SE) — and remember an installed PWA is *taller* than the same phone in
+a browser tab, since there's no address bar.
+
+## Behaviour probes
+
+```bash
+PLAYER_ID=<id> node scripts/devtools/probe-multiplier-clip.mjs
+```
+
+A worked example of driving the app rather than photographing it: it tags
+the live `<video>` node, taps a multiplier "+", and asserts the same node is
+still there afterwards with its playback position intact — which is the only
+way to actually confirm the "adjusting a slider restarts the character clip"
+class of bug, since a screenshot can't show it and the code reads fine
+either way. It taps "+" then "-" inside the 500ms autosave debounce so the
+live project is never written to; it still prints enough for you to check
+the rows yourself before and after.
+
 ## Beyond screenshots
 
 The same ~20 lines of CDP setup will drive the app: `Runtime.evaluate` can

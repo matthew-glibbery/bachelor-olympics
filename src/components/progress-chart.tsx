@@ -14,7 +14,6 @@ import {
 
 import { assignPlayerColors } from "@/lib/chartColors";
 import { PlayerName } from "@/components/player-name";
-import { cn } from "@/lib/utils";
 import type { SeriesPoint } from "@/lib/scoring/cumulativeSeries";
 import type { PlayerRow } from "@/lib/data/database.types";
 
@@ -22,15 +21,21 @@ import type { PlayerRow } from "@/lib/data/database.types";
  * Live progress chart — cumulative multiplier-adjusted points per player
  * across the weekend. Follows the dataviz skill's method: categorical color
  * (src/lib/chartColors.ts, validated against this app's actual surfaces),
- * 2px lines, hairline recessive grid, an always-visible line-key legend (the
- * light-mode contrast WARN on 3 of the 8 slots requires this relief channel),
- * a crosshair tooltip listing every player at that event, and player-photo
- * dot markers with a surface ring + native hover title.
+ * 2px lines, hairline recessive grid, a crosshair tooltip listing every
+ * player at that event, and player-photo dot markers with a surface ring +
+ * native hover title.
+ *
+ * There is deliberately no line-key legend under the plot. Eight entries of
+ * photo + name wrapped to three rows and cost more vertical space on a phone
+ * than the chart itself, to identify lines that are already identified: each
+ * marker carries the player's own photo (or initial), and the tooltip names
+ * everyone at the hovered event. The relief channel a colour-only key needed
+ * is the markers' job here, not a second block of UI.
  *
  * Event names are long ("Super Smash Bros. (N64)") and there can be up to 9
  * of them — on a phone-width chart (this is mostly used on mobile) full
  * names on the x-axis would collide. Ticks show the event's number instead;
- * the tooltip and legend carry the full names.
+ * the tooltip carries the full names.
  */
 
 // App token hex, converted from globals.css's :root oklch values. Recharts/
@@ -187,8 +192,6 @@ export function ProgressChart({ players, series, currentPlayerId = null }: Progr
           </LineChart>
         </ResponsiveContainer>
       </div>
-
-      <ProgressLegend players={players} colorByPlayer={colorByPlayer} currentPlayerId={currentPlayerId} />
     </div>
   );
 }
@@ -258,43 +261,6 @@ function PlayerDot(props: {
         </text>
       )}
     </g>
-  );
-}
-
-function ProgressLegend({
-  players,
-  colorByPlayer,
-  currentPlayerId,
-}: {
-  players: PlayerRow[];
-  colorByPlayer: Record<string, string>;
-  currentPlayerId?: string | null;
-}) {
-  return (
-    <div className="flex flex-wrap gap-x-4 gap-y-2">
-      {players.map((p) => {
-        const isYou = p.id === currentPlayerId;
-        return (
-          <span key={p.id} className={cn("inline-flex items-center gap-1.5", isYou && "font-semibold")}>
-            <span
-              aria-hidden
-              className="w-4 shrink-0 rounded-full"
-              style={{ backgroundColor: colorByPlayer[p.id], height: isYou ? 3 : 2 }}
-            />
-            <PlayerName
-              name={p.name}
-              state={p.state ?? "??"}
-              photoUrl={p.photo_url}
-              size="sm"
-              color={colorByPlayer[p.id]}
-            />
-            {isYou ? (
-              <span className="hud-label text-primary">You</span>
-            ) : null}
-          </span>
-        );
-      })}
-    </div>
   );
 }
 

@@ -5,18 +5,23 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  // Disabled is a *recessed* plate, not a faded one. `opacity-50` over the
-  // gold primary produced a muddy olive that read as dirty rather than
-  // unavailable; dropping the raised bevel for the sunken one says "this
-  // control is pressed in / dead" in the same physical language the rest of
-  // the UI uses, and it works for every variant rather than just gold.
-  // Disabled is a *recessed* plate, not a faded one: `opacity-50` over the
-  // gold primary produced a muddy olive that read as dirty rather than
-  // unavailable. The `:disabled` pseudo-class outranks the variants' own
-  // `bg-primary` / `.bevel-raised`, so these replace the fill and the raised
-  // shadow instead of layering over them — and this works for every variant,
-  // not just gold.
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:bevel-sunken disabled:bg-sunken disabled:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+  // Disabled is an *unlit* plate, not a recessed one.
+  //
+  // Two previous attempts, both wrong for a different reason. `opacity-50`
+  // over the gold primary produced a muddy olive that read as dirty rather
+  // than unavailable. Replacing the raised bevel with `bevel-sunken` fixed
+  // the colour but broke the affordance: a sunken plate is this app's
+  // vocabulary for a *well* — the thing inputs and readouts sit inside — so
+  // the most important button on the betting form ("Wager", disabled until
+  // you've picked someone) stopped reading as a button at all and looked
+  // like a label pressed into the panel.
+  //
+  // A disabled control still has to look like a control. It keeps the raised
+  // plate and loses only its colour: `bg-muted` is a real mid-tone fill, so
+  // the button is plainly still a button, plainly just not lit up yet. The
+  // `:disabled` pseudo-class outranks the variants' own `bg-primary`, so this
+  // replaces the fill for every variant rather than layering over it.
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:bg-muted disabled:text-muted-foreground disabled:border-transparent [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
   {
     variants: {
       // bevel-raised goes on every variant that's meant to read as a chunky

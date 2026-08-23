@@ -27,7 +27,12 @@ export function GameScreen({
   children,
   className,
 }: {
-  title: React.ReactNode;
+  /** Optional — some screens are their own title. `/events` is the case
+   *  that made this optional: its grid of event tiles, and the event detail
+   *  it opens into (which carries the event's own name as a heading), both
+   *  had a literal "EVENTS" plate above them saying what the Events tab in
+   *  the nav directly below it already said. */
+  title?: React.ReactNode;
   /** The small tracked uppercase line under the title. */
   subtitle?: React.ReactNode;
   width?: "default" | "wide" | "narrow";
@@ -51,14 +56,16 @@ export function GameScreen({
         )}
       >
         <header className="flex flex-col items-center gap-3 text-center">
-          <h1
-            className={cn(
-              "extruded text-xl sm:text-2xl",
-              tone === "gold" && "extruded-gold",
-            )}
-          >
-            {title}
-          </h1>
+          {title ? (
+            <h1
+              className={cn(
+                "extruded text-xl sm:text-2xl",
+                tone === "gold" && "extruded-gold",
+              )}
+            >
+              {title}
+            </h1>
+          ) : null}
           {subtitle ? (
             // Tracked uppercase at 10px is already the hardest type on the
             // screen; left full-width it wrapped with a single orphan word on

@@ -322,11 +322,7 @@ export default function Home() {
                 back to the chart everywhere. rank-ladder.tsx and the
                 --status-up/--status-down tokens it needed are removed
                 entirely rather than left as unused dead code. */}
-            <Panel
-              title="Progress"
-              icon={TrendingUp}
-              description="Cumulative points after each event or bonus event, in the order they actually happened."
-            >
+            <Panel title="Progress" icon={TrendingUp}>
               <ProgressChart players={players} series={series} currentPlayerId={selectedPlayerId} />
             </Panel>
           </>
