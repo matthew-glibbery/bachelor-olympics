@@ -247,9 +247,35 @@ export default function SelectPage() {
                       need — `aspect-[9/16]` then derives its width from
                       that resolved height, so the whole thing shrinks
                       correctly on a short viewport instead of forcing a
-                      scroll. `max-h` caps it from growing comically large
-                      on a tall desktop window. */}
-                  <div className="relative min-h-0 w-auto flex-1 max-h-[28rem] aspect-[9/16]">
+                      scroll.
+
+                      The `max-h-[28rem]` this used to carry unconditionally
+                      was a real, measured bug, not just an aesthetic choice
+                      revisited: on a tall phone (an installed iOS PWA
+                      standalone shows MORE usable height than the same
+                      device in a Safari tab, since there's no address bar to
+                      reserve any of it) the render hit that ceiling and
+                      stopped growing while the flex column still had height
+                      left over — `justify-center` then split that leftover
+                      as equal padding above and below the whole group, which
+                      is exactly the "dead space" reported on a real
+                      installed PWA and never visible in a browser tab or in
+                      this sandbox's own headless-Chrome testing, since
+                      neither exposes that extra height. Measured directly at
+                      five heights via CDP before fixing this: zero slack up
+                      to 852px, ~70px at 932px, ~140px at 1000px, tracking
+                      the cap exactly.
+
+                      `max-w-full` is what makes dropping the cap safe rather
+                      than replacing one overflow with another: on a real
+                      phone (narrow, tall) the container's actual width binds
+                      long before an ever-growing height could make this
+                      "comically large" the old comment worried about — a
+                      portrait phone is never wide enough for that to happen.
+                      Desktop is the one case width doesn't self-limit (a
+                      browser window can be arbitrarily wide AND tall), so
+                      the height cap comes back at `lg`. */}
+                  <div className="relative min-h-0 w-auto max-w-full flex-1 aspect-[9/16] lg:max-h-[28rem]">
                     {/* Keyed on player id so the pop-in replays on every swap. */}
                     <div key={focused.id} className="anim-pop-in relative h-full w-full">
                       <CharacterRender
