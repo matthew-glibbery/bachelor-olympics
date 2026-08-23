@@ -142,14 +142,19 @@ export default function SelectPage() {
   const focused = players[index] ?? null;
 
   return (
-    <main className="relative flex min-h-dvh flex-col overflow-hidden">
+    // `fixed inset-0`, not `min-h-dvh` — the same PWA-viewport fix as
+    // /start (see that file's doc comment): `min-height` only sets a
+    // floor, and on an installed PWA `dvh` can be a hair off from the true
+    // visual viewport, so a `min-h-*` container could size a little too
+    // tall and force a scroll on exactly the device this screen is tuned
+    // for. `fixed inset-0` resolves against the real viewport directly and
+    // makes the screen unscrollable outright, which is also the explicit
+    // goal here: the roster fits at the top, "Let's go" at the bottom, no
+    // scroll on an iPhone PWA.
+    <main className="fixed inset-0 flex flex-col overflow-hidden">
       <Starfield className="opacity-60" />
 
-      <div className="relative flex min-h-dvh flex-col gap-4 px-4 pt-[calc(1.5rem+var(--safe-top))] pb-[calc(1.5rem+var(--safe-bottom))] sm:px-8">
-        <div className="flex items-center justify-center">
-          <h1 className="extruded text-lg sm:text-2xl">Choose your character</h1>
-        </div>
-
+      <div className="relative flex min-h-0 flex-1 flex-col gap-3 px-4 pt-[calc(1rem+var(--safe-top))] pb-[calc(1rem+var(--safe-bottom))] sm:gap-4 sm:px-8">
         {!ready ? (
           <p className="text-muted-foreground mt-20 text-center text-sm">Loading roster…</p>
         ) : players.length === 0 ? (
@@ -162,8 +167,12 @@ export default function SelectPage() {
           </p>
         ) : (
           <>
-            {/* Roster strip. */}
-            <ul className="mx-auto grid w-full max-w-4xl grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
+            {/* Roster strip. `shrink-0`: this is a flex column now sized to
+                exactly one screen (no scroll), so every sibling has to
+                agree on how the fixed vertical space splits — the grid
+                keeps its natural height and the centre stage below it
+                absorbs whatever's left. */}
+            <ul className="mx-auto grid w-full max-w-4xl shrink-0 grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
               {players.map((p, i) => {
                 const isActive = i === index;
                 const color = colorByPlayer[p.id]!;
@@ -218,11 +227,25 @@ export default function SelectPage() {
               })}
             </ul>
 
-            {/* Centre stage. */}
-            <div className="flex flex-1 flex-col items-center justify-center gap-4">
+            {/* Centre stage. `min-h-0` is load-bearing: a flex child's
+                default `min-height: auto` lets it overflow its allotted
+                space rather than shrink into it, which is exactly what
+                broke "fits on one screen" here — the character render
+                below was a fixed h-96 (384px) regardless of how much room
+                was actually left once the roster strip and safe-area
+                padding took their share, so a short iPhone scrolled. */}
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 sm:gap-4">
               {focused ? (
                 <>
-                  <div className="relative aspect-[9/16] h-96 w-auto sm:h-[28rem]">
+                  {/* `flex-1 min-h-0` (not a fixed height): this box is a
+                      flex item alongside the nameplate and button below it,
+                      so it only claims whatever vertical space THOSE don't
+                      need — `aspect-[9/16]` then derives its width from
+                      that resolved height, so the whole thing shrinks
+                      correctly on a short viewport instead of forcing a
+                      scroll. `max-h` caps it from growing comically large
+                      on a tall desktop window. */}
+                  <div className="relative min-h-0 w-auto flex-1 max-h-[28rem] aspect-[9/16]">
                     {/* Keyed on player id so the pop-in replays on every swap. */}
                     <div key={focused.id} className="anim-pop-in relative h-full w-full">
                       <CharacterRender
@@ -243,7 +266,7 @@ export default function SelectPage() {
                     name={focused.name}
                     nickname={focused.nickname}
                     color={colorByPlayer[focused.id]!}
-                    className="anim-pop-in"
+                    className="anim-pop-in shrink-0"
                   />
 
                   {/* The one deliberate confirm action (also what A/Enter
@@ -252,7 +275,7 @@ export default function SelectPage() {
                   <button
                     type="button"
                     onClick={() => onConfirm(index)}
-                    className="font-display bevel-raised is-cursor bg-primary text-primary-foreground mt-1 flex items-center gap-2 rounded-md px-8 py-3 text-sm tracking-widest uppercase focus-visible:outline-none"
+                    className="font-display bevel-raised is-cursor bg-primary text-primary-foreground mt-1 flex shrink-0 items-center gap-2 rounded-md px-8 py-3 text-sm tracking-widest uppercase focus-visible:outline-none"
                   >
                     Let&apos;s go
                     {/* A lucide glyph, not a literal "\u25B6" character. iOS

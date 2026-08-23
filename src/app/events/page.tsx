@@ -164,7 +164,7 @@ function EventsPageInner() {
       subtitle={
         entered && (focused ?? bonusSelected)
           ? (bonusSelected ? "Bonus events" : focused!.name)
-          : "Pick an event to start scoring, enter results, or place bets"
+          : undefined
       }
     >
       {error ? (

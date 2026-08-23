@@ -11,7 +11,6 @@ import { GameScreen } from "@/components/n64/game-screen";
 import { Panel } from "@/components/n64/panel";
 import { PlayerName } from "@/components/player-name";
 import { ProgressChart } from "@/components/progress-chart";
-import { RankLadder } from "@/components/rank-ladder";
 import { useGameInput } from "@/hooks/use-game-input";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { applyBonusAwards } from "@/lib/bonus/bonusEvent";
@@ -215,7 +214,7 @@ export default function Home() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-bevel-dark border-b-2">
-                      {["", "Competitor", "Raw", "Adjusted"].map((h, i) => (
+                      {["", "Competitor", "Raw", "Points"].map((h, i) => (
                         <th
                           key={h || i}
                           scope="col"
@@ -312,49 +311,23 @@ export default function Home() {
                   </tbody>
                 </table>
               </div>
-
-              <p className="hud-copy text-muted-foreground text-center">
-                Adjusted = raw points × that event&apos;s multiplier, plus any bonus-event or overall-bet points
-              </p>
             </Panel>
 
-            {/* Progress. Two genuinely different objects for two genuinely
-                different widths, not one component squeezed.
-
-                The line chart is good on a desktop and bad on a phone: at
-                430px it is ~300px wide carrying eight series that clump
-                into an unreadable pile as soon as the field tightens, and
-                its eight-item wrapping legend eats a chunk of the viewport
-                on the app's primary device. It also answers a quantitative
-                question when the one players actually have is ordinal —
-                "did I move up?". Below `sm` that's the RankLadder's job;
-                from `sm` up the chart has the room to be the better object,
-                so it keeps it. */}
+            {/* Progress: the line chart, on every width. A rank-ladder
+                variant briefly replaced this below `sm` (one row per
+                player, position after each event as stepped segments) on
+                the reasoning that a phone-width line chart with 8 clumped
+                series was hard to read — direct feedback was that the
+                ladder wasn't actually more helpful in practice, so this is
+                back to the chart everywhere. rank-ladder.tsx and the
+                --status-up/--status-down tokens it needed are removed
+                entirely rather than left as unused dead code. */}
             <Panel
               title="Progress"
               icon={TrendingUp}
-              description={
-                <>
-                  <span className="sm:hidden">
-                    Where everyone sat after each event or bonus event, in the order they
-                    actually happened.
-                  </span>
-                  <span className="hidden sm:inline">
-                    Cumulative points after each event or bonus event, in the order they
-                    actually happened.
-                  </span>
-                </>
-              }
+              description="Cumulative points after each event or bonus event, in the order they actually happened."
             >
-              <RankLadder
-                players={players}
-                series={series}
-                currentPlayerId={selectedPlayerId}
-                className="sm:hidden"
-              />
-              <div className="hidden sm:block">
-                <ProgressChart players={players} series={series} currentPlayerId={selectedPlayerId} />
-              </div>
+              <ProgressChart players={players} series={series} currentPlayerId={selectedPlayerId} />
             </Panel>
           </>
       )}

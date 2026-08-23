@@ -2,6 +2,99 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-22 (5) — Real-use punch list: /start fullscreen+autoplay, /select fits one screen, chart reverted, budget hard-blocked, six text removals
+
+A long batch of direct feedback after actually using the PWA for a bit.
+164 tests (unchanged — one component deleted, no domain logic touched),
+lint/typecheck/build all green.
+
+- **`/start`'s boot video wasn't reaching the true screen edge in
+  standalone.** Real bug, not style: `main` was `min-h-dvh`, which only
+  sets a floor, and on an installed PWA `dvh` can be a hair off the true
+  visual viewport depending on device/WebKit version — the gap showed up
+  as unfilled space at the bottom. Switched to `fixed inset-0`, which
+  resolves against the real viewport directly and sidesteps the ambiguity
+  entirely (and, as a bonus for a splash screen, makes it unscrollable
+  outright). Same fix applied to `/select` for the same reason (see
+  below) — worth checking any other full-bleed screen if this class of bug
+  resurfaces.
+- **`/start`'s autoplay made more defensive**, though this class of bug is
+  hard to fully verify without a real device in this sandbox: the ref
+  effect now also sets `playsInline` as a DOM property (was JSX-attribute
+  only), retries `.play()` on `loadeddata` and `canplay` (the original
+  single call could fire before the browser had buffered enough to
+  actually start, silently no-oping), and retries again on `pageshow`
+  (covers iOS suspending video when a standalone app backgrounds and
+  resuming not resuming it automatically). Confirmed via headless Chrome
+  that the video does play mid-action (not stuck on frame 0) with this
+  code path — real device confirmation is still open.
+- **`/start`'s tagline and footer (copyright + "Keyboard · Gamepad ·
+  Touch") removed entirely**, per explicit ask. `GAME_TAGLINE`/
+  `GAME_COPYRIGHT` left defined in `branding.ts` (unused now, harmless) —
+  not deleted since nothing else needed touching to satisfy the ask.
+- **`/select` now fits one iPhone screen with zero scroll, heading
+  removed.** Verified, not assumed: measured `document.scrollHeight ==
+  innerHeight` via CDP at both 390×844 and 375×667 (iPhone SE — the
+  shortest common size) after the change, both exactly equal. Two real
+  fixes, not one: (1) `fixed inset-0` for the same dvh reason as /start,
+  (2) the character render was a **fixed** `h-96` (384px) regardless of
+  how much room the roster strip and safe-area padding actually left —
+  changed to `flex-1 min-h-0` so it's a genuine flex sibling of the
+  nameplate/button (not `h-full`, which fills the whole flex parent and
+  leaves nothing for those siblings — tried that first, wrong). `max-h-
+  [28rem]` still caps it on a tall desktop window. "Choose your character"
+  heading removed, which also freed real vertical space.
+- **Progress chart reverted to the line chart on every width.** A
+  same-day-earlier session replaced it with a rank-ladder (one row per
+  player, position after each event as stepped segments) below `sm`,
+  reasoning that 8 clumped series in a phone-width line chart was hard to
+  read. Direct feedback: it wasn't actually more helpful in practice.
+  `rank-ladder.tsx` deleted outright (not left as unused dead code), along
+  with the `--status-up`/`--status-down` tokens it needed — confirmed
+  nothing else referenced either before removing.
+- **Multipliers: budget is now a hard wall, not just a validation
+  flag.** Previously a player could drag a slider into an over-budget
+  draft and only find out on save ("Not saved — over budget"). Now every
+  `MultiplierBar.onChange` computes the FULL hypothetical draft (every
+  event, same `validateAllocations` call `handleSave` already trusts) and
+  refuses the move outright — `playSfx("deny")`, no state change — if it
+  would go over. Verified live via a scripted click sequence, not just
+  read: at a real fully-allocated 0.0-remaining state, clicking `+` on an
+  unlocked bar left its value unchanged; `-` on another bar to free 0.1,
+  then `+` elsewhere, succeeded exactly once and was refused again once
+  back at zero. Test mutations restored via the same script before
+  finishing (DB rows re-verified back at 1.0 for both events touched).
+  Decreases are never blocked (they only free budget). The "Not saved —
+  over budget" label stays as a safety net for the one path this doesn't
+  cover — a locked event's already-committed value sitting out-of-range
+  from stale pre-this-change data — but is effectively unreachable through
+  normal use now.
+- **Six pieces of copy removed, all per explicit ask, all with the
+  underlying data/logic untouched**: multipliers' "Autosaves as you
+  adjust" idle label (Panel's `action` slot now renders nothing when idle,
+  not empty text) and its "Raising one event has to come from another…"
+  subtitle and "See Bets to place a per-event wager" line; events' "Pick
+  an event to start scoring…" subtitle (still shows the focused event's
+  own name once one's picked — only the ungated grid-view copy is gone);
+  leaderboard's "Adjusted = raw points × …" footnote and the "Adjusted"
+  column header, renamed to **"Points"**.
+- **Multipliers' "Unspent — becomes reserve" → "Available for betting"**,
+  same budget-remaining figure, clearer of what it's actually for.
+- **Mobile nav sits closer to the true bottom edge.** `nav-inset-safe`'s
+  gap above the home-indicator inset went from a flat `1rem` to `0.5rem` —
+  this app is used installed (standalone), where there's no browser bottom
+  chrome left to share that space with, so the floating bar can sit lower
+  and hand the freed room back to page content.
+  `screen-pad-block`'s bottom padding shrank by the same 0.5rem (7rem →
+  6.5rem) to match. A judgment call on magnitude, not a measured "correct"
+  value — worth another look once someone's actually holding it.
+
+Verified beyond the unit suite: full headless-Chrome pass against the real
+Supabase project (read-only except the scripted budget-block test, whose
+mutations were restored and re-verified via a direct table read) —
+screenshotted /start, /select, /, /events, /multipliers at 390px;
+`check-overflow.mjs` clean on all five routes.
+
 ## 2026-08-22 (4) — App icon: dropped the bevel frame, full-bleed photo instead
 
 Direct feedback on (3)'s icon: "that isn't aligning well with the app

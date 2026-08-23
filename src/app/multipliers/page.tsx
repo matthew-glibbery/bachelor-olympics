@@ -220,11 +220,7 @@ export default function MultipliersPage() {
   const playerColor = colorByPlayer[player.id]!;
 
   return (
-    <GameScreen
-      title="Set Your Multipliers"
-      subtitle="Raising one event has to come from another — spend up to your full budget, not over it"
-      width="wide"
-    >
+    <GameScreen title="Set Your Multipliers" width="wide">
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
           {/* Character, carried over from /select and still idling. */}
           <aside className="flex flex-col items-center gap-3">
@@ -271,7 +267,7 @@ export default function MultipliersPage() {
                 </p>
                 <p className="hud-label text-muted-foreground mt-1 opacity-80">
                   {validation.budgetRemaining > 0
-                    ? "Unspent — becomes reserve"
+                    ? "Available for betting"
                     : validation.budgetRemaining === 0
                       ? "Fully allocated"
                       : "Over budget"}
@@ -292,16 +288,6 @@ export default function MultipliersPage() {
                 </div>
               ) : null}
             </div>
-
-            {reserve ? (
-              <p className="hud-label text-muted-foreground text-center">
-                See{" "}
-                <Link href="/bets" className="text-foreground underline">
-                  Bets
-                </Link>{" "}
-                to place a per-event wager
-              </p>
-            ) : null}
           </aside>
 
           {/* Event rows. In its own raised-card Panel — this used to be a
@@ -312,15 +298,18 @@ export default function MultipliersPage() {
               title="Event multipliers"
               icon={Sliders}
               action={
-                <span className="hud-label text-muted-foreground">
-                  {saving
-                    ? "Saving…"
-                    : justSaved
-                      ? "Saved ✓"
-                      : !validation.valid
-                        ? "Not saved — over budget"
-                        : "Autosaves as you adjust"}
-                </span>
+                // Idle state is silent now — no "Autosaves as you adjust"
+                // label. "Not saved — over budget" stays as a safety net:
+                // the per-bar block below (onChange) stops a player from
+                // ever REACHING an over-budget draft through normal use,
+                // but this still covers the one path that could bypass it
+                // (a locked event's already-committed value sitting
+                // out-of-range from stale data).
+                saving || justSaved || !validation.valid ? (
+                  <span className="hud-label text-muted-foreground">
+                    {saving ? "Saving…" : justSaved ? "Saved ✓" : "Not saved — over budget"}
+                  </span>
+                ) : undefined
               }
             >
               <div className="bevel-sunken bg-sunken rounded-md py-2">
@@ -347,7 +336,28 @@ export default function MultipliersPage() {
                           color={playerColor}
                           locked={locked}
                           onChange={(next) => {
-                            setDraft((d) => ({ ...d, [e.id]: next }));
+                            // Never let a player go over budget — checked
+                            // against the FULL hypothetical draft (every
+                            // event, not just this one bar), same
+                            // validateAllocations call `validation` above
+                            // already uses, so this is exactly the rule
+                            // that decides whether a save would succeed.
+                            // A move that would push the total over budget
+                            // is refused outright (silent deny sfx, no
+                            // state change) rather than applied and then
+                            // flagged — previously the UI let you drag into
+                            // an invalid state and only blocked the save.
+                            const nextDraft = { ...draft, [e.id]: next };
+                            const nextAllocations = events.map((ev) => ({
+                              eventId: ev.id,
+                              value: (ev.status === "planned" ? nextDraft[ev.id] : committed[ev.id]) ?? MULTIPLIER_DEFAULT,
+                              locked: ev.status !== "planned",
+                            }));
+                            if (!validateAllocations(nextAllocations, events.length, tiedUpInBets).valid) {
+                              playSfx("deny");
+                              return;
+                            }
+                            setDraft(nextDraft);
                             setCursor(i);
                             setReactionKey((k) => k + 1);
                             setJustSaved(false);
