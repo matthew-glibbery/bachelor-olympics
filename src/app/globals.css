@@ -78,19 +78,6 @@
   --glow: var(--primary);
   --crt-vignette: oklch(0.08 0.04 277 / 65%);
 
-  /* Movement colours — gained/lost places on the rank ladder, and the
-     chart tooltip's rank-change indicator.
-
-     Deliberately NOT the categorical palette's own green/red slots
-     (chartColors.ts): those are tied to whichever players happen to hold
-     them, and reusing them for status would make a movement figure look
-     like it belonged to a particular competitor. These two values are the
-     ones progress-chart.tsx already validated for contrast against the dark
-     surfaces (green 8.80:1, red 5.75:1 — both clear WCAG AA for small
-     text); promoted to tokens here so the ladder and the chart can't drift
-     apart. Always shipped with a +/- sign alongside, never colour alone. */
-  --status-up: #4cd676;
-  --status-down: #ff6759;
 
   /* Podium colors for the leaderboard (src/app/page.tsx) — universal
      gold/silver/bronze, deliberately not derived from the base palette. */
@@ -176,8 +163,6 @@
   --color-bevel-dark: var(--bevel-dark);
   --color-sunken: var(--sunken);
   --color-glow: var(--glow);
-  --color-status-up: var(--status-up);
-  --color-status-down: var(--status-down);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -290,13 +275,18 @@
    strip, and any future menu screen) — .bevel-raised plus a glowing ring,
    since a plain hover state doesn't read on a screen driven by a D-pad
    rather than a pointer. */
-/* Where the floating mobile tab bar (app-nav.tsx) sits. Same 1rem gap it
-   always had, plus whatever the device reserves for the home indicator —
-   without this the bar sits under it on any modern iPhone in standalone
-   mode. Only the fixed (mobile) case uses these; from `sm:` up the nav is
-   `position: static` and ignores them. */
+/* Where the floating mobile tab bar (app-nav.tsx) sits. `--safe-bottom`
+   alone clears the home indicator; the extra gap above that used to be a
+   flat 1rem, sized as if a browser's own bottom chrome might still be
+   competing for that space. This app is used installed (standalone —
+   layout.tsx's manifest/viewport are built for exactly that), where
+   there's no such chrome to share room with, so the bar can sit closer to
+   the real edge and hand the freed space back to the content above it —
+   see `screen-pad-block`'s matching reduction. Only the fixed (mobile)
+   case uses these; from `sm:` up the nav is `position: static` and ignores
+   them. */
 @utility nav-inset-safe {
-  bottom: calc(1rem + var(--safe-bottom));
+  bottom: calc(0.5rem + var(--safe-bottom));
   left: calc(1rem + var(--safe-left));
   right: calc(1rem + var(--safe-right));
 }
@@ -310,8 +300,10 @@
    ordering. */
 @utility screen-pad-block {
   padding-top: calc(1.5rem + var(--safe-top));
-  /* 7rem clears the floating tab bar; the inset clears the home indicator. */
-  padding-bottom: calc(7rem + var(--safe-bottom));
+  /* 6.5rem clears the floating tab bar (which now sits 0.5rem lower than
+     it used to — see nav-inset-safe — so this shrank by the same amount);
+     the inset clears the home indicator. */
+  padding-bottom: calc(6.5rem + var(--safe-bottom));
 
   @media (width >= 40rem) {
     padding-bottom: calc(1.5rem + var(--safe-bottom));

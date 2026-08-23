@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { GameLogo } from "@/components/n64/game-logo";
 import { Starfield } from "@/components/n64/starfield";
 import { useGameInput } from "@/hooks/use-game-input";
-import { GAME_COPYRIGHT, GAME_TAGLINE } from "@/lib/branding";
 import { playSfx, unlockAudio } from "@/lib/sfx";
 import { useGameStore } from "@/store/gameStore";
 
@@ -15,9 +14,9 @@ const PROMPT_DELAY_MS = 1500;
 
 /**
  * N64 cartridge-boot title screen (docs/VISUAL_SPEC.md "Start screen") — a
- * logo slams in, the tagline fades up, PRESS START starts blinking, and
- * *any* input gets you in (keyboard, gamepad, tap, click), because there
- * wasn't a button to aim at in 1998, there was a cartridge.
+ * logo slams in, PRESS START starts blinking, and *any* input gets you in
+ * (keyboard, gamepad, tap, click), because there wasn't a button to aim at
+ * in 1998, there was a cartridge.
  *
  * This is also where audio gets unlocked: browsers only allow an
  * AudioContext to start from a real user gesture, and PRESS START is the
@@ -29,6 +28,16 @@ const PROMPT_DELAY_MS = 1500;
  *      Groom tools → Boot video), plays full-bleed behind the logo.
  *   2. The starfield (src/components/n64/starfield.tsx) — always renders,
  *      so the screen never depends on an uploaded asset to look finished.
+ *
+ * `main` is `fixed inset-0` rather than `min-h-dvh` — a fix for a real bug,
+ * not a style choice. `min-h-dvh` only sets a FLOOR; on an installed PWA
+ * (no browser chrome, `viewport-fit=cover` in layout.tsx) `dvh` can be a
+ * hair off from the true visual viewport depending on the device/WebKit
+ * version, and with `min-height` that gap silently became a band of
+ * unfilled space at the bottom instead of the boot video reaching the true
+ * screen edge. `position: fixed; inset: 0` resolves against the viewport
+ * directly, sidesteps the ambiguity entirely, and — a genuine bonus for a
+ * splash screen — makes the page unscrollable outright.
  */
 export default function StartPage() {
   const router = useRouter();
@@ -73,20 +82,37 @@ export default function StartPage() {
   useEffect(() => {
     const v = bootVideoRef.current;
     if (!v) return;
-    // The `autoPlay` attribute alone is unreliable on mobile Safari/Chrome —
-    // same fix already used for character clips (character-render.tsx):
-    // explicitly set `muted` as a DOM property (not just the JSX attribute)
-    // and call `.play()` imperatively, catching the rejection autoplay
-    // policies can still throw rather than letting it become an unhandled
-    // rejection.
+    // The `autoPlay`/`muted`/`playsInline` JSX attributes alone are
+    // unreliable on mobile Safari/Chrome, and reportedly more so for a PWA
+    // launched from the home screen than the same page in a normal Safari
+    // tab — same base fix already used for character clips
+    // (character-render.tsx): explicitly set the DOM properties (not just
+    // the JSX attributes) and call `.play()` imperatively. This goes
+    // further than that fallback for the one screen that actually gets
+    // reported as not autoplaying: `.play()` here fires as soon as the ref
+    // exists, which can be BEFORE the browser has actually buffered enough
+    // to start (a silent no-op, no rejection to catch), so `loadeddata`
+    // and `canplay` each get their own retry, and `pageshow` covers the
+    // case where iOS suspends the video after backgrounding a standalone
+    // app and resuming it doesn't resume playback on its own.
     v.muted = true;
-    v.play().catch(() => {});
+    v.playsInline = true;
+    const tryPlay = () => v.play().catch(() => {});
+    tryPlay();
+    v.addEventListener("loadeddata", tryPlay);
+    v.addEventListener("canplay", tryPlay);
+    window.addEventListener("pageshow", tryPlay);
+    return () => {
+      v.removeEventListener("loadeddata", tryPlay);
+      v.removeEventListener("canplay", tryPlay);
+      window.removeEventListener("pageshow", tryPlay);
+    };
   }, [bootVideoUrl]);
 
   return (
     <main
       onClick={skipOrStart}
-      className="relative flex min-h-dvh cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
+      className="fixed inset-0 flex cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
     >
       {bootVideoUrl ? (
         <video
@@ -116,13 +142,6 @@ export default function StartPage() {
           <GameLogo />
         </div>
 
-        <p
-          className="font-display text-primary/90 max-w-[22rem] text-center text-[11px] tracking-[0.16em] text-balance uppercase sm:max-w-none sm:text-sm sm:tracking-[0.3em]"
-          style={{ animation: "n64-pop-in 0.5s ease-out 1.1s both" }}
-        >
-          {GAME_TAGLINE}
-        </p>
-
         {/* A real button for keyboard and screen-reader users, styled as
             the blinking prompt rather than as a control. */}
         <button
@@ -145,25 +164,6 @@ export default function StartPage() {
           </span>
         </button>
       </div>
-
-      {/* The boot video plays full-bleed behind all of this, and its bottom
-          edge can be any brightness the groom's clip happens to end on — the
-          current one is pale stone, against which `text-muted-foreground`
-          all but vanished. A gradient scrim behind the footer (rather than
-          a brighter text colour) keeps the type quiet by design while
-          guaranteeing it stays legible over an arbitrary frame. */}
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/75 to-transparent"
-        aria-hidden
-      />
-      <footer className="absolute inset-x-0 bottom-[calc(1.5rem+var(--safe-bottom))] flex flex-col items-center gap-1 px-6">
-        <p className="hud-label text-center text-balance text-white/70 sm:tracking-[0.2em]">
-          {GAME_COPYRIGHT}
-        </p>
-        <p className="hud-label text-center text-white/50">
-          Keyboard · Gamepad · Touch
-        </p>
-      </footer>
     </main>
   );
 }
