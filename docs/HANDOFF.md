@@ -2,6 +2,36 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-22 (4) — App icon: dropped the bevel frame, full-bleed photo instead
+
+Direct feedback on (3)'s icon: "that isn't aligning well with the app
+shape" — the beveled console-plate frame this session composited the
+photo into was a real bug, not a style question. iOS/Android already apply
+their own shape mask (squircle, adaptive icon, circle) to whatever a PWA
+icon PNG contains, so drawing a *second* rounded-rect-plus-border in the
+PNG itself produced two frames stacked with different, unaligned corner
+radii — visibly wrong regardless of device.
+
+- `scripts/generate-icons.mjs`'s `photoIconSvg` no longer calls
+  `plateFrame()` (the medal's beveled-plate helper) at all — full-bleed
+  photo on a background-filled canvas, no border, no bevel stroke. The
+  medal mark (`iconSvg`, default `pnpm run gen:icons` with no `--photo`
+  flag) is untouched — that frame is deliberate chrome around an abstract
+  mark, not a mismatch, and still looks right.
+- New `PHOTO_TARGETS`, separate from the medal's `TARGETS`: scale 1
+  (true full-bleed) for icon-192/icon-512/apple-touch-icon/favicon-32.
+  Maskable keeps its scale-0.62 inset — that one's a real functional need
+  (Android's safe-zone crop), not decoration, so it's still there, just
+  with no border/bevel drawn around the inset photo, only plain background
+  color showing through the margin.
+- Regenerated all five PNGs the same way as (3) — Matthew's live
+  `photo_url` via curl, source photo not committed (character-assets/
+  reference-photos/ gitignore convention).
+
+Verified: lint, typecheck, 164 tests, production build all green; looked
+at all five sizes again, not just 512px — no visible frame or misalignment
+at any of them now.
+
 ## 2026-08-22 (3) — Bespoke per-player victory prompts, Tyler excluded, app icon is Matthew's headshot
 
 Follow-up on the same day's victory-clip work, after direct feedback that
