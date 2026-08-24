@@ -105,7 +105,7 @@ export function AppNav() {
     ? assignPlayerColors(
         [...players]
           .sort((a, b) => a.id.localeCompare(b.id))
-          .map((p) => ({ id: p.id, state: p.state ?? "" })),
+          .map((p) => ({ id: p.id, state: p.state ?? "", name: p.name })),
         "dark",
       )
     : {};

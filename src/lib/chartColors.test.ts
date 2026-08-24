@@ -64,3 +64,41 @@ describe("assignPlayerColors", () => {
     }
   });
 });
+
+describe("pinned colours", () => {
+  it("gives Josh green and Matthew violet regardless of roster order", () => {
+    const roster = [
+      { id: "1", state: "AZ", name: "Andrew" },
+      { id: "2", state: "NY", name: "Josh" },
+      { id: "3", state: "CA", name: "Matthew" },
+      { id: "4", state: "TX", name: "Joe" },
+    ];
+    const colors = assignPlayerColors(roster, "dark");
+    expect(colors["2"]).toBe("#008300");
+    expect(colors["3"]).toBe("#9085e9");
+
+    // The whole point of the pin: removing another player must not move them.
+    const smaller = assignPlayerColors(roster.filter((p) => p.id !== "1"), "dark");
+    expect(smaller["2"]).toBe("#008300");
+    expect(smaller["3"]).toBe("#9085e9");
+  });
+
+  it("matches the pin case-insensitively and never double-assigns a slot", () => {
+    const colors = assignPlayerColors(
+      [
+        { id: "1", state: "NY", name: "JOSH" },
+        { id: "2", state: "NY", name: "Matthew" },
+        { id: "3", state: "NY", name: "Sam" },
+      ],
+      "dark",
+    );
+    expect(colors["1"]).toBe("#008300");
+    expect(colors["2"]).toBe("#9085e9");
+    expect(new Set(Object.values(colors)).size).toBe(3);
+  });
+
+  it("leaves everyone unpinned when no names are supplied", () => {
+    const colors = assignPlayerColors([{ id: "1", state: "NY" }], "dark");
+    expect(colors["1"]).toBeDefined();
+  });
+});

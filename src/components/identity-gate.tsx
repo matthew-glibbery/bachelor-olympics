@@ -6,8 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 
-/** Routes that ARE the identity flow itself — never redirected away from. */
-const EXEMPT_PATHS = new Set(["/start", "/select"]);
+/** Routes never redirected away from — the identity flow, plus /debug. */
+const EXEMPT_PATHS = new Set([
+  "/start",
+  "/select",
+  // Not part of the identity flow, but exempt for the same practical
+  // reason: /debug (src/app/debug/page.tsx) exists to be opened on a phone
+  // to measure the viewport, and bouncing it to /start would measure the
+  // wrong screen. It's unlinked and read-only.
+  "/debug",
+]);
 
 /**
  * App-wide gate: until this device has picked who it's acting as (see

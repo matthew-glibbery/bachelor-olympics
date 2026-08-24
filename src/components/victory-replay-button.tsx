@@ -9,7 +9,7 @@ import { eventWinnerIds } from "@/lib/scoring/eventWinner";
 import type { EventResultRow, EventRow, PlayerRow } from "@/lib/data/database.types";
 
 /**
- * "Replay" button on a resolved event's card (docs/VISUAL_SPEC.md →
+ * "Victory video" button on a resolved event's card (docs/VISUAL_SPEC.md →
  * Victory videos) — plays the winning player's one-per-player victory clip.
  * Renders nothing if the event isn't resolved, has no winner yet, or the
  * winner has no victory clip uploaded.
@@ -39,7 +39,7 @@ export function VictoryReplayButton({
     <Dialog open={open} onOpenChange={setOpen}>
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
         <Trophy className="size-4" />
-        Replay
+        Victory video
       </Button>
       <DialogContent
         showCloseButton={false}

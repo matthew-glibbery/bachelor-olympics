@@ -77,7 +77,7 @@ export default function SelectPage() {
   // on-screen rank).
   const stable = useMemo(() => [...players].sort((a, b) => a.id.localeCompare(b.id)), [players]);
   const colorByPlayer = useMemo(
-    () => assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark"),
+    () => assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "", name: p.name })), "dark"),
     [stable],
   );
   const numberByPlayer = useMemo(() => {
@@ -142,12 +142,13 @@ export default function SelectPage() {
   const focused = players[index] ?? null;
 
   return (
-    // Fixed and pinned to the top: this screen is tuned to fit exactly one
-    // screen (roster at top, "Let's go" at the bottom, no scroll). Height
-    // comes from `--app-height` rather than the viewport, so an installed
-    // iOS PWA that under-reports its viewport still fills the real screen —
-    // see layout.tsx's status-bar note and src/components/viewport-floor.tsx.
-    <main className="fixed inset-x-0 top-0 flex h-[var(--app-height)] flex-col overflow-hidden">
+    // `fixed inset-0` with a `--app-height` floor: this screen is tuned to
+    // fit exactly one screen (roster at top, "Let's go" at the bottom, no
+    // scroll). `inset-0` sizes it to the reported viewport; the floor
+    // extends it when an installed iOS PWA under-reports that — see
+    // layout.tsx's status-bar note and src/components/viewport-floor.tsx
+    // for why both are here rather than either alone.
+    <main className="fixed inset-0 flex min-h-[var(--app-height)] flex-col overflow-hidden">
       <Starfield className="opacity-60" />
 
       <div className="relative flex min-h-0 flex-1 flex-col gap-3 px-4 pt-[calc(1rem+var(--safe-top))] pb-[calc(1rem+var(--safe-bottom))] sm:gap-4 sm:px-8">

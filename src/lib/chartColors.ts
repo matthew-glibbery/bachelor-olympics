@@ -74,9 +74,36 @@ const STATE_HUE_FAMILY: Partial<Record<string, SlotHue>> = {
   SC: "blue", // indigo field, white palmetto and crescent
 };
 
+/**
+ * Colours pinned to a specific person, by first name (case-insensitive).
+ *
+ * Everything below this is assigned by flag preference then by fixed slot
+ * order, which means a player's colour depends on who ELSE is in the roster:
+ * removing someone shifts every unpinned player after them onto a different
+ * slot. That happened for real on 2026-08-24 — a player was removed and the
+ * field changed colour — and these two were pinned back by explicit request
+ * (Josh to the green slot, #008300; Matthew to the violet slot, #9085e9).
+ *
+ * Keyed by name rather than player id on purpose: a player deleted and
+ * re-added gets a new id but the same name, and re-adding someone is exactly
+ * the situation that shuffled the colours in the first place. The trade-off
+ * is that two players sharing a first name would both claim the pin — the
+ * second one loses the race and falls through to normal assignment, same as
+ * any other collision.
+ *
+ * These are slots in the existing validated palette, not new hex values, so
+ * the CVD/contrast work behind that palette still holds.
+ */
+const PINNED_SLOTS: Record<string, SlotHue> = {
+  josh: "green",
+  matthew: "violet",
+};
+
 export interface ChartPlayer {
   id: string;
   state: string;
+  /** First name, used only for PINNED_SLOTS. Optional — unpinned without it. */
+  name?: string;
 }
 
 /** Deterministic playerId -> hex color, using `mode`'s validated hex set. */
@@ -88,10 +115,22 @@ export function assignPlayerColors(
   const used = new Set<SlotHue>();
   const slotByPlayerId: Record<string, SlotHue> = {};
 
+  // Pass 0: pinned players claim their slot before anything else can take
+  // it — a pin is an explicit instruction, so it outranks both a flag
+  // preference and fixed-order fallback.
+  for (const player of players) {
+    const pinned = player.name ? PINNED_SLOTS[player.name.trim().toLowerCase()] : undefined;
+    if (pinned && !used.has(pinned)) {
+      used.add(pinned);
+      slotByPlayerId[player.id] = pinned;
+    }
+  }
+
   // Pass 1: let every flag-matched player claim their preferred slot first —
   // otherwise a no-preference player processed earlier could grab it via
   // fallback before the player it actually means something for gets a turn.
   for (const player of players) {
+    if (slotByPlayerId[player.id]) continue;
     const preferred = STATE_HUE_FAMILY[player.state.toUpperCase()];
     if (preferred && !used.has(preferred)) {
       used.add(preferred);
