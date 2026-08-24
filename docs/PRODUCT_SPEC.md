@@ -68,28 +68,55 @@ Two scoring modes, chosen per event:
 
 - **Placement-based** (used for judged or head-to-head events): points follow
   an exponential decay curve so first place is worth meaningfully more than a
-  close second, but last place still isn't zero:
+  close second, but last place still isn't zero, and every value on it is a
+  round number:
 
   | Place | 1   | 2  | 3  | 4  | 5  | 6  | 7  | 8  |
   |-------|-----|----|----|----|----|----|----|----|
-  | Points| 100 | 72 | 52 | 37 | 27 | 19 | 14 | 10 |
+  | Points| 100 | 70 | 50 | 35 | 25 | 20 | 15 | 10 |
 
-  Formula: `points = 100 * 0.72^(place - 1)`. Keep this as a formula, not a
-  hardcoded table, in case the event count changes. The final awarded value is
-  rounded to the nearest whole number — scores should read as clean numbers,
-  not decimals like 51.8. This can drift the total-points-awarded invariant by
-  a point or so, which is accepted as negligible next to the 70-130 point gaps
-  `simulation-notes.md` found between finishers.
+  Formula: `points = round_to_nearest_5(100 * 0.72^(place - 1))`, with a floor
+  of 5 so a very deep field never awards zero. Keep this as a formula, not a
+  hardcoded table, in case the event or player count changes.
+
+  The snap to multiples of 5 is a deliberate decision (2026-08-24, direct
+  product feedback: "I'd prefer the scores for each position to be a round
+  number like 50 rather than 52"). The curve itself is unchanged — these are
+  its own values rounded — so the shape, the 1st-place premium and the
+  relative gaps all still hold; a scoreboard of 100/70/50 is simply legible in
+  a way that 100/72/52 is not. **With 7 players, last place is worth 15.**
+  The rerun in `simulation-notes.md` confirms this did not move the overall-bet
+  payout: the finishing gaps this curve produces are within a point or two of
+  the old one's.
+
+  Ties are the one place a non-multiple-of-5 can appear: the pooled places are
+  split evenly and then rounded to a whole number (see Ties below), because
+  forcing a tie share onto a multiple of 5 would distort the split rather than
+  just present it. Fractional points are never awarded.
 
 - **Absolute-score-based** (used where there's a real measurable result, e.g.
-  golf strokes, a timed event): scale the best performance in the group to
-  100 points, then scale everyone else proportionally to how close their raw
-  result was to the best one — not just by rank. A blowout should look like a
-  blowout in the points. **Rounded to the nearest whole number**, same as
-  placement scoring — an earlier version of this spec argued against
-  rounding here to preserve close-result detail, but the product decision
-  is now that no scoring currency in this app ever shows a fraction,
-  full stop.
+  golf strokes, a timed event): scale the field onto **the same range a
+  placement event spans**. The best raw result is worth 100; the worst raw
+  result is worth exactly what last place is worth on the placement curve for
+  a field that size (15 with 7 players); everyone else lands proportionally to
+  where their raw result fell between those two. A blowout still looks like a
+  blowout, because the spacing follows the raw numbers rather than the
+  ranking. **Rounded to the nearest whole number**, same as placement scoring
+  — an earlier version of this spec argued against rounding here to preserve
+  close-result detail, but the product decision is now that no scoring
+  currency in this app ever shows a fraction, full stop.
+
+  This replaced a "ratio to the best result" rule (2026-08-24, direct product
+  feedback), under which everyone scored `100 × raw / best`. That version left
+  the bottom of the range undefined and metric-dependent, and it made absolute
+  events quietly worth more than placement ones: a golf field of 40-60 strokes
+  compressed into 100-67, so *last place at golf outscored 3rd place at
+  everything else*. Pegging both ends puts every event on the same scale.
+
+  Edge cases follow from that framing: a field where every raw result is
+  identical is a tie for every place at once, so it resolves like any other
+  tie (pool all the places, split evenly) rather than paying everyone 100; a
+  single scored player is simply the best result there was, and gets 100.
 
 - **Ties**: if two or more players tie a placement, sum the point values for
   all the places they're tying across (e.g. 2nd + 3rd) and split evenly

@@ -24,17 +24,27 @@ import { useEffect } from "react";
  *   - portrait only (`innerWidth === screen.width`) — iOS does not swap
  *     `screen.width`/`screen.height` on rotation, so in landscape the two
  *     axes aren't comparable and the measurement is meaningless;
- *   - only ever as a floor, and only up to a sane margin (a shortfall
- *     larger than the tallest plausible status bar means something other
- *     than this bug is going on, and stretching the page would make it
- *     worse rather than better).
+ *   - only ever as a floor, and never by an absurd amount (see
+ *     MAX_CORRECTION).
  *
  * Everywhere else `--app-height` keeps its `100dvh` default from
  * globals.css, so browsers and Android are untouched by any of this.
  */
 
-/** Largest shortfall we'll attribute to the status-bar overlap (CSS px). */
-const MAX_CORRECTION = 80;
+/**
+ * Largest shortfall we'll correct, as a fraction of the screen.
+ *
+ * This started life as a flat 80px, sized as "the tallest plausible status
+ * bar" — which was wrong, and is the likeliest reason the first version of
+ * this fix didn't take: the shortfall reported on a notched iPhone can span
+ * the status bar AND the home-indicator area together (roughly 54 + 34 =
+ * 88px), so the guard rejected the exact case it was written for. In
+ * standalone mode there is no browser chrome for the viewport to be
+ * legitimately short by, so any positive shortfall is this bug; the cap
+ * exists only to refuse a nonsensical measurement, not to second-guess a
+ * plausible one.
+ */
+const MAX_CORRECTION_RATIO = 0.25;
 
 export function ViewportFloor() {
   useEffect(() => {
@@ -49,8 +59,9 @@ export function ViewportFloor() {
 
       const portrait = window.innerWidth === window.screen.width;
       const shortfall = window.screen.height - window.innerHeight;
+      const maxCorrection = window.screen.height * MAX_CORRECTION_RATIO;
 
-      if (standalone && portrait && shortfall > 0 && shortfall <= MAX_CORRECTION) {
+      if (standalone && portrait && shortfall > 0 && shortfall <= maxCorrection) {
         root.style.setProperty("--app-height", `${window.screen.height}px`);
       } else {
         root.style.removeProperty("--app-height");

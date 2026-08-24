@@ -12,6 +12,7 @@ import { GameScreen } from "@/components/n64/game-screen";
 import { useGameInput } from "@/hooks/use-game-input";
 import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
+import { useSettleStrandedBets } from "@/hooks/use-settle-stranded-bets";
 import { useSessionStore } from "@/store/sessionStore";
 import { deriveScoreLines, upcomingCatchUp } from "@/lib/scoring/fromRows";
 import { bettingReserve } from "@/lib/betting/reserve";
@@ -84,6 +85,10 @@ function EventsPageInner() {
     hydrate();
     connect();
   }, [hydrate, connect]);
+
+  // Repair path for bets stranded "open" on an already-resolved event —
+  // see the hook for why that happened and why it's safe here.
+  useSettleStrandedBets(ready);
 
   const playerIds = players.map((p) => p.id);
 

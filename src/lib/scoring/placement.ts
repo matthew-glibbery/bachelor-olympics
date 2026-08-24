@@ -2,25 +2,39 @@
  * Placement-based scoring (PRODUCT_SPEC.md → Scoring).
  *
  * Points follow an exponential decay so first place is worth meaningfully more
- * than a close second, but last place still isn't zero:
+ * than a close second, but last place still isn't zero, snapped to the
+ * nearest 5:
  *
- *   points = 100 * 0.72^(place - 1)
+ *   points = round_to_5(100 * 0.72^(place - 1))
  *
- * | Place | 1   | 2  | 3    | 4    | 5    | 6    | 7    | 8  |
- * | Points| 100 | 72 | 51.8 | 37.3 | 26.9 | 19.3 | 13.9 | 10 |
+ * | Place | 1   | 2  | 3  | 4  | 5  | 6  | 7  | 8  |
+ * | Points| 100 | 70 | 50 | 35 | 25 | 20 | 15 | 10 |
+ *
+ * The snapping is a deliberate product decision (2026-08-24): the underlying
+ * curve is unchanged — these are exactly its own values rounded — but a
+ * scoreboard reading 100 / 70 / 50 is legible at a glance in a way that
+ * 100 / 72 / 51.8 is not, and every value a player sees is now a number they
+ * can add up in their head. The floor keeps a very deep field from awarding
+ * zero; past about 10th place the curve flattens onto it, which is well
+ * outside this game's 7-8 player field.
  *
  * Kept as a formula, not a table, so it survives a change in event/field count.
  */
 
 export const PLACEMENT_BASE = 100;
 export const PLACEMENT_DECAY = 0.72;
+/** Every place's value snaps to a multiple of this. */
+export const PLACEMENT_STEP = 5;
+/** No place is ever worth less than this, however deep the field. */
+export const PLACEMENT_FLOOR = 5;
 
 /** Raw points for a given finishing place (1-indexed). */
 export function placementPoints(place: number): number {
   if (place < 1 || !Number.isFinite(place)) {
     throw new Error(`placementPoints: place must be >= 1, got ${place}`);
   }
-  return PLACEMENT_BASE * Math.pow(PLACEMENT_DECAY, place - 1);
+  const exact = PLACEMENT_BASE * Math.pow(PLACEMENT_DECAY, place - 1);
+  return Math.max(PLACEMENT_FLOOR, Math.round(exact / PLACEMENT_STEP) * PLACEMENT_STEP);
 }
 
 /** A single player's finishing position for an event. Equal `position` = tie. */
@@ -41,13 +55,12 @@ export interface PlacementEntry {
  * point values for all the places they span, evenly. E.g. two players tied for
  * 2nd occupy places 2 and 3, so each gets (pts(2) + pts(3)) / 2.
  *
- * The final awarded share is rounded to the nearest whole number — scores
- * should read as clean, full numbers rather than decimals like 51.8. This is
- * done on the tie-split share, not the underlying curve, so ties still split
- * fairly in continuous space before the one rounding step at the end. It can
- * shift the total-points-awarded invariant by a point or so versus the raw
- * curve sum — accepted as negligible against the 70-130 point gaps
- * docs/simulation-notes.md found between finishers across a full event.
+ * The places being pooled are already snapped to multiples of 5, so an
+ * even-sized tie usually lands on a round number too (2nd+3rd = 70+50, so
+ * 60 each). An odd split can still land on a half — (50+35)/2 = 42.5 — and
+ * is rounded to the nearest whole number there, because a tie is the one
+ * case where insisting on multiples of 5 would have to distort the split
+ * itself rather than just present it. Fractional points are never awarded.
  */
 export function scorePlacement(entries: PlacementEntry[]): Map<string, number> {
   const points = new Map<string, number>();

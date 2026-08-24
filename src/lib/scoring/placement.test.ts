@@ -2,11 +2,22 @@ import { describe, expect, it } from "vitest";
 import { placementPoints, scorePlacement } from "./placement";
 
 describe("placementPoints", () => {
-  it("matches the spec's worked table (to 1 decimal)", () => {
-    const expected = [100, 72, 51.8, 37.3, 26.9, 19.3, 13.9, 10];
+  it("matches the spec's worked table", () => {
+    const expected = [100, 70, 50, 35, 25, 20, 15, 10];
     expected.forEach((pts, i) => {
-      expect(placementPoints(i + 1)).toBeCloseTo(pts, 1);
+      expect(placementPoints(i + 1)).toBe(pts);
     });
+  });
+
+  it("awards every place a multiple of 5, never zero, never increasing", () => {
+    let previous = Infinity;
+    for (let place = 1; place <= 20; place++) {
+      const points = placementPoints(place);
+      expect(points % 5).toBe(0);
+      expect(points).toBeGreaterThan(0);
+      expect(points).toBeLessThanOrEqual(previous);
+      previous = points;
+    }
   });
 
   it("rejects places below 1", () => {
@@ -15,15 +26,15 @@ describe("placementPoints", () => {
 });
 
 describe("scorePlacement", () => {
-  it("awards straight places with no ties, rounded to whole numbers", () => {
+  it("awards straight places with no ties, on the round-number curve", () => {
     const result = scorePlacement([
       { playerId: "a", position: 1 },
       { playerId: "b", position: 2 },
       { playerId: "c", position: 3 },
     ]);
     expect(result.get("a")).toBe(100);
-    expect(result.get("b")).toBe(72);
-    expect(result.get("c")).toBe(52); // 51.84 rounds up
+    expect(result.get("b")).toBe(70);
+    expect(result.get("c")).toBe(50);
   });
 
   it("every awarded value is a whole number", () => {

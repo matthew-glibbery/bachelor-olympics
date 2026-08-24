@@ -27,7 +27,7 @@ reasoning behind one specific decision.
 The app is **built, deployed, and in genuine live use** — this is not a
 prototype. Treat the live Supabase project as production.
 
-- `main` is `3e8fdbc`. Lint, typecheck, **174 tests**, and build all green.
+- Lint, typecheck, **192 tests**, and build all green.
 - Seven routes: `/` (leaderboard), `/start`, `/select`, `/events`,
   `/multipliers`, `/bets`, `/setup`.
 - **All 13 migrations are applied to the live project** — verified
@@ -35,9 +35,10 @@ prototype. Treat the live Supabase project as production.
   `character_confirm_video_url` present, 0013's `character_portrait_url`
   gone). This closes the "0012/0013 not yet confirmed run" caveat that had
   been open in the 2026-08-15 entry.
-- Real data: **as of 2026-08-24 the weekend has been reset** — 7 players
-  with their character art, all 8 events back to "planned", and no results,
-  multipliers or bets at all. (It previously held a partly-played weekend.)
+- Real data: **as of 2026-08-24 the weekend has been reset (twice)** — 7
+  players with their character art, all 8 events back to "planned", and no
+  results, multipliers or bets at all. The user resets deliberately to
+  re-test, so expect this state and don't read it as data loss.
   Anything that only renders once there are scores — the leaderboard, the
   progress chart, the bet editors — now comes up empty against live data,
   so UI work on those screens needs a temporary local mock (see the
@@ -45,30 +46,30 @@ prototype. Treat the live Supabase project as production.
 
 ### The one thing waiting on a human
 
-**The iOS PWA status-bar change is shipped but UNCONFIRMED on a device.**
-(2026-08-24 entry below.)
+**The iOS PWA fullscreen fix is shipped but UNCONFIRMED on a device.**
+(2026-08-24 (2) entry below.)
 
-The story so far, in order: `black-translucent` gave a dead-space gap at
-the *bottom* of `/start` and `/select` → changed to `black` (#53), which
-fixed the bottom and was confirmed fixed by the user → but `black` puts an
-opaque band across the *top* of every screen, so the boot video stopped
-being full-screen and neither content nor starfield painted through it →
-now back to `black-translucent`, with the bottom gap addressed directly
-instead by `--app-height` / `src/components/viewport-floor.tsx` (reads
-`window.screen.height`, the one height available that isn't a viewport
-reading, and only in a standalone portrait PWA with a sub-80px shortfall).
+The story so far, in order: `black-translucent` gave a gap at the *bottom*
+of `/start` and `/select` → switching to `black` fixed the bottom (confirmed
+by the user) but put an opaque band across the *top* of every screen →
+back to `black-translucent`, with the bottom handled by `--app-height` /
+`src/components/viewport-floor.tsx` → the top is now confirmed right, the
+bottom came back, because the same change had also dropped `inset-0` in
+favour of a bare `100dvh` height and the floor's 80px guard was too small
+to fire. Both fixed.
 
-Two things a new session must know:
+Three things a new session must know:
 
 1. **iOS caches `apple-*` meta tags at the moment the icon is added to the
    home screen.** The user has to *delete and re-add* the home-screen icon
-   or this change does nothing for them. If they report "still broken,"
-   confirm they did that before anything else.
-2. **If a gap survives a clean re-install, stop guessing.** Ask for a
-   screenshot/recording and the iOS version, and get the numbers
-   `viewport-floor.tsx` is working from (`innerHeight`, `screen.height`,
-   `display-mode`) rather than proposing a fifth theory. The 2026-08-23
-   entries below record what has already been ruled out.
+   or a `layout.tsx` change does nothing. Confirm they did that first.
+2. **Get the numbers before theorising.** `/debug` (unlinked route) prints
+   `screen` vs `innerHeight` vs `visualViewport` vs a real `fixed inset-0`
+   probe, with a verdict banner and a copy button. Ask for that readout
+   from inside the installed app. Six attempts have now been made without
+   one; do not make a seventh.
+3. The bug does not reproduce in Safari, in a browser tab, or in headless
+   Chrome — all three report a correct viewport.
 
 ### How to actually verify UI work
 
@@ -1084,6 +1085,88 @@ production build behind headless Chrome.
   from the manifest anyway; no install prompt UI; no left/right safe-area
   padding on the page gutters (the app is portrait-locked, where those
   insets are 0).
+
+## 2026-08-24 (2) — Fullscreen round two, bet-settlement bug, scoring re-cut for 7 players
+
+Batch after the reset the user did to re-test. The status-bar fix from (1)
+worked — the top is right throughout the app — but the bottom gap came back
+on `/start` and `/select`. Everything else here is a separate ask. 192 tests
+(+18), lint/typecheck/build green.
+
+- **The bottom gap was partly self-inflicted.** (1) changed those two
+  screens from `fixed inset-0` to `fixed top-0 h-[var(--app-height)]`, so
+  when `ViewportFloor`'s guard didn't fire they fell back to plain `100dvh`
+  — strictly worse than the `inset-0` they replaced. Both are back to
+  `fixed inset-0` **with** `min-h-[var(--app-height)]`: `inset-0` for the
+  reported viewport, the floor for when we believe that report is short.
+  Keep both; either alone has a failure mode.
+- **The floor's own guard was also wrong.** `MAX_CORRECTION` was a flat
+  80px, sized as "the tallest plausible status bar" — but the shortfall on a
+  notched iPhone plausibly spans the status bar *and* the home indicator
+  (~54 + 34 = 88px), so the guard rejected exactly the case it existed for.
+  Now a ratio (25% of screen height); in standalone there's no browser
+  chrome for a viewport to be legitimately short by, so the cap only exists
+  to refuse a nonsensical measurement.
+- **New `/debug` route** (`src/app/debug/page.tsx`, unlinked, exempt in
+  `IdentityGate`) — the standing "stop guessing, get numbers" advice, made
+  actionable. Prints `screen` vs `innerHeight` vs `visualViewport` vs a real
+  `fixed inset-0` probe, a green/red verdict banner, a copy button, and a
+  red hairline pinned to the bottom of a fixed box so any dead band below it
+  is visible. **If a seventh attempt is ever needed, ask for this readout
+  first.**
+- **Real bug: per-event bets on absolute-scored events never settled.**
+  `event-card.tsx` guarded settlement with `if (isPlacement)`, and
+  `resolvePerEventBets` read `position` straight off the results — which is
+  null for every absolute event. So a winning bet on the golf stayed "open"
+  forever with the stake escrowed, which is exactly what the user reported.
+  Fixes: new `finishingPositions()` (`src/lib/scoring/finishingPositions.ts`)
+  derives competition-ranked positions for BOTH modes; `resolvePerEventBets`
+  takes the event row and uses it; the `isPlacement` guard is gone. Plus
+  `settleStrandedPerEventBets()` — a repair sweep for bets already stranded
+  (nothing in the normal flow ever revisits a resolved event), run once per
+  visit to `/events` and `/bets` via `useSettleStrandedBets`. It is
+  idempotent and reads only final data. **New wiring tests**
+  (`src/lib/data/settleStranded.test.ts`) over a stubbed Supabase client —
+  the pure math was always right and always tested; the plumbing was what
+  broke, so it's what's tested now.
+- **Scoring re-cut for 7 players, round numbers** (explicit ask). The
+  placement curve now snaps to multiples of 5 with a floor of 5: **100, 70,
+  50, 35, 25, 20, 15** (and 10 for an 8th place). Same 0.72 decay, same
+  shape — these are literally its own values rounded. `simulation-notes.md`
+  says to rerun when the curve or player count changes, and both did:
+  20,000 runs say the finishing gaps move by ~2 points, so **the 100-point
+  overall-bet payout stands unchanged**. Rerun table is in that file.
+- **Absolute scoring now spans the same range as placement**: best = 100,
+  worst = `placementPoints(fieldSize)` (15 with 7), everyone else
+  proportional to where their raw result fell between. The old "ratio to
+  best" rule left the bottom of the range metric-dependent and made
+  absolute events worth more than placement ones — a golf field of 40-60
+  strokes compressed into 100-67, so last place at golf beat 3rd place
+  everywhere else. An all-identical field is now treated as a full tie
+  rather than paying everyone 100. `PRODUCT_SPEC.md` updated for both
+  scoring changes (deliberate reversals, recorded as such).
+- **Player colours can be pinned by name** (`chartColors.ts`): Josh →
+  green `#008300`, Matthew → violet `#9085e9`, claimed in a new pass before
+  flag preference and fallback. Removing a player used to shift every
+  unpinned player onto a different slot, which is what happened. Keyed by
+  name, not id, precisely because deleting and re-adding someone is the
+  situation that shuffles them. `assignPlayerColors` callers all pass
+  `name` now.
+- **Multipliers page shows the projected position** per event ("PROJ 3RD"
+  badge, `MultiplierBar`), from the groom's per-event ranking. Not a secret
+  — the same ranking is already public, in order, on each event's Odds tab.
+- **"Replay" → "Victory video"** on the resolved-event card.
+- **Verification**: live project is reset (7 players, all events planned, no
+  results/bets), so the scoring, colour and multiplier screens were
+  screenshotted against a temporary `gameStore` mock — reverted before
+  committing, `grep MOCK_SCORES` clean. Confirmed on screen: the absolute
+  event scoring 100/86/72/58/43/29/15, Josh green and Matthew violet, the
+  PROJ badge on every multiplier row, "Victory video" on the event card,
+  `/debug` reading correctly. `check-overflow` clean at 390px. **Nothing
+  was written to live data.** The stranded-bet sweep is proven by unit test
+  against a stubbed client, not against the live database — there are no
+  live bets to repair right now, and manufacturing one would pollute the
+  user's own test state.
 
 ## 2026-08-24 — iOS PWA top gap: status bar goes translucent again, plus four UI fixes
 

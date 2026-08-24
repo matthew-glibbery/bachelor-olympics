@@ -29,15 +29,20 @@ const PROMPT_DELAY_MS = 1500;
  *   2. The starfield (src/components/n64/starfield.tsx) — always renders,
  *      so the screen never depends on an uploaded asset to look finished.
  *
- * `main` is fixed and pinned to the top rather than `min-h-dvh`:
- * `min-height` only sets a floor, so the boot video could stop short of the
- * true screen edge. Its height is `--app-height` — `100dvh` everywhere
- * except an installed iOS PWA whose viewport under-reports the screen,
- * where `ViewportFloor` (src/components/viewport-floor.tsx) substitutes the
- * real screen height. That is the one measurement that isn't itself a
- * viewport reading, which is what an earlier `window.visualViewport`
- * attempt got wrong: it measured the same short number very precisely.
- * Nothing else on this screen should try to size itself from the viewport.
+ * `main` is `fixed inset-0` with a `--app-height` FLOOR — both, deliberately,
+ * because the two cover different failure modes and neither is redundant:
+ * `inset-0` pins it to whatever the browser says the viewport is, and the
+ * `min-height` extends it when we have reason to believe the browser is
+ * under-reporting (an installed iOS PWA — see viewport-floor.tsx, which
+ * derives that height from `window.screen`, the one source that isn't
+ * itself a viewport reading). An earlier version used `height:
+ * var(--app-height)` ALONE, dropping `inset-0`, which meant a screen where
+ * the floor didn't apply fell back to plain `100dvh` — strictly worse than
+ * the `inset-0` it replaced. Keep both.
+ *
+ * Every background layer below is `absolute inset-0`, so it stretches to
+ * whichever of the two won: an absolutely-positioned child resolves against
+ * the parent's used height, min-height included.
  */
 export default function StartPage() {
   const router = useRouter();
@@ -112,7 +117,7 @@ export default function StartPage() {
   return (
     <main
       onClick={skipOrStart}
-      className="fixed inset-x-0 top-0 flex h-[var(--app-height)] cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
+      className="fixed inset-0 flex min-h-[var(--app-height)] cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
     >
       {bootVideoUrl ? (
         <video

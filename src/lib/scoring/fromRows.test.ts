@@ -36,7 +36,7 @@ describe("deriveScoreLines", () => {
     const p2 = lines.find((l) => l.playerId === "p2")!;
     expect(p1.points).toBeCloseTo(100, 5);
     expect(p1.multiplier).toBe(1.5);
-    expect(p2.points).toBeCloseTo(72, 5);
+    expect(p2.points).toBeCloseTo(70, 5);
     expect(p2.multiplier).toBe(1.0); // default, no row present
   });
 
@@ -55,8 +55,10 @@ describe("deriveScoreLines", () => {
       { event_id: "golf", player_id: "p2", position: null, raw: 60 },
     ];
     const lines = deriveScoreLines(events, results, [], ["p1", "p2"]);
+    // Best round pins to 100, worst to what last place is worth in a
+    // two-strong field (placementPoints(2) = 70).
     expect(lines.find((l) => l.playerId === "p1")!.points).toBeCloseTo(100, 5);
-    expect(lines.find((l) => l.playerId === "p2")!.points).toBeCloseTo(50, 5);
+    expect(lines.find((l) => l.playerId === "p2")!.points).toBeCloseTo(70, 5);
   });
 
   it("skips events that are not resolved", () => {

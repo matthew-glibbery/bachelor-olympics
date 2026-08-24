@@ -123,7 +123,7 @@ export function EventCard({
   // color here always matches their rank badge/chart line elsewhere.
   const colorByPlayer = useMemo(() => {
     const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
-    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
+    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "", name: p.name })), "dark");
   }, [players]);
   // Once results exist, show players in the order they actually finished —
   // position ascending for placement events, raw value ordered by
@@ -272,9 +272,13 @@ export function EventCard({
       await upsertEventResults(client, event.id, entries);
       if (finalize) {
         await setEventStatus(client, event.id, "resolved");
-        if (isPlacement) {
-          await resolvePerEventBets(client, event.id, entries);
-        }
+        // Both scoring modes, not just placement. This used to be guarded by
+        // `if (isPlacement)`, which meant a winning bet on an absolute-scored
+        // event (the golf) never settled: it stayed "open" with the stake
+        // escrowed even after the result was in. resolvePerEventBets now
+        // takes the event itself and derives finishing positions from raw
+        // scores where there are no stored positions.
+        await resolvePerEventBets(client, event, entries);
         await settleOverallBetsIfWeekendOver(client);
         setEditing(false);
       }

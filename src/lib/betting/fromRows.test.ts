@@ -32,7 +32,7 @@ describe("eliminationField", () => {
     const p2 = field.find((f) => f.playerId === "p2")!;
 
     expect(p1.current).toBeCloseTo(100, 5);
-    expect(p2.current).toBeCloseTo(72, 5);
+    expect(p2.current).toBeCloseTo(70, 5);
     // One event left, same bounds for everyone regardless of current total.
     expect(p1.maxRemaining).toBe(p2.maxRemaining);
     expect(p1.minRemaining).toBe(p2.minRemaining);

@@ -207,6 +207,12 @@
     overscroll-behavior-y: none;
     /* Standalone iOS otherwise inflates text on rotation. */
     -webkit-text-size-adjust: 100%;
+    /* Belt and braces for the installed-PWA viewport bug (see
+       src/components/viewport-floor.tsx): if the web view ever hands us an
+       area the layout viewport doesn't cover, whatever is left over is
+       painted by the root element's own background. It reads as the app's
+       own backdrop rather than as a bare white or black band. */
+    background-color: var(--background);
   }
   body {
     @apply bg-background text-foreground;

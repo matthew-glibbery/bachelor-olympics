@@ -37,7 +37,8 @@ import { cn } from "@/lib/utils";
  * moving a pointer. Mouse/touch still work everywhere.
  */
 export default function MultipliersPage() {
-  const { players, events, multipliers, perEventBets, connect, ready } = useGameStore();
+  const { players, events, multipliers, eventRankings, perEventBets, connect, ready } =
+    useGameStore();
   const { selectedPlayerId, hydrate } = useSessionStore();
 
   useEffect(() => {
@@ -49,8 +50,19 @@ export default function MultipliersPage() {
 
   const colorByPlayer = useMemo(() => {
     const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
-    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
+    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "", name: p.name })), "dark");
   }, [players]);
+
+  // Where the groom's per-event ranking puts this player, per event — the
+  // "projected position" shown on each row. Absent until he ranks an event.
+  const projectedByEvent = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!selectedPlayerId) return map;
+    for (const row of eventRankings) {
+      if (row.player_id === selectedPlayerId) map.set(row.event_id, row.rank);
+    }
+    return map;
+  }, [eventRankings, selectedPlayerId]);
 
   const committed = useMemo(
     () =>
@@ -361,6 +373,7 @@ export default function MultipliersPage() {
                           value={value}
                           color={playerColor}
                           locked={locked}
+                          projectedPosition={projectedByEvent.get(e.id) ?? null}
                           onChange={(next) => {
                             // Never let a player go over budget — checked
                             // against the FULL hypothetical draft (every

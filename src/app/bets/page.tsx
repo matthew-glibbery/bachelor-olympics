@@ -12,6 +12,7 @@ import { PlacedBetsTable } from "@/components/placed-bets-table";
 import { WagerStepper } from "@/components/wager-stepper";
 import { Button } from "@/components/ui/button";
 import { useGameStore } from "@/store/gameStore";
+import { useSettleStrandedBets } from "@/hooks/use-settle-stranded-bets";
 import { useSessionStore } from "@/store/sessionStore";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -73,11 +74,15 @@ export default function BetsPage() {
     connect();
   }, [hydrate, connect]);
 
+  // Repair path for bets stranded "open" on an already-resolved event —
+  // see the hook for why that happened and why it's safe here.
+  useSettleStrandedBets(ready);
+
   const player = players.find((p) => p.id === selectedPlayerId);
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const colorByPlayer = useMemo(() => {
     const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
-    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
+    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "", name: p.name })), "dark");
   }, [players]);
 
   // Once any event leaves "planned," the weekend has effectively started —

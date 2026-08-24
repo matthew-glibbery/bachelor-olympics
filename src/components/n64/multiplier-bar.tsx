@@ -34,6 +34,14 @@ function indexOfValue(value: number): number {
   return Math.round((value - MULTIPLIER_MIN) / MULTIPLIER_STEP);
 }
 
+/** 1 -> "1st", 2 -> "2nd" … English ordinals, teens handled. */
+function ordinal(n: number): string {
+  const rest = n % 100;
+  if (rest >= 11 && rest <= 13) return `${n}th`;
+  const suffix = { 1: "st", 2: "nd", 3: "rd" }[n % 10] ?? "th";
+  return `${n}${suffix}`;
+}
+
 export type MultiplierBarProps = {
   label: string;
   value: number;
@@ -41,11 +49,28 @@ export type MultiplierBarProps = {
   color: string;
   /** Locked once the event starts being scored — see PRODUCT_SPEC. */
   locked?: boolean;
+  /**
+   * Where the groom's ranking for this event puts this player (1-indexed),
+   * or null if he hasn't ranked it. This is the single most useful thing to
+   * know while deciding where to spend multiplier — a 1.5 on an event you're
+   * projected to win is worth far more than a 1.5 on one you're projected to
+   * finish last in — and it isn't a secret: the same ranking is already
+   * public on each event's Odds tab, which lists the field in rank order.
+   */
+  projectedPosition?: number | null;
   onChange: (next: number) => void;
   className?: string;
 };
 
-export function MultiplierBar({ label, value, color, locked = false, onChange, className }: MultiplierBarProps) {
+export function MultiplierBar({
+  label,
+  value,
+  color,
+  locked = false,
+  projectedPosition = null,
+  onChange,
+  className,
+}: MultiplierBarProps) {
   const currentIndex = indexOfValue(value);
 
   function attempt(nextIndex: number) {
@@ -123,6 +148,17 @@ export function MultiplierBar({ label, value, color, locked = false, onChange, c
               redundant. */}
           {locked ? <Lock className="text-muted-foreground size-3 shrink-0" /> : null}
           <span className="truncate">{label}</span>
+          {projectedPosition != null ? (
+            // Abbreviated, because it shares a line with an event name that
+            // is already truncating on a phone. `title` carries the full
+            // wording for anyone unsure what it means.
+            <span
+              title={`Projected to finish ${ordinal(projectedPosition)} — the groom's ranking for this event`}
+              className="bevel-sunken text-muted-foreground shrink-0 rounded-sm px-1.5 py-0.5 text-[0.625rem] leading-none"
+            >
+              PROJ {ordinal(projectedPosition).toUpperCase()}
+            </span>
+          ) : null}
         </span>
         {/* The value rides beside the name on the stacked mobile layout and
             moves to the end of the row on `sm` — `sm:contents` drops this

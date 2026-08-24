@@ -85,7 +85,7 @@ export function OverallBetting({
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const colorByPlayer = useMemo(() => {
     const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
-    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
+    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "", name: p.name })), "dark");
   }, [players]);
 
   const myBets = useMemo(() => {

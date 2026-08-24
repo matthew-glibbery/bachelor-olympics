@@ -69,7 +69,7 @@ export function BonusEventsCard({
   // matches their rank badge/chart line elsewhere in the app.
   const colorByPlayer = useMemo(() => {
     const stable = [...players].sort((a, b) => a.id.localeCompare(b.id));
-    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "" })), "dark");
+    return assignPlayerColors(stable.map((p) => ({ id: p.id, state: p.state ?? "", name: p.name })), "dark");
   }, [players]);
 
   async function handleAward() {

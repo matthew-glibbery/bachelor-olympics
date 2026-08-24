@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveOpenPerEventBets } from "@/lib/betting/resolvePerEventBets";
 import { settleOverallBets } from "@/lib/betting/settleOverallBets";
 import { applyBonusAwards } from "@/lib/bonus/bonusEvent";
+import { finishingPositions } from "@/lib/scoring/finishingPositions";
 import { deriveScoreLines } from "@/lib/scoring/fromRows";
 import { standings } from "@/lib/scoring/total";
 import type {
@@ -480,9 +481,10 @@ export async function cancelPerEventBet(client: SupabaseClient, betId: string): 
  */
 export async function resolvePerEventBets(
   client: SupabaseClient,
-  eventId: string,
+  event: EventRow,
   finalResults: EventResultInput[],
 ): Promise<void> {
+  const eventId = event.id;
   const { data: openBets, error: betsError } = await client
     .from("per_event_bets")
     .select("*")
@@ -497,9 +499,19 @@ export async function resolvePerEventBets(
     .eq("event_id", eventId);
   if (rankingError) throw new Error(`resolvePerEventBets (read ranking): ${rankingError.message}`);
 
-  const finishingPositions = new Map(
-    finalResults.map((r) => [r.player_id, r.position ?? null]),
-  );
+  // Takes the whole event row, not just an id, because an absolute-scored
+  // event stores a raw measurement rather than a position — deriving "who
+  // won / who made the top 3" needs the scoring mode and lower_is_better.
+  // This used to read `r.position` straight off the results, which is null
+  // for every absolute event, so the caller guarded the whole call behind
+  // `if (isPlacement)` and bets on the golf never settled at all.
+  const positions = finishingPositions(event, [
+    ...finalResults.map((r) => ({
+      player_id: r.player_id,
+      position: r.position ?? null,
+      raw: r.raw ?? null,
+    })),
+  ]);
   const eventRanking = (rankingRows ?? []).map((r) => ({
     playerId: r.player_id as string,
     rank: r.rank as number,
@@ -512,7 +524,7 @@ export async function resolvePerEventBets(
       target: b.target,
       wager: b.wager,
     })),
-    finishingPositions,
+    positions,
     eventRanking,
   );
 
@@ -522,6 +534,62 @@ export async function resolvePerEventBets(
       .update({ status: outcome.status, payout: outcome.payout })
       .eq("id", outcome.id);
     if (error) throw new Error(`resolvePerEventBets (write ${outcome.id}): ${error.message}`);
+  }
+}
+
+/**
+ * Settle any per-event bet that is still "open" on an event that has
+ * already resolved.
+ *
+ * A repair path, not a normal one: the finalize flow settles bets as part of
+ * finalizing (resolvePerEventBets above). But bets placed on absolute-scored
+ * events were skipped entirely until 2026-08-24, and any bet stranded that
+ * way stays open forever — the wager escrowed, the payout never paid, on an
+ * event whose result is long since known. Nothing in the normal flow ever
+ * revisits a resolved event, so without this those bets need a manual
+ * database edit to clear.
+ *
+ * Safe to call on every load of the events screen: it reads nothing but
+ * already-final data, is a no-op when there is nothing stranded, and is
+ * deterministic — settling the same bet twice from the same results produces
+ * the same answer, and the second call finds no open bets anyway.
+ */
+export async function settleStrandedPerEventBets(client: SupabaseClient): Promise<void> {
+  const { data: openBets, error: betsError } = await client
+    .from("per_event_bets")
+    .select("*")
+    .eq("status", "open");
+  if (betsError) throw new Error(`settleStrandedPerEventBets (read bets): ${betsError.message}`);
+  if (!openBets || openBets.length === 0) return;
+
+  const strandedEventIds = [...new Set((openBets as PerEventBetRow[]).map((b) => b.event_id))];
+  const { data: eventRows, error: eventsError } = await client
+    .from("events")
+    .select("*")
+    .in("id", strandedEventIds)
+    .eq("status", "resolved");
+  if (eventsError) throw new Error(`settleStrandedPerEventBets (read events): ${eventsError.message}`);
+  if (!eventRows || eventRows.length === 0) return;
+
+  for (const event of eventRows as EventRow[]) {
+    const { data: resultRows, error: resultsError } = await client
+      .from("event_results")
+      .select("*")
+      .eq("event_id", event.id);
+    if (resultsError) {
+      throw new Error(`settleStrandedPerEventBets (read results): ${resultsError.message}`);
+    }
+    if (!resultRows || resultRows.length === 0) continue;
+
+    await resolvePerEventBets(
+      client,
+      event,
+      (resultRows as EventResultRow[]).map((r) => ({
+        player_id: r.player_id,
+        position: r.position,
+        raw: r.raw,
+      })),
+    );
   }
 }
 
