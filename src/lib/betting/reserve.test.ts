@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bettingReserve } from "./reserve";
+import { bettingReserve, resolvedBetsNet } from "./reserve";
 
 describe("bettingReserve", () => {
   it("with no allocations and no bets, the whole budget is available", () => {
@@ -45,5 +45,29 @@ describe("bettingReserve", () => {
     // but "available to wager" is never a sane negative number to show.
     const r = bettingReserve(8, 7.5, [{ wager: 1.0, status: "open", payout: null }]);
     expect(r.available).toBe(0);
+  });
+});
+
+describe("resolvedBetsNet", () => {
+  it("snaps a continuous payout down onto the 0.1 grid", () => {
+    // A real settled bet from the live project: 0.3 staked at ~5.2x.
+    const net = resolvedBetsNet([{ wager: 0.3, status: "won", payout: 1.5651093 }]);
+    expect(net).toBe(1.2);
+  });
+
+  it("agrees with what bettingReserve makes available", () => {
+    const bets = [{ wager: 0.3, status: "won" as const, payout: 1.5651093 }];
+    // Fully allocated across 8 events, so the winnings are all that's left.
+    const reserve = bettingReserve(8, 8, bets);
+    expect(reserve.available).toBeCloseTo(resolvedBetsNet(bets), 10);
+  });
+
+  it("is exactly -wager for a loss and 0 for a void", () => {
+    expect(resolvedBetsNet([{ wager: 0.3, status: "lost", payout: 0 }])).toBeCloseTo(-0.3, 10);
+    expect(resolvedBetsNet([{ wager: 0.3, status: "void", payout: 0.3 }])).toBe(0);
+  });
+
+  it("ignores open bets", () => {
+    expect(resolvedBetsNet([{ wager: 0.5, status: "open", payout: null }])).toBe(0);
   });
 });

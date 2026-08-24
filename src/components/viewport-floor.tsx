@@ -25,10 +25,15 @@ import { useEffect } from "react";
  *     `screen.width`/`screen.height` on rotation, so in landscape the two
  *     axes aren't comparable and the measurement is meaningless;
  *   - only ever as a floor, and never by an absurd amount (see
- *     MAX_CORRECTION).
+ *     MAX_CORRECTION_RATIO).
  *
- * Everywhere else `--app-height` keeps its `100dvh` default from
- * globals.css, so browsers and Android are untouched by any of this.
+ * Everywhere else `--app-height` keeps its CSS default from globals.css
+ * (`100dvh`, or `100lvh` in standalone), so browsers and Android are
+ * untouched by any of this.
+ *
+ * The measurement is exported separately from the effect so /debug can print
+ * the exact decision this made, and why — rather than re-deriving it and
+ * drifting out of sync with the thing it's meant to be diagnosing.
  */
 
 /**
@@ -46,23 +51,61 @@ import { useEffect } from "react";
  */
 const MAX_CORRECTION_RATIO = 0.25;
 
+export interface ViewportFloorMeasurement {
+  standalone: boolean;
+  portrait: boolean;
+  screenHeight: number;
+  innerHeight: number;
+  shortfall: number;
+  maxCorrection: number;
+  /** Whether `--app-height` gets overridden with the screen height. */
+  applies: boolean;
+  /** Human-readable "why not", for /debug. Empty when it applies. */
+  reason: string;
+}
+
+export function measureViewportFloor(): ViewportFloorMeasurement {
+  const standalone =
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    // iOS Safari's own non-standard flag, still the reliable one on older
+    // versions that don't match the media query.
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+  const portrait = window.innerWidth === window.screen.width;
+  const shortfall = window.screen.height - window.innerHeight;
+  const maxCorrection = window.screen.height * MAX_CORRECTION_RATIO;
+
+  const applies = standalone && portrait && shortfall > 0 && shortfall <= maxCorrection;
+  const reason = applies
+    ? ""
+    : !standalone
+      ? "not standalone (open this from the home-screen icon)"
+      : !portrait
+        ? `not portrait (innerWidth ${window.innerWidth} vs screen.width ${window.screen.width})`
+        : shortfall <= 0
+          ? "no shortfall — the viewport already matches the screen"
+          : `shortfall ${shortfall} exceeds the ${Math.round(maxCorrection)} cap`;
+
+  return {
+    standalone,
+    portrait,
+    screenHeight: window.screen.height,
+    innerHeight: window.innerHeight,
+    shortfall,
+    maxCorrection,
+    applies,
+    reason,
+  };
+}
+
 export function ViewportFloor() {
   useEffect(() => {
     const root = document.documentElement;
 
     const apply = () => {
-      const standalone =
-        window.matchMedia?.("(display-mode: standalone)").matches ||
-        // iOS Safari's own non-standard flag, still the reliable one on
-        // older versions that don't match the media query.
-        (navigator as Navigator & { standalone?: boolean }).standalone === true;
-
-      const portrait = window.innerWidth === window.screen.width;
-      const shortfall = window.screen.height - window.innerHeight;
-      const maxCorrection = window.screen.height * MAX_CORRECTION_RATIO;
-
-      if (standalone && portrait && shortfall > 0 && shortfall <= maxCorrection) {
-        root.style.setProperty("--app-height", `${window.screen.height}px`);
+      const measurement = measureViewportFloor();
+      if (measurement.applies) {
+        root.style.setProperty("--app-height", `${measurement.screenHeight}px`);
       } else {
         root.style.removeProperty("--app-height");
       }

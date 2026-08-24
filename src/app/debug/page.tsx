@@ -1,9 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+
+import { measureViewportFloor } from "@/components/viewport-floor";
 
 /**
- * Viewport diagnostics — an unlinked route, reachable only by typing it.
+ * Viewport diagnostics — reachable from Tools → Viewport diagnostics (groom
+ * only), and not linked anywhere else. It needs a link at all because an
+ * installed PWA has no address bar to type a route into, and this page is
+ * useless anywhere except inside the installed app.
  *
  * There is a long, expensive history in this repo of guessing at the
  * installed-iOS-PWA viewport (see docs/HANDOFF.md and layout.tsx): the bug
@@ -45,10 +51,27 @@ export default function DebugPage() {
     const probeRect = probe.getBoundingClientRect();
     probe.remove();
 
+    // The floor's own decision, from the floor's own code — not re-derived
+    // here, or this page would drift out of sync with the thing it exists
+    // to explain.
+    const floor = measureViewportFloor();
+
     const shortfall = window.screen.height - window.innerHeight;
     setGap(shortfall);
     setRows([
       { label: "display-mode standalone", value: String(standalone) },
+      {
+        label: "display-mode (other)",
+        value:
+          ["fullscreen", "minimal-ui", "browser"]
+            .filter((mode) => window.matchMedia?.(`(display-mode: ${mode})`).matches)
+            .join(", ") || "none",
+      },
+      { label: "navigator.standalone", value: String((navigator as Navigator & { standalone?: boolean }).standalone) },
+      {
+        label: "height floor applies",
+        value: floor.applies ? "YES — using screen height" : `no — ${floor.reason}`,
+      },
       { label: "screen.width × height", value: `${window.screen.width} × ${window.screen.height}` },
       { label: "inner width × height", value: `${window.innerWidth} × ${window.innerHeight}` },
       {
@@ -113,13 +136,21 @@ export default function DebugPage() {
         ))}
       </dl>
 
-      <button
-        type="button"
-        onClick={copy}
-        className="bevel-raised bg-card mt-5 rounded-md px-4 py-2 text-sm"
-      >
-        {copied ? "Copied ✓" : "Copy readout"}
-      </button>
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={copy}
+          className="bevel-raised bg-card rounded-md px-4 py-2 text-sm"
+        >
+          {copied ? "Copied ✓" : "Copy readout"}
+        </button>
+        {/* There is no nav on this page, and an installed PWA has no address
+            bar to escape with — without this the only way out is to kill the
+            app. */}
+        <Link href="/setup" className="bevel-raised bg-card rounded-md px-4 py-2 text-sm">
+          Back to Tools
+        </Link>
+      </div>
 
       {/* A hairline pinned to the true bottom of a `fixed inset-0` box. If
           there is a band of dead space below this line on a real device,

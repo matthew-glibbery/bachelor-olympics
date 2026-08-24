@@ -208,3 +208,41 @@ describe("fitsBudget", () => {
     expect(fitsBudget(0, 0)).toBe(true);
   });
 });
+
+describe("validateAllocations with resolved-bet winnings", () => {
+  const evenAllocations = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ eventId: `e${i}`, value: 1.0, locked: false }));
+
+  it("credits a won bet's net back into the spendable budget", () => {
+    // Fully allocated at 1.0 across 8 events, so nothing spare — but a
+    // resolved bet netted +1.2, which the spec says is reallocatable.
+    const validation = validateAllocations(evenAllocations(8), 8, 0, 1.2);
+    expect(validation.valid).toBe(true);
+    expect(validation.budgetRemaining).toBeCloseTo(1.2, 10);
+  });
+
+  it("lets that credit actually be spent on an event", () => {
+    // Same field, but one event raised to 1.5 — over budget without the
+    // winnings, fine with them.
+    const allocations = evenAllocations(8);
+    allocations[0]!.value = 1.5;
+    expect(validateAllocations(allocations, 8, 0, 0).valid).toBe(false);
+    expect(validateAllocations(allocations, 8, 0, 1.2).valid).toBe(true);
+  });
+
+  it("subtracts a net loss from the budget", () => {
+    const validation = validateAllocations(evenAllocations(8), 8, 0, -0.5);
+    expect(validation.budgetRemaining).toBeCloseTo(-0.5, 10);
+    expect(validation.valid).toBe(false);
+  });
+
+  it("nets winnings against open escrow", () => {
+    // +1.2 won, 0.3 currently tied up in a new open bet.
+    const validation = validateAllocations(evenAllocations(8), 8, 0.3, 1.2);
+    expect(validation.budgetRemaining).toBeCloseTo(0.9, 10);
+  });
+
+  it("is unchanged when there are no resolved bets", () => {
+    expect(validateAllocations(evenAllocations(8), 8).budgetRemaining).toBe(0);
+  });
+});

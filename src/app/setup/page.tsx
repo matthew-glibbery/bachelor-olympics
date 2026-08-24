@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Clapperboard,
   Dices,
   RotateCcw,
+  Ruler,
   TriangleAlert,
   UserRound,
   Users,
@@ -145,6 +147,26 @@ export default function SetupPage() {
           description="Plays once on the N64-style start screen, before character select. One shared clip for the whole app."
         >
           <BootVideoUploader currentUrl={appSettings?.boot_video_url ?? null} />
+        </Panel>
+      ) : null}
+
+      {groomUnlocked ? (
+        <Panel
+          title="Viewport diagnostics"
+          icon={Ruler}
+          description="Measures what this device reports its screen to be. Open this from the INSTALLED app (home-screen icon), not a Safari tab — the numbers differ, and the installed one is the only one that matters for the full-screen bug. Send the readout if the start screen still has dead space."
+        >
+          {/* A real link rather than a button: this has to be openable from
+              inside the installed PWA, which is the whole reason it exists —
+              /debug is deliberately unlinked everywhere else, and typing a
+              URL is exactly what an installed app gives you no way to do. */}
+          <Link
+            href="/debug"
+            className="bevel-raised bg-card inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm active:translate-y-px"
+          >
+            <Ruler className="size-4" />
+            Open diagnostics
+          </Link>
         </Panel>
       ) : null}
 

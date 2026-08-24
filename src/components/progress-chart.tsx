@@ -13,7 +13,6 @@ import {
 } from "recharts";
 
 import { assignPlayerColors } from "@/lib/chartColors";
-import { cn } from "@/lib/utils";
 import { PlayerName } from "@/components/player-name";
 import type { SeriesPoint } from "@/lib/scoring/cumulativeSeries";
 import type { PlayerRow } from "@/lib/data/database.types";
@@ -323,29 +322,23 @@ function ProgressTooltip({
       <p className="text-muted-foreground mb-1.5 text-xs font-medium">{point.label}</p>
       {/* Grid (not flex) so rank / rank-change / name / total / points-change
        * each form their own left-aligned column across rows, per the ask —
-       * a flex row with justify-between only aligns within a row. */}
-      <div className="grid grid-cols-[auto_auto_1fr_auto_auto] items-center gap-x-2.5 gap-y-1">
+       * a flex row with justify-between only aligns within a row. The column
+       * gap lives on the rows (`tooltip-row`), not here: a subgrid row
+       * inherits the parent's tracks but paints its own background, and a
+       * gap declared on the parent would sit outside that background and
+       * stripe the highlight. */}
+      <div className="grid grid-cols-[auto_auto_1fr_auto_auto] items-center gap-y-0.5">
         {rows.map(({ playerId, value }) => {
           const player = playerById.get(playerId);
           if (!player) return null;
 
-          // Rows are `display: contents`, so there is no row box to paint —
-          // the tint has to go on each cell individually (same reason the
-          // event results table uses spacer columns rather than a gap), and
-          // each cell has to bleed out by half the column gap (`gap-x-2.5`
-          // = 0.625rem) so the highlight reads as one continuous band
-          // rather than five separate chips. The colour is the player's own,
-          // the same tint the standings table uses for "your" row, so the
-          // same player reads the same way on both halves of this screen.
+          // "Your" row is one evenly-tinted band across every column, in
+          // your own colour — the same treatment the standings table gives
+          // it, so the same player reads the same way on both halves of this
+          // screen. The row is a subgrid (see `tooltip-row` in globals.css),
+          // which is what gives it a single box to paint instead of five
+          // separately-tinted cells with gaps showing between them.
           const isYou = playerId === currentPlayerId;
-          const tint = isYou
-            ? "-mx-[0.3125rem] px-[0.3125rem] py-0.5 first:rounded-l-sm last:rounded-r-sm"
-            : "";
-          const tintStyle = isYou
-            ? {
-                backgroundColor: `color-mix(in oklab, ${colorByPlayer[playerId]} 22%, transparent)`,
-              }
-            : undefined;
 
           const rank = currentRanks.get(playerId);
           const prevRank = previousRanks?.get(playerId);
@@ -356,20 +349,27 @@ function ProgressTooltip({
             typeof prevValue === "number" ? Math.round(value - prevValue) : null;
 
           return (
-            <div key={playerId} className="contents">
-              <span className={cn("text-muted-foreground text-left text-xs tabular-nums", tint)} style={tintStyle}>
+            <div
+              key={playerId}
+              className="tooltip-row"
+              style={
+                isYou
+                  ? {
+                      backgroundColor: `color-mix(in oklab, ${colorByPlayer[playerId]} 22%, transparent)`,
+                    }
+                  : undefined
+              }
+            >
+              <span className="text-muted-foreground text-left text-xs tabular-nums">
                 {rank != null ? `#${rank}` : ""}
               </span>
               <span
-                className={cn("text-left text-xs font-medium tabular-nums", tint)}
-                style={{
-                  ...tintStyle,
-                  ...(rankChange ? { color: rankChange > 0 ? STATUS_GOOD : STATUS_BAD } : {}),
-                }}
+                className="text-left text-xs font-medium tabular-nums"
+                style={rankChange ? { color: rankChange > 0 ? STATUS_GOOD : STATUS_BAD } : undefined}
               >
                 {rankChange ? `${rankChange > 0 ? "▲" : "▼"}${Math.abs(rankChange)}` : ""}
               </span>
-              <span className={cn("flex items-center gap-1.5 text-left", tint)} style={tintStyle}>
+              <span className="flex items-center gap-1.5 text-left">
                 <span
                   aria-hidden
                   className="h-0.5 w-3 shrink-0 rounded-full"
@@ -383,12 +383,10 @@ function ProgressTooltip({
                   color={colorByPlayer[playerId]}
                 />
               </span>
-              <span className={cn("text-left font-semibold tabular-nums", tint)} style={tintStyle}>
-                {Math.round(value)}
-              </span>
+              <span className="text-left font-semibold tabular-nums">{Math.round(value)}</span>
               <span
-                className={cn("text-left text-xs font-medium tabular-nums", tint)}
-                style={{ ...tintStyle, color: STATUS_GOOD }}
+                className="text-left text-xs font-medium tabular-nums"
+                style={{ color: STATUS_GOOD }}
               >
                 {pointsGained ? `+${pointsGained}` : ""}
               </span>

@@ -12,7 +12,7 @@ import { Panel } from "@/components/n64/panel";
 import { Button } from "@/components/ui/button";
 import { useGameInput } from "@/hooks/use-game-input";
 import { assignPlayerColors } from "@/lib/chartColors";
-import { bettingReserve } from "@/lib/betting/reserve";
+import { bettingReserve, resolvedBetsNet } from "@/lib/betting/reserve";
 import { upsertMultipliers } from "@/lib/data/mutations";
 import {
   MULTIPLIER_DEFAULT,
@@ -124,12 +124,29 @@ export default function MultipliersPage() {
         .reduce((sum, b) => sum + b.wager, 0)
     : 0;
 
+  // The other half of that ledger: winnings from bets that have already
+  // resolved ARE spendable on a still-unlocked event (PRODUCT_SPEC.md →
+  // Per-event multiplier betting). Leaving this out is what made a won bet
+  // look like it had paid out nothing.
+  const netFromResolvedBets = player
+    ? resolvedBetsNet(
+        perEventBets
+          .filter((b) => b.player_id === player.id)
+          .map((b) => ({ wager: b.wager, status: b.status, payout: b.payout })),
+      )
+    : 0;
+
   const allocations: MultiplierAllocation[] = events.map((e) => ({
     eventId: e.id,
     value: (e.status === "planned" ? draft[e.id] : committed[e.id]) ?? MULTIPLIER_DEFAULT,
     locked: e.status !== "planned",
   }));
-  const validation = validateAllocations(allocations, events.length, tiedUpInBets);
+  const validation = validateAllocations(
+    allocations,
+    events.length,
+    tiedUpInBets,
+    netFromResolvedBets,
+  );
 
   const reserve = player
     ? bettingReserve(
@@ -392,7 +409,14 @@ export default function MultipliersPage() {
                               value: (ev.status === "planned" ? nextDraft[ev.id] : committed[ev.id]) ?? MULTIPLIER_DEFAULT,
                               locked: ev.status !== "planned",
                             }));
-                            if (!validateAllocations(nextAllocations, events.length, tiedUpInBets).valid) {
+                            if (
+                              !validateAllocations(
+                                nextAllocations,
+                                events.length,
+                                tiedUpInBets,
+                                netFromResolvedBets,
+                              ).valid
+                            ) {
                               playSfx("deny");
                               return;
                             }

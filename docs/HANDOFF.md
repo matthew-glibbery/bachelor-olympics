@@ -27,7 +27,7 @@ reasoning behind one specific decision.
 The app is **built, deployed, and in genuine live use** — this is not a
 prototype. Treat the live Supabase project as production.
 
-- Lint, typecheck, **192 tests**, and build all green.
+- Lint, typecheck, **201 tests**, and build all green.
 - Seven routes: `/` (leaderboard), `/start`, `/select`, `/events`,
   `/multipliers`, `/bets`, `/setup`.
 - **All 13 migrations are applied to the live project** — verified
@@ -46,30 +46,32 @@ prototype. Treat the live Supabase project as production.
 
 ### The one thing waiting on a human
 
-**The iOS PWA fullscreen fix is shipped but UNCONFIRMED on a device.**
-(2026-08-24 (2) entry below.)
+**The iOS PWA bottom gap on `/start` and `/select` is STILL OPEN.** Six
+attempts, none confirmed. Do not attempt a seventh from theory.
 
-The story so far, in order: `black-translucent` gave a gap at the *bottom*
-of `/start` and `/select` → switching to `black` fixed the bottom (confirmed
-by the user) but put an opaque band across the *top* of every screen →
-back to `black-translucent`, with the bottom handled by `--app-height` /
-`src/components/viewport-floor.tsx` → the top is now confirmed right, the
-bottom came back, because the same change had also dropped `inset-0` in
-favour of a bare `100dvh` height and the floor's 80px guard was too small
-to fire. Both fixed.
+History, in order: `black-translucent` gave a bottom gap → `black` fixed the
+bottom (confirmed) but put an opaque band across the top of every screen →
+back to `black-translucent` with an `--app-height` floor; the top is now
+confirmed right, the bottom is not → restored `inset-0` alongside the floor
+and widened the floor's guard → still reported → added `100lvh` in
+standalone. The top half of this is solved and confirmed; only the bottom
+of those two screens is outstanding.
 
-Three things a new session must know:
+What to do first, in this order:
 
-1. **iOS caches `apple-*` meta tags at the moment the icon is added to the
-   home screen.** The user has to *delete and re-add* the home-screen icon
-   or a `layout.tsx` change does nothing. Confirm they did that first.
-2. **Get the numbers before theorising.** `/debug` (unlinked route) prints
-   `screen` vs `innerHeight` vs `visualViewport` vs a real `fixed inset-0`
-   probe, with a verdict banner and a copy button. Ask for that readout
-   from inside the installed app. Six attempts have now been made without
-   one; do not make a seventh.
-3. The bug does not reproduce in Safari, in a browser tab, or in headless
-   Chrome — all three report a correct viewport.
+1. **Get the `/debug` readout from inside the installed app.** Tools →
+   Viewport diagnostics → Open diagnostics (groom only). It prints
+   display-mode, `screen` vs `innerHeight` vs `visualViewport` vs a real
+   `fixed inset-0` probe, and the exact reason the height correction did or
+   did not apply. Every attempt so far has been made without a single
+   number from the actual device.
+2. **Confirm the home-screen icon was deleted and re-added** if anything in
+   `layout.tsx`'s `apple-*` meta tags is involved — iOS caches those at
+   install time. (The top-of-screen change did take effect, so this has been
+   done at least once.)
+3. Remember the bug does not reproduce in Safari, a browser tab, or headless
+   Chrome — all three report a correct viewport, and `/start` measures a 0px
+   gap at 430x932 in the harness.
 
 ### How to actually verify UI work
 
@@ -1085,6 +1087,58 @@ production build behind headless Chrome.
   from the manifest anyway; no install prompt UI; no left/right safe-area
   padding on the page gutters (the app is portrait-locked, where those
   insets are 0).
+
+## 2026-08-24 (3) — /debug reachable from Tools, betting winnings reach the budget, evenly-tinted tooltip row
+
+Follow-up after (2) went live. The bottom gap on `/start` and `/select` is
+STILL there, so this round is mostly about being able to measure it from the
+phone instead of guessing a seventh time. 201 tests (+9), lint/typecheck/
+build green.
+
+- **`/debug` is now reachable from Tools** (groom only, "Viewport
+  diagnostics" panel → "Open diagnostics", with a Back to Tools link on the
+  page). It was unlinked, which made it useless for its only purpose: an
+  installed PWA has no address bar to type a route into. The page also now
+  prints **the floor's own decision and why** — `measureViewportFloor()` is
+  exported from `viewport-floor.tsx` and used by both, so the diagnostic
+  can't drift from the code it diagnoses. It reports display-mode (all four
+  values), `navigator.standalone`, and the specific reason the correction
+  didn't apply. **Get this readout before theorising again.**
+- **One more lever on the gap, cheap and safe**: in standalone,
+  `--app-height` now defaults to `100lvh` rather than `100dvh` (globals.css,
+  `@media (display-mode: standalone)`). `lvh` is the *large* viewport, never
+  smaller than `dvh`; scoped to standalone because in a browser tab `lvh` is
+  deliberately taller than the visible area. ViewportFloor's measured pixel
+  height still overrides both (inline style). This is a guess, unlike the
+  rest of the batch, and is flagged as one.
+- **Real bug: betting winnings never reached the multiplier budget.** The
+  bet from (2) settled correctly — live row read `status: "won", payout:
+  1.5651093` — but `validateAllocations` only ever SUBTRACTED open-bet
+  escrow; it had no term for resolved-bet winnings. So "Budget remaining"
+  ignored the payout entirely and the sliders couldn't spend a tenth of it,
+  which is a straight violation of PRODUCT_SPEC.md → Per-event multiplier
+  betting ("returns to the player's reserve, reallocatable to any
+  still-unlocked event"). New signed `netFromResolvedBets` parameter, fed by
+  a new `resolvedBetsNet()` in `reserve.ts` which is now the single
+  definition of that number and is snapped DOWN onto the 0.1 grid — odds are
+  continuous, so a real payout is 1.5651093, and leaving it unsnapped had
+  "budget remaining" and "available to wager" (two figures the UI explicitly
+  claims are the same number) printing 1.2 and 1.3.
+- **Progress-chart tooltip: "your" row is one even band**, matching the
+  standings table. The per-cell tint from (2) left seams at every column
+  gap. Rows are now `subgrid` (`tooltip-row` in globals.css) so the row has
+  a real box to paint while still inheriting the parent's column tracks;
+  the column gap moved onto the rows, since a gap on the parent sits outside
+  the row's background and stripes it. `@supports` fallback to the old
+  `display: contents` for anything without subgrid.
+- **Verification**: live project has real data again (one resolved absolute
+  event, one settled won bet), read read-only to diagnose the payout bug —
+  that read is what proved the settlement fix from (2) worked and located
+  the real gap one layer up. Screens verified against a temporary mock
+  carrying that same won bet: budget remaining now reads **+1.2** with all
+  eight events at 1.0, where it read 0.0 before. Tooltip band, Tools panel,
+  and the full Tools → diagnostics → back path all confirmed on screen.
+  Mock reverted; nothing written to live data.
 
 ## 2026-08-24 (2) — Fullscreen round two, bet-settlement bug, scoring re-cut for 7 players
 
