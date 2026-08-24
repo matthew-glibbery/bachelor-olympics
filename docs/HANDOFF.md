@@ -44,34 +44,20 @@ prototype. Treat the live Supabase project as production.
   so UI work on those screens needs a temporary local mock (see the
   2026-08-24 entry for the shape of one) rather than the live project.
 
-### The one thing waiting on a human
+### Recently closed (was open for a week)
 
-**The iOS PWA bottom band on `/start` and `/select` is STILL OPEN** — but
-the search space just got much smaller. See the 2026-08-24 (4) entry for the
-device readout.
+**The iOS PWA full-screen bug is SOLVED** — see 2026-08-24 (5). Cause: in an
+installed iOS PWA, `position: fixed` resolves against a layout viewport
+inset by the top safe area (793 of an 852 screen), so a `fixed inset-0`
+element cannot reach the bottom of the glass. `/start` and `/select` were
+the only screens using `fixed`, which is why they were the only ones
+affected. Both are normal flow now, like every screen that always worked.
 
-**The viewport is not short.** That is measured, not assumed: `innerHeight`,
-`visualViewport` and a `fixed inset-0` probe all read 852 on a 852-tall
-screen, and `--app-height` already computes to 852px. Every fix from
-2026-08-23 onward targeted a shortfall that does not exist on this device.
-Do not write another one.
-
-What is left is a binary question, and the tool to answer it is shipped:
-
-1. Ask for the **paint test** screenshot — Tools → Viewport diagnostics →
-   Probe /start (or `/start?probe=1`). It outlines a `fixed inset-0` box in
-   magenta and prints its rect plus `<main>`'s.
-2. **Dead space BELOW the bottom line** → the box is short or offset; fix
-   the geometry, and the printed `top` says by how much.
-   **Dead space INSIDE the lines** → the box is correct and the problem is
-   what is (not) painting in it — look at the boot video element, the
-   z-order of the new bleed layer, or whether "unused" means empty layout
-   rather than an unpainted band.
-3. Only then write code. Six attempts have been made from theory; one was
-   actively harmful (it dropped `inset-0` and made the gap worse).
-
-Also still true: the bug does not reproduce in Safari, a browser tab, or
-headless Chrome, and `/start` measures a 0px gap at 393×852 in the harness.
+Awaiting confirmation on the device, but unlike the previous six attempts
+this one is built on a measurement from the affected phone rather than a
+theory. If a band is still there, re-run the paint test (Tools → Viewport
+diagnostics → Probe /start) and compare `<main>`'s printed rect against the
+screen height — that comparison is the whole diagnosis.
 
 ### How to actually verify UI work
 
@@ -1087,6 +1073,55 @@ production build behind headless Chrome.
   from the manifest anyway; no install prompt UI; no left/right safe-area
   padding on the page gutters (the app is portrait-locked, where those
   insets are 0).
+
+## 2026-08-24 (5) — SOLVED: `position: fixed` is confined to a short layout viewport in an installed iOS PWA
+
+The paint test from the device answered it. Seven attempts, and the cause was
+the opposite of what every one of them assumed. 201 tests (unchanged),
+lint/typecheck/build green.
+
+From `/start?probe=1` and `/select?probe=1` on the affected phone:
+
+```
+probe box (fixed inset-0):  top 0 · bottom 793 · height 793
+this <main>:                top 0 · bottom 852 · height 852
+screen 393×852 · inner 393×793
+```
+
+**In an installed iOS PWA with `black-translucent` + `viewport-fit=cover`,
+the LAYOUT viewport — what `position: fixed` and `inset-0` resolve against —
+is inset by the top safe area (852 − 59 = 793), while the VISUAL viewport is
+the whole 852px screen.** A `fixed inset-0` element is therefore 59px short
+of the bottom of the glass BY CONSTRUCTION, and no height correction can
+reach it. Meanwhile `<main>` measured the full 852 on the same screenshot,
+because its `min-h-[var(--app-height)]` is normal-flow sizing, which is not
+confined that way.
+
+That is exactly why `/start` and `/select` were the only two screens ever
+affected: they were the only two using `position: fixed`. Every other screen
+uses normal flow with a min-height and has always filled correctly. The
+answer was visible in the app's own working screens the whole time.
+
+- **Fix: both screens are normal flow now.** `/start` is `relative
+  min-h-[var(--app-height)]`; `/select` is `relative h-[var(--app-height)]`
+  — an explicit height there, not min-height, because its inner `flex-1
+  min-h-0` column needs a definite height to shrink against (with min-height
+  alone the character render grew and pushed the nameplate and "Let's go"
+  off the bottom; caught in review, not shipped). Background layers went back
+  to plain `absolute inset-0` children, and the bleed layer from (4) is gone
+  — it was compensating for a fixed box that no longer exists.
+- **`.crt-vignette` got an explicit `height: var(--app-height)`** — it's a
+  whole-app overlay, so it can't stop being fixed, but the extra height
+  covers the difference wherever fixed elements are merely sized short
+  rather than clipped.
+- **Do not reintroduce `position: fixed` on these screens**, and don't
+  "fix" a future scroll by putting `overflow: hidden` on the root — that
+  clips to the same short layout viewport and brings the band straight back.
+
+**Known consequence, unreported and NOT changed**: the floating mobile nav
+(`app-nav.tsx`) is also `position: fixed`, so on an installed PWA it sits
+~59px higher than its CSS says. Nobody has complained — it reads as
+padding — but if "the nav floats too high" ever comes up, this is why.
 
 ## 2026-08-24 (4) — The viewport is NOT short: device readout, and what it rules out
 

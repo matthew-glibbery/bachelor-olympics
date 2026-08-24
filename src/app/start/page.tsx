@@ -30,20 +30,32 @@ const PROMPT_DELAY_MS = 1500;
  *   2. The starfield (src/components/n64/starfield.tsx) — always renders,
  *      so the screen never depends on an uploaded asset to look finished.
  *
- * `main` is `fixed inset-0` with a `--app-height` FLOOR — both, deliberately,
- * because the two cover different failure modes and neither is redundant:
- * `inset-0` pins it to whatever the browser says the viewport is, and the
- * `min-height` extends it when we have reason to believe the browser is
- * under-reporting (an installed iOS PWA — see viewport-floor.tsx, which
- * derives that height from `window.screen`, the one source that isn't
- * itself a viewport reading). An earlier version used `height:
- * var(--app-height)` ALONE, dropping `inset-0`, which meant a screen where
- * the floor didn't apply fell back to plain `100dvh` — strictly worse than
- * the `inset-0` it replaced. Keep both.
+ * `main` is NORMAL FLOW with `min-h-[var(--app-height)]` — deliberately NOT
+ * `position: fixed`, which is what this screen used for seven rounds of
+ * failed bottom-gap fixes.
+ *
+ * Measured on the affected device (iPhone, iOS 18.7, installed PWA, screen
+ * 852 tall) with the probe below:
+ *
+ *     fixed inset-0 box:  top 0 · bottom 793 · height 793
+ *     this <main>:        top 0 · bottom 852 · height 852
+ *
+ * In an installed iOS PWA with `black-translucent` + `viewport-fit=cover`,
+ * the LAYOUT viewport — what `position: fixed` and `inset-0` resolve
+ * against — is inset by the top safe area (852 − 59 = 793), while the
+ * VISUAL viewport is the whole 852-pixel screen. So a `fixed inset-0`
+ * element is 59px short by construction and no amount of height correction
+ * reaches the bottom of the glass; that band was the bug, and it's why the
+ * one thing every other screen in this app does — normal flow with a
+ * min-height — has always filled correctly while these two never did.
+ *
+ * Do not reintroduce `position: fixed` here. If this screen ever needs to
+ * stop the page scrolling, do it some other way: `overflow: hidden` on the
+ * root would clip to that same short layout viewport and bring the band
+ * straight back.
  *
  * Every background layer below is `absolute inset-0`, so it stretches to
- * whichever of the two won: an absolutely-positioned child resolves against
- * the parent's used height, min-height included.
+ * main's full used height, min-height included.
  */
 export default function StartPage() {
   const router = useRouter();
@@ -117,23 +129,14 @@ export default function StartPage() {
 
   return (
     <>
-      {/* Background, bled 6rem past the top and bottom of the viewport.
-
-          This is the belt-and-braces answer to the installed-PWA bottom
-          band, and it is deliberately not a measurement: whatever the fixed
-          containing block turns out to be — the full screen, inset below the
-          status bar, or short by the home indicator — a layer that extends
-          well beyond both edges paints across the difference. It cannot be
-          a child of <main>, which clips to its own box (`overflow-hidden`),
-          so it's a sibling behind it.
-
-          The device readout (2026-08-24) says the fixed box already IS the
-          full screen, in which case this bleed changes nothing visible and
-          costs one composited layer. That's the point: it can only help. */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-x-0 -top-24 -bottom-24 -z-10 overflow-hidden"
+      <main
+        onClick={skipOrStart}
+        className="relative flex min-h-[var(--app-height)] cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
       >
+        {/* Fill layers. `absolute inset-0` against a normal-flow main whose
+            min-height is the real screen height, so they reach the bottom of
+            the glass — which the same markup could not do while main was
+            `fixed` (see the note above). */}
         {bootVideoUrl ? (
           <video
             ref={bootVideoRef}
@@ -146,16 +149,7 @@ export default function StartPage() {
         ) : (
           <Starfield />
         )}
-      </div>
-
-      <main
-        onClick={skipOrStart}
-        className="fixed inset-0 flex min-h-[var(--app-height)] cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
-      >
-        {/* Horizon glow, so the logo sits on something rather than floating.
-            Stays inside <main>, unlike the fill layers above: it's anchored
-            to the bottom EDGE, so bleeding it would push the glow off the
-            screen. */}
+        {/* Horizon glow, so the logo sits on something rather than floating. */}
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
           style={{
