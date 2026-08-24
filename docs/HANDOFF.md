@@ -2,6 +2,132 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## START HERE — orientation for a new session (updated 2026-08-24)
+
+This file is a reverse-chronological log going back to 2026-08-11 and is
+~3,100 lines. **You do not need to read it all.** This section is the
+current state; drop into a dated entry below only when you need the
+reasoning behind one specific decision.
+
+### Read before touching anything
+
+- **`CLAUDE.md`** — standing orders, every session.
+- **`docs/PRODUCT_SPEC.md` — in full, before any scoring / betting /
+  multiplier work.** It is the source of truth. If the code disagrees with
+  it, the spec wins and the discrepancy gets *flagged*, not quietly
+  "fixed" into the spec. (When a product decision genuinely reverses, the
+  spec gets updated deliberately and the reversal recorded — see the
+  no-self-bet change on 2026-08-23 for the pattern.)
+- **`CONTRIBUTING.md`** — branch/PR workflow. Never push to `main`.
+- `docs/VISUAL_SPEC.md` — the N64 look this is aiming at.
+- `scripts/devtools/README.md` — how to actually *see* the app.
+
+### Where things stand
+
+The app is **built, deployed, and in genuine live use** — this is not a
+prototype. Treat the live Supabase project as production.
+
+- `main` is `3e8fdbc`. Lint, typecheck, **174 tests**, and build all green.
+- Seven routes: `/` (leaderboard), `/start`, `/select`, `/events`,
+  `/multipliers`, `/bets`, `/setup`.
+- **All 13 migrations are applied to the live project** — verified
+  2026-08-24 by reading the live `players` schema directly (0012's
+  `character_confirm_video_url` present, 0013's `character_portrait_url`
+  gone). This closes the "0012/0013 not yet confirmed run" caveat that had
+  been open in the 2026-08-15 entry.
+- Real data: 8 real players with real character art, the weekend partly
+  played (a couple of events resolved, one scoring, the rest planned), and
+  real per-event and overall bets on the board.
+
+### The one thing waiting on a human
+
+**The iOS PWA "dead space at the bottom of `/start` and `/select`" fix is
+shipped but UNCONFIRMED.** (#53, `3e8fdbc`.)
+
+Root cause was `apple-mobile-web-app-status-bar-style: black-translucent`
+in `layout.tsx` handing the app a short viewport in standalone mode;
+changed to `black`. Three earlier CSS/JS attempts failed because *every*
+height API (`100vh`, `100dvh`, `fixed inset-0`, `innerHeight`,
+`visualViewport.height`) resolves against that same short viewport, and
+none of it reproduces outside an installed iOS PWA.
+
+Two things a new session must know:
+
+1. **iOS caches `apple-*` meta tags at the moment the icon is added to the
+   home screen.** The user has to *delete and re-add* the home-screen icon
+   or this change does nothing for them. If they report "still broken,"
+   confirm they did that before anything else.
+2. **If it survives a clean re-install, stop guessing.** Ask for a
+   screenshot/recording and the iOS version. Four blind attempts have
+   already happened; the three 2026-08-23 entries below record exactly
+   what was ruled out, so a fifth theory should not re-tread them.
+
+### How to actually verify UI work
+
+This repo has real browser tooling and there is no excuse for shipping UI
+on "it compiles." See `scripts/devtools/README.md`; it needs `.env.local`
+copied in from the main checkout (gitignored — delete it again before
+committing).
+
+- `screenshot.mjs` — full-page captures at any width.
+- `viewport-shot.mjs` — captures the viewport *as a phone sees it* and
+  prints a measured gap per route. Use this for dead-space problems;
+  `screenshot.mjs` stretches to the document and hides exactly the gap
+  you're looking for.
+- `check-overflow.mjs` — horizontal overflow at 390px on all five main
+  routes. Run after touching any table or wide layout.
+
+Three lessons that were each paid for with a wasted session:
+
+- **Check the emitted HTML, not just the source**, whenever anything
+  touches browser or OS chrome. Reading layout code tells you the intent;
+  only `curl`-ing the page and grepping the `<head>` tells you what the
+  device receives. That is what finally cracked the iOS bug after three
+  misses.
+- **Measure geometry, don't eyeball screenshots.** A symmetric 70px gap is
+  invisible in a screenshot and blindingly obvious in
+  `getBoundingClientRect()` numbers via CDP.
+- **Ask what device/context** when a bug report doesn't reproduce. "Is this
+  an installed PWA or a browser tab?" was one question that would have
+  saved two rounds.
+
+### Known-open / unverified
+
+- The iOS PWA gap, above.
+- **The event Bets tab's reveal view** (`showBettor` in
+  `placed-bets-table.tsx`) has never been seen on screen with real data —
+  the only events currently carrying bets are still `planned`, and that
+  tab only appears once betting closes. It typechecks and shares its table
+  with two views that *were* verified.
+- **Player photos render as broken-image glyphs in local screenshots.**
+  Next's image optimizer can't reach Supabase Storage through this
+  machine's TLS interception. Fine on the real Vercel deploy — not a bug,
+  don't chase it.
+
+### Gotchas that have actually bitten
+
+- **The live DB is production and is shared.** Another session/user was
+  observed placing real bets concurrently on 2026-08-23. Verify read-only
+  where possible; if you must drive a mutation, put the data back and
+  re-read to confirm.
+- **Squash-merges break stacked branches.** A branch based on a PR that
+  then squash-merges will false-conflict; rebase onto fresh `main` or
+  cherry-pick, don't fight the conflict.
+- **`cn()` runs tailwind-merge**, which will silently drop a custom class
+  that looks like it competes with another (`text-extruded` vs
+  `text-extruded-gold` — hence the rename to `extruded`). Custom utilities
+  need names outside Tailwind's own namespaces.
+- **Radix `Tabs` must be controlled** if its tabs can appear/disappear;
+  uncontrolled leaves the internal value pointing at a panel that no
+  longer exists and renders nothing.
+- **Reserve/budget figures are float-dirty** (a sum of 0.1s: "0.3" arrives
+  as 0.2999999999999998). Use `stepsWithin` / `stepAmount` / `fitsBudget`
+  from `src/lib/multipliers/budget.ts` rather than comparing directly.
+- **Shared row styling lives in `src/components/n64/roster-table.tsx`.**
+  New roster-shaped tables should consume it rather than re-deriving the
+  look.
+
+
 ## 2026-08-23 (3) — The /start /select bottom gap, actually found: it was a meta tag, not CSS
 
 Fourth attempt at the same report, and the first one at the right layer.
@@ -2127,10 +2253,12 @@ green.
   an actual phone width, and dragging an event in Manage Events now actually
   sticking through a real Realtime round-trip.
 
-## Current state (as of 2026-08-12, end of session)
+## Current state (as of 2026-08-12, end of session) — SUPERSEDED
 
-Start here if you're picking this up cold — the detailed log below has the
-blow-by-blow if you need it, but this is the map.
+**Historical.** This was the orientation map as of 2026-08-12 and is kept
+for the record; a lot of it (routes, features, migration status, the whole
+N64 visual pass) has since changed. For the current map see **START HERE**
+at the top of this file.
 
 **Live and working**, verified against the real Supabase project + a real
 GitHub repo + Vercel deploy (not just typechecked), except the newest
