@@ -545,6 +545,15 @@
   .crt-vignette {
     position: fixed;
     inset: 0;
+    /* `inset: 0` alone leaves this short of the bottom of the screen in an
+       installed iOS PWA: the layout viewport that fixed positioning resolves
+       against is inset by the top safe area (measured 793 against an 852
+       screen — see src/app/start/page.tsx). An explicit height off
+       `--app-height` covers the difference wherever fixed elements are
+       merely sized short rather than clipped, and is harmless otherwise.
+       The two full-screen SCREENS solve this by not being fixed at all;
+       an overlay over the whole app doesn't have that option. */
+    height: var(--app-height);
     z-index: 49;
     pointer-events: none;
     background: radial-gradient(

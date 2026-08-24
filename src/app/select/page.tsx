@@ -143,25 +143,22 @@ export default function SelectPage() {
   const focused = players[index] ?? null;
 
   return (
-    // `fixed inset-0` with a `--app-height` floor: this screen is tuned to
-    // fit exactly one screen (roster at top, "Let's go" at the bottom, no
-    // scroll). `inset-0` sizes it to the reported viewport; the floor
-    // extends it when an installed iOS PWA under-reports that — see
-    // layout.tsx's status-bar note and src/components/viewport-floor.tsx
-    // for why both are here rather than either alone.
+    // Normal flow with an EXPLICIT `h-[var(--app-height)]`, deliberately NOT
+    // `position: fixed`. In an installed iOS PWA the layout viewport that
+    // `fixed` resolves against is inset by the top safe area (measured: 793
+    // against an 852 screen), so a fixed full-screen box is 59px short of
+    // the bottom of the glass by construction — which is exactly the dead
+    // band this screen kept showing. See the long note in
+    // src/app/start/page.tsx for the measurement.
+    //
+    // `height`, not `min-height`: this screen is one non-scrolling screenful
+    // (roster, character, "Let's go") and its inner `flex-1 min-h-0` column
+    // needs a DEFINITE height to shrink against. With min-height alone the
+    // character render grew to its natural size and pushed the nameplate and
+    // the button off the bottom — caught in review, not shipped.
     <>
-      {/* Background, bled 6rem past the top and bottom of the viewport — see
-          the long note on /start, same reasoning: <main> clips to its own
-          box, so a fill layer that survives any viewport disagreement has to
-          sit outside it. */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-x-0 -top-24 -bottom-24 -z-10 overflow-hidden"
-      >
+      <main className="relative flex h-[var(--app-height)] flex-col overflow-hidden">
         <Starfield className="opacity-60" />
-      </div>
-
-      <main className="fixed inset-0 flex min-h-[var(--app-height)] flex-col overflow-hidden">
 
       <div className="relative flex min-h-0 flex-1 flex-col gap-3 px-4 pt-[calc(1rem+var(--safe-top))] pb-[calc(1rem+var(--safe-bottom))] sm:gap-4 sm:px-8">
         {!ready ? (
