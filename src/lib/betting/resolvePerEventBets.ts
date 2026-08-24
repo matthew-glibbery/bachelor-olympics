@@ -1,13 +1,24 @@
 /**
- * Settle every open per-event bet once an event finalizes (PRODUCT_SPEC.md →
- * Per-event multiplier betting). A per-event bet has a PICK — the bettor
- * wagers on a chosen PLAYER'S win/place outcome at that event, same shape as
- * an overall bet, just scoped to one event — so resolution checks the
- * PICK'S actual finishing position against the bet's target, and scales a
- * win by that event's own odds for the pick specifically
- * (`perEventPayoutMultiplier`). This is exactly why the groom's ranking is
- * now per-event rather than one overall ranking: a per-event bet's fairness
- * depends on how strong the PICK was predicted to be AT THAT EVENT.
+ * Resolve every LIVE per-event bet against an event's actual results
+ * (PRODUCT_SPEC.md → Per-event multiplier betting). A per-event bet has a
+ * PICK — the bettor wagers on a chosen PLAYER'S win/place outcome at that
+ * event, same shape as an overall bet, just scoped to one event — so
+ * resolution checks the PICK'S actual finishing position against the bet's
+ * target, and scales a win by that event's own odds for the pick
+ * specifically (`perEventPayoutMultiplier`). This is exactly why the
+ * groom's ranking is now per-event rather than one overall ranking: a
+ * per-event bet's fairness depends on how strong the PICK was predicted to
+ * be AT THAT EVENT.
+ *
+ * Pure and stateless with respect to a bet's PRIOR status on purpose: it
+ * takes only `id`/`pickPlayerId`/`target`/`wager` (no `status`), and always
+ * recomputes won/lost + payout fresh from the `finishingPositions` and
+ * `eventRanking` passed in. That is what makes it safe to call again after
+ * results are edited and re-finalized — the caller (mutations.ts'
+ * `resolvePerEventBets`) re-reads every non-void bet on the event and
+ * re-runs this, and because there's no memory of the old outcome here,
+ * "resolve for the first time" and "re-resolve after a correction" are
+ * literally the same operation.
  */
 import { perEventPayoutMultiplier, type RankingEntry } from "@/lib/odds/ranking";
 import { resolveLost, resolveWon, type PerEventBet, type PerEventBetTarget } from "./perEvent";

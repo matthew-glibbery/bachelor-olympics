@@ -12,6 +12,7 @@ import { Panel } from "@/components/n64/panel";
 import { Button } from "@/components/ui/button";
 import { useGameInput } from "@/hooks/use-game-input";
 import { assignPlayerColors } from "@/lib/chartColors";
+import { finishingPositions } from "@/lib/scoring/finishingPositions";
 import { bettingReserve, resolvedBetsNet } from "@/lib/betting/reserve";
 import { upsertMultipliers } from "@/lib/data/mutations";
 import {
@@ -37,7 +38,7 @@ import { cn } from "@/lib/utils";
  * moving a pointer. Mouse/touch still work everywhere.
  */
 export default function MultipliersPage() {
-  const { players, events, multipliers, eventRankings, perEventBets, connect, ready } =
+  const { players, events, eventResults, multipliers, eventRankings, perEventBets, connect, ready } =
     useGameStore();
   const { selectedPlayerId, hydrate } = useSessionStore();
 
@@ -63,6 +64,25 @@ export default function MultipliersPage() {
     }
     return map;
   }, [eventRankings, selectedPlayerId]);
+
+  // Where this player ACTUALLY finished, per event, once a real result
+  // exists — takes over from the projected badge above once it's set (see
+  // MultiplierBar). Derived the same way the event card's own results table
+  // does (finishingPositions handles both scoring modes), which is also why
+  // this shows up as soon as a draft result is saved, not only after
+  // Finalize — a groom-entered result IS the real answer the moment it's
+  // typed in, whether or not the event has been formally closed out yet.
+  const actualByEvent = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!selectedPlayerId) return map;
+    for (const event of events) {
+      const resultsForEvent = eventResults.filter((r) => r.event_id === event.id);
+      if (resultsForEvent.length === 0) continue;
+      const mine = finishingPositions(event, resultsForEvent).get(selectedPlayerId);
+      if (mine != null) map.set(event.id, mine);
+    }
+    return map;
+  }, [events, eventResults, selectedPlayerId]);
 
   const committed = useMemo(
     () =>
@@ -391,6 +411,7 @@ export default function MultipliersPage() {
                           color={playerColor}
                           locked={locked}
                           projectedPosition={projectedByEvent.get(e.id) ?? null}
+                          actualPosition={actualByEvent.get(e.id) ?? null}
                           onChange={(next) => {
                             // Never let a player go over budget — checked
                             // against the FULL hypothetical draft (every

@@ -536,13 +536,15 @@ export function EventCard({
                 </div>
               </div>
             ) : (
-              // Raw and Total are the two figures this table exists to show
-              // (what you actually scored, and what it's worth once the
-              // multiplier/catch-up bonus apply) — both always visible, with a
-              // real spacer column between them so they don't read as one
-              // squeezed-together number. The multiplier (×), being the
-              // working-out behind Total rather than a result in its own
-              // right, is still the one column that drops below `sm`.
+              // Raw, the applied multiplier, and Total are the three
+              // figures this table exists to show — what you actually
+              // scored, what it's worth per point, and what that comes out
+              // to — all three visible at every width, including on the
+              // mobile PWA (direct feedback: the multiplier used to drop
+              // below `sm`, but it's the whole "working out" behind Total,
+              // not an optional extra). Real spacer columns between the
+              // number groups so they don't read as one squeezed-together
+              // figure.
               <div className="bevel-sunken bg-sunken rounded-md px-3 py-2">
                 {/* Column gap is padding on the cells, not `gap-x`: these rows
                     are `display: contents`, so the zebra stripe has to be
@@ -550,13 +552,13 @@ export function EventCard({
                     slots through every striped row — it read as a rendering
                     fault rather than a stripe. The empty spans are spacer
                     columns for the same reason. */}
-                <div className="grid grid-cols-[2rem_1fr_auto_1rem_auto] items-center gap-y-1.5 text-sm [&>*]:px-1.5 sm:grid-cols-[2rem_1fr_auto_1rem_auto_1.5rem_auto]">
+                <div className="grid grid-cols-[2rem_1fr_auto_0.75rem_auto_0.75rem_auto] items-center gap-y-1.5 text-sm [&>*]:px-1">
                   <span className="hud-label text-muted-foreground">#</span>
                   <span className="hud-label text-muted-foreground">Player</span>
                   <span className="hud-label text-muted-foreground text-right">Raw</span>
                   <span aria-hidden />
-                  <span className="hud-label text-muted-foreground hidden text-right sm:block">×</span>
-                  <span className="hidden sm:block" aria-hidden />
+                  <span className="hud-label text-muted-foreground text-right">×</span>
+                  <span aria-hidden />
                   <span className="hud-label text-muted-foreground text-right">
                     Total
                   </span>
@@ -586,10 +588,10 @@ export function EventCard({
                           {points != null ? Math.round(points) : "—"}
                         </span>
                         <span aria-hidden />
-                        <span className="font-score hidden text-right tabular-nums sm:block">
+                        <span className="font-score text-right tabular-nums">
                           {multiplier.toFixed(1)}×
                         </span>
-                        <span className="hidden sm:block" aria-hidden />
+                        <span aria-hidden />
                         <span className="font-score text-primary text-right font-medium tabular-nums">
                           {total != null ? Math.round(total) : "—"}
                         </span>
