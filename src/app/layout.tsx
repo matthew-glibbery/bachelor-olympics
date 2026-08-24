@@ -24,10 +24,44 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Bachelor Party",
-    // Translucent so the app's own dark background runs under the status
-    // bar instead of a grey band across the top of a console screen; the
-    // matching top safe-area padding lives in globals.css.
-    statusBarStyle: "black-translucent",
+    /*
+      `black`, NOT `black-translucent` — this is the fix for the
+      "unused space at the bottom of /start and /select" bug that three
+      previous rounds of CSS/layout changes failed to shift.
+
+      `black-translucent` asks iOS to extend the web view up underneath the
+      status bar. In standalone (home-screen) mode on a notched iPhone,
+      WebKit then reports a viewport that doesn't account for that
+      consistently, and the shortfall renders as a band of unfilled page
+      background along the BOTTOM of the screen.
+
+      The reason this took so long to find is the reason it matters where
+      the fix lives: *every* way of asking "how tall is the screen" —
+      `100vh`, `100dvh`, `position: fixed; inset: 0`, `window.innerHeight`,
+      even `window.visualViewport.height` — resolves against that same
+      short viewport. So no CSS unit and no JS measurement can paper over
+      it; each previous attempt measured the wrong number very accurately.
+      It also can't be reproduced outside an installed iOS PWA: a Safari
+      tab and headless Chrome both hand back a correct viewport, which is
+      why every fix tested clean and shipped broken.
+
+      With `black` the status bar is opaque and the web view starts below
+      it, correctly sized. Against this app's near-black `#070926`
+      background the visual difference is negligible, and `env(safe-area-
+      inset-top)` correctly collapses to 0 (the `--safe-*` tokens in
+      globals.css keep working; `viewport-fit=cover` still covers the
+      home-indicator area at the bottom, so `--safe-bottom` is unaffected).
+
+      NOTE FOR ANYONE TESTING THIS: iOS reads these `apple-*` meta tags
+      once, when the icon is added to the home screen, and caches them for
+      the life of that install. Editing them here does nothing to an
+      already-installed icon — the app has to be deleted from the home
+      screen and re-added before this change has any effect. (Ordinary
+      HTML/CSS/JS changes do reach an installed PWA on reload, which is why
+      the earlier attempts were genuinely being tested even though this
+      layer was frozen.)
+    */
+    statusBarStyle: "black",
   },
   other: {
     // Next only emits the standardised `mobile-web-app-capable`. WebKit has

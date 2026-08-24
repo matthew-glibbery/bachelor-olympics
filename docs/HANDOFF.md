@@ -2,6 +2,72 @@
 
 Rolling handoff note (per CLAUDE.md). Newest section on top.
 
+## 2026-08-23 (3) — The /start /select bottom gap, actually found: it was a meta tag, not CSS
+
+Fourth attempt at the same report, and the first one at the right layer.
+174 tests (unchanged), lint/typecheck/build all green.
+
+**Root cause: `apple-mobile-web-app-status-bar-style: black-translucent`
+in `layout.tsx`.** That tag asks iOS to extend the web view up underneath
+the status bar. In standalone (home-screen) mode on a notched iPhone,
+WebKit then reports a viewport that doesn't account for that consistently,
+and the shortfall renders as a band of unfilled page background along the
+BOTTOM of the screen.
+
+**Why three CSS/JS fixes in a row all failed.** Every way of asking "how
+tall is the screen" — `100vh`, `100dvh`, `position: fixed; inset: 0`,
+`window.innerHeight`, `window.visualViewport.height` — resolves against
+that same short viewport. So there is no CSS unit and no JS measurement
+that can paper over it; each previous attempt measured the wrong number
+very accurately. And it is not reproducible outside an installed iOS PWA:
+a Safari tab and this sandbox's headless Chrome both hand back a correct
+viewport, so every fix tested clean and shipped broken. Sequence for the
+record: `min-h-dvh` → `fixed inset-0` → `fixed` + JS-measured
+`--app-vh`, all three reported still-broken by the user.
+
+**What actually found it**: dumping the emitted HTML (`curl` the running
+dev server, grep the `<head>`) instead of reasoning about the CSS again.
+That immediately showed `viewport-fit=cover` was present and correct — so
+the safe-area theory was out — and `black-translucent` was present, which
+is the known trigger. **Checking what the app actually sends to the device
+should have been step one, three sessions ago.** Reading layout code tells
+you the intent; only the emitted document tells you what iOS receives.
+
+Changes:
+
+- `statusBarStyle: "black-translucent"` → `"black"`. The status bar is now
+  opaque and the web view starts below it, correctly sized. Against this
+  app's near-black `#070926` the visual difference is negligible, which is
+  the whole reason `black-translucent` was chosen originally — it was
+  buying almost nothing and costing a broken viewport.
+  `env(safe-area-inset-top)` correctly collapses to 0 (the `--safe-*`
+  tokens keep working; `viewport-fit=cover` still covers the
+  home-indicator area, so `--safe-bottom` is unaffected).
+- **`/start` and `/select` reverted to plain `fixed inset-0`**, and
+  `use-app-viewport-height.ts` deleted outright. With a correct viewport
+  `inset-0` is exactly right; the hook measured the same wrong number the
+  CSS already had, so it added a JS dependency (and a real stale-value
+  risk during the iOS launch transition) for zero coverage. Simpler is
+  strictly better here.
+- Re-measured `/select` geometry via CDP after the revert: identical to
+  the numbers from (2) — 0px slack at 667/852/932/956/1000px available
+  height. The `max-h-[28rem]` fix from (2) is a separate, real bug and is
+  preserved; this session did not touch it.
+
+### CRITICAL for anyone testing this
+
+**iOS reads the `apple-*` meta tags once, when the icon is added to the
+home screen, and caches them for the life of that install.** Changing them
+here does nothing to an already-installed icon. The app must be **deleted
+from the home screen and re-added** before this change has any effect at
+all. Ordinary HTML/CSS/JS changes DO reach an installed PWA on reload —
+which is why the three earlier attempts were genuinely being tested even
+though this particular layer had been frozen since install day.
+
+If the gap somehow survives a clean delete-and-re-add, the next step is
+not another theory: get a screenshot or screen recording from the actual
+device, plus the iOS version. Four blind attempts is three too many.
+
 ## 2026-08-23 (2) — /select's bottom gap: found the real cause and fixed it with numbers, not another guess
 
 Direct follow-up: the previous session in this file shipped

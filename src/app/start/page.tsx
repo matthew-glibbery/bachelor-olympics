@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 
 import { GameLogo } from "@/components/n64/game-logo";
 import { Starfield } from "@/components/n64/starfield";
-import { useAppViewportHeight } from "@/hooks/use-app-viewport-height";
 import { useGameInput } from "@/hooks/use-game-input";
 import { playSfx, unlockAudio } from "@/lib/sfx";
 import { useGameStore } from "@/store/gameStore";
@@ -30,29 +29,25 @@ const PROMPT_DELAY_MS = 1500;
  *   2. The starfield (src/components/n64/starfield.tsx) — always renders,
  *      so the screen never depends on an uploaded asset to look finished.
  *
- * `main` is `fixed`, not `min-h-dvh` — a fix for a real bug, not a style
- * choice. `min-h-dvh` only sets a FLOOR, which is what first showed up as a
- * band of unfilled space at the bottom on an installed PWA instead of the
- * boot video reaching the true screen edge. Switching to `position: fixed`
- * addressed the general case, but that same gap was reported again on a
- * real installed iOS PWA — `bottom: 0` on a fixed box still resolves
- * against however the browser computes "the viewport," and on iOS
- * standalone specifically that computation has a known history of being a
- * few pixels off from what's actually rendered. No CSS unit (`vh`, `dvh`,
- * `svh`, or `inset: 0`'s own implied height) is guaranteed to dodge that,
- * because they're all the browser's own idea of the viewport — exactly the
- * thing apparently in question. `useAppViewportHeight` (src/hooks/) measures
- * `window.visualViewport` directly instead of trusting any of them, and its
- * `--app-vh` feeds the explicit `height` below; `100dvh` is only the
- * pre-hydration fallback for the one frame before that effect runs.
+ * `main` is `fixed inset-0` rather than `min-h-dvh`: `min-height` only sets
+ * a floor, so the boot video could stop short of the true screen edge. That
+ * is the right shape for this screen and is all the CSS here needs to do.
+ *
+ * It is deliberately NOT trying to out-clever the viewport any more. An
+ * earlier version measured `window.visualViewport` into a custom property
+ * and set an explicit `height` from it, chasing a bottom-gap report on a
+ * real installed iOS PWA. That gap was real, but its cause was
+ * `apple-mobile-web-app-status-bar-style: black-translucent` handing the
+ * app a short viewport in the first place (see the long note in
+ * layout.tsx) — which every measurement API reports equally, so the JS was
+ * just measuring the wrong number precisely. With the status-bar style
+ * fixed, `inset-0` is correct and needs no help.
  */
 export default function StartPage() {
   const router = useRouter();
   const { appSettings, connect } = useGameStore();
   const [promptVisible, setPromptVisible] = useState(false);
   const [starting, setStarting] = useState(false);
-
-  useAppViewportHeight();
 
   useEffect(() => {
     connect();
@@ -121,14 +116,7 @@ export default function StartPage() {
   return (
     <main
       onClick={skipOrStart}
-      // `top-0 right-0 left-0` fixed, `height` explicit rather than
-      // `bottom: 0` — see this file's own doc comment and
-      // useAppViewportHeight for why the implied height of a `bottom: 0`
-      // box isn't trusted here any more. `100dvh` is the pre-hydration
-      // fallback; `--app-vh` (real, measured pixels) takes over the instant
-      // the effect runs.
-      className="fixed inset-x-0 top-0 flex cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
-      style={{ height: "var(--app-vh, 100dvh)" }}
+      className="fixed inset-0 flex cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
     >
       {bootVideoUrl ? (
         <video
