@@ -46,32 +46,32 @@ prototype. Treat the live Supabase project as production.
 
 ### The one thing waiting on a human
 
-**The iOS PWA bottom gap on `/start` and `/select` is STILL OPEN.** Six
-attempts, none confirmed. Do not attempt a seventh from theory.
+**The iOS PWA bottom band on `/start` and `/select` is STILL OPEN** — but
+the search space just got much smaller. See the 2026-08-24 (4) entry for the
+device readout.
 
-History, in order: `black-translucent` gave a bottom gap → `black` fixed the
-bottom (confirmed) but put an opaque band across the top of every screen →
-back to `black-translucent` with an `--app-height` floor; the top is now
-confirmed right, the bottom is not → restored `inset-0` alongside the floor
-and widened the floor's guard → still reported → added `100lvh` in
-standalone. The top half of this is solved and confirmed; only the bottom
-of those two screens is outstanding.
+**The viewport is not short.** That is measured, not assumed: `innerHeight`,
+`visualViewport` and a `fixed inset-0` probe all read 852 on a 852-tall
+screen, and `--app-height` already computes to 852px. Every fix from
+2026-08-23 onward targeted a shortfall that does not exist on this device.
+Do not write another one.
 
-What to do first, in this order:
+What is left is a binary question, and the tool to answer it is shipped:
 
-1. **Get the `/debug` readout from inside the installed app.** Tools →
-   Viewport diagnostics → Open diagnostics (groom only). It prints
-   display-mode, `screen` vs `innerHeight` vs `visualViewport` vs a real
-   `fixed inset-0` probe, and the exact reason the height correction did or
-   did not apply. Every attempt so far has been made without a single
-   number from the actual device.
-2. **Confirm the home-screen icon was deleted and re-added** if anything in
-   `layout.tsx`'s `apple-*` meta tags is involved — iOS caches those at
-   install time. (The top-of-screen change did take effect, so this has been
-   done at least once.)
-3. Remember the bug does not reproduce in Safari, a browser tab, or headless
-   Chrome — all three report a correct viewport, and `/start` measures a 0px
-   gap at 430x932 in the harness.
+1. Ask for the **paint test** screenshot — Tools → Viewport diagnostics →
+   Probe /start (or `/start?probe=1`). It outlines a `fixed inset-0` box in
+   magenta and prints its rect plus `<main>`'s.
+2. **Dead space BELOW the bottom line** → the box is short or offset; fix
+   the geometry, and the printed `top` says by how much.
+   **Dead space INSIDE the lines** → the box is correct and the problem is
+   what is (not) painting in it — look at the boot video element, the
+   z-order of the new bleed layer, or whether "unused" means empty layout
+   rather than an unpainted band.
+3. Only then write code. Six attempts have been made from theory; one was
+   actively harmful (it dropped `inset-0` and made the gap worse).
+
+Also still true: the bug does not reproduce in Safari, a browser tab, or
+headless Chrome, and `/start` measures a 0px gap at 393×852 in the harness.
 
 ### How to actually verify UI work
 
@@ -1087,6 +1087,60 @@ production build behind headless Chrome.
   from the manifest anyway; no install prompt UI; no left/right safe-area
   padding on the page gutters (the app is portrait-locked, where those
   insets are 0).
+
+## 2026-08-24 (4) — The viewport is NOT short: device readout, and what it rules out
+
+First real measurement from the affected device (iPhone, iOS 18.7, WebKit
+26.6, installed PWA). **It kills the theory every previous attempt was built
+on.** 201 tests (unchanged), lint/typecheck/build green.
+
+```
+display-mode standalone: true      navigator.standalone: true
+screen: 393 × 852                  inner: 393 × 852
+visualViewport: 393 × 852 @ y=0    fixed inset-0 height: 852
+screen.height − innerHeight: 0     --app-height (computed): 852px
+documentElement client: 393 × 793  safe-area top/bottom: 59px / 34px
+```
+
+What this establishes, and what a future session must not re-litigate:
+
+- **There is no viewport shortfall.** `innerHeight`, `visualViewport` and a
+  real `fixed inset-0` probe all read 852, which IS the screen. Every fix
+  from 2026-08-23 onward was aimed at a short viewport that does not exist
+  on this device. `ViewportFloor` correctly declines to act, and
+  `--app-height` already resolves to the full 852px.
+- `documentElement.clientHeight` reading 793 (= 852 − 59, the top inset) is
+  the known `viewport-fit=cover` quirk, NOT the bug — `clientHeight` on the
+  root reports the safe area while `innerHeight` reports the screen.
+- So the band is either (a) the fixed box landing in the wrong PLACE
+  (correct height, offset origin — the one number the first /debug failed
+  to record), or (b) the box being right and something not painting inside
+  it. Those have different fixes and nobody has yet distinguished them.
+
+Shipped this round:
+
+- **`ScreenProbe`** (`src/components/screen-probe.tsx`) — `/start?probe=1`
+  and `/select?probe=1` (linked from Tools → Viewport diagnostics as "Paint
+  test") draw a magenta hairline on all four edges of a `fixed inset-0` box
+  and print that box's top/bottom/height AND the real `<main>`'s rect. One
+  screenshot then separates (a) from (b): dead space *below* the bottom
+  line means the box is short; dead space *inside* the lines means the box
+  is right and the paint is wrong.
+- **/debug now records the probe's `top`/`bottom`**, not just its height —
+  a box can be the right size and in the wrong place, which is exactly the
+  distinction the first version couldn't make. Plus body/html box heights.
+- **Background bleed on `/start` and `/select`.** The video/starfield fill
+  layers moved OUT of `<main>` (which clips to its own box) into a sibling
+  `fixed inset-x-0 -top-24 -bottom-24 -z-10` layer, so they paint 6rem past
+  both edges. This is deliberately not a measurement-based fix: whatever
+  the fixed containing block turns out to be, a layer extending well past
+  both edges covers the difference. If the readout is right and the box is
+  already the full screen, it changes nothing and costs one composited
+  layer — it can only help. The horizon glow stays inside `<main>`, since
+  it's anchored to the bottom edge and bleeding it would push it off-screen.
+
+**Still open, and now needs a screenshot rather than a number**: the paint
+test from inside the installed app.
 
 ## 2026-08-24 (3) — /debug reachable from Tools, betting winnings reach the budget, evenly-tinted tooltip row
 
