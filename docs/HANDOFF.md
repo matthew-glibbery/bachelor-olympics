@@ -35,21 +35,28 @@ prototype. Treat the live Supabase project as production.
   `character_confirm_video_url` present, 0013's `character_portrait_url`
   gone). This closes the "0012/0013 not yet confirmed run" caveat that had
   been open in the 2026-08-15 entry.
-- Real data: 8 real players with real character art, the weekend partly
-  played (a couple of events resolved, one scoring, the rest planned), and
-  real per-event and overall bets on the board.
+- Real data: **as of 2026-08-24 the weekend has been reset** — 7 players
+  with their character art, all 8 events back to "planned", and no results,
+  multipliers or bets at all. (It previously held a partly-played weekend.)
+  Anything that only renders once there are scores — the leaderboard, the
+  progress chart, the bet editors — now comes up empty against live data,
+  so UI work on those screens needs a temporary local mock (see the
+  2026-08-24 entry for the shape of one) rather than the live project.
 
 ### The one thing waiting on a human
 
-**The iOS PWA "dead space at the bottom of `/start` and `/select`" fix is
-shipped but UNCONFIRMED.** (#53, `3e8fdbc`.)
+**The iOS PWA status-bar change is shipped but UNCONFIRMED on a device.**
+(2026-08-24 entry below.)
 
-Root cause was `apple-mobile-web-app-status-bar-style: black-translucent`
-in `layout.tsx` handing the app a short viewport in standalone mode;
-changed to `black`. Three earlier CSS/JS attempts failed because *every*
-height API (`100vh`, `100dvh`, `fixed inset-0`, `innerHeight`,
-`visualViewport.height`) resolves against that same short viewport, and
-none of it reproduces outside an installed iOS PWA.
+The story so far, in order: `black-translucent` gave a dead-space gap at
+the *bottom* of `/start` and `/select` → changed to `black` (#53), which
+fixed the bottom and was confirmed fixed by the user → but `black` puts an
+opaque band across the *top* of every screen, so the boot video stopped
+being full-screen and neither content nor starfield painted through it →
+now back to `black-translucent`, with the bottom gap addressed directly
+instead by `--app-height` / `src/components/viewport-floor.tsx` (reads
+`window.screen.height`, the one height available that isn't a viewport
+reading, and only in a standalone portrait PWA with a sub-80px shortfall).
 
 Two things a new session must know:
 
@@ -57,10 +64,11 @@ Two things a new session must know:
    home screen.** The user has to *delete and re-add* the home-screen icon
    or this change does nothing for them. If they report "still broken,"
    confirm they did that before anything else.
-2. **If it survives a clean re-install, stop guessing.** Ask for a
-   screenshot/recording and the iOS version. Four blind attempts have
-   already happened; the three 2026-08-23 entries below record exactly
-   what was ruled out, so a fifth theory should not re-tread them.
+2. **If a gap survives a clean re-install, stop guessing.** Ask for a
+   screenshot/recording and the iOS version, and get the numbers
+   `viewport-floor.tsx` is working from (`innerHeight`, `screen.height`,
+   `display-mode`) rather than proposing a fifth theory. The 2026-08-23
+   entries below record what has already been ruled out.
 
 ### How to actually verify UI work
 
@@ -1076,6 +1084,66 @@ production build behind headless Chrome.
   from the manifest anyway; no install prompt UI; no left/right safe-area
   padding on the page gutters (the app is portrait-locked, where those
   insets are 0).
+
+## 2026-08-24 — iOS PWA top gap: status bar goes translucent again, plus four UI fixes
+
+Direct feedback from the installed iOS PWA: the bottom gap the previous
+session fixed is genuinely gone, but the fix (an opaque `black` status bar)
+bought that at the cost of a black band across the top of *every* screen —
+the boot video is no longer full-screen, and neither the content nor the
+starfield paints through it. Priority was the top; four smaller fixes came
+with it. 174 tests (unchanged — all UI), lint/typecheck/build green.
+
+- **`statusBarStyle` back to `black-translucent`** (`layout.tsx`), so the
+  web view extends under the status bar and `/start`'s video, the starfield
+  and the page background paint edge to edge again. `env(safe-area-inset-
+  top)` goes non-zero under this style, which is what keeps real UI clear of
+  the clock/notch — `screen-pad-block` and `/select` already add `--safe-top`
+  to their padding, so background paints through while content doesn't.
+  **Re-read layout.tsx's note before touching this again**: iOS caches these
+  `apple-*` meta tags at install time, so this change is invisible until the
+  app is deleted from the home screen and re-added.
+- **The bottom gap that motivated `black` is now handled directly**, not by
+  giving up the top of the screen. New `src/components/viewport-floor.tsx`
+  publishes `--app-height`: normally `100dvh` (globals.css), but in an
+  installed standalone PWA whose viewport under-reports the screen it
+  substitutes `window.screen.height` — deliberately the one available number
+  that is *not* a viewport reading, which is exactly what the earlier
+  `visualViewport` attempt got wrong (it measured the same short number very
+  precisely). Narrow on purpose: standalone only, portrait only (iOS doesn't
+  swap `screen.width`/`height` on rotation, so the axes aren't comparable in
+  landscape), only as a floor, and only for a shortfall under 80px — a
+  bigger discrepancy isn't this bug and stretching the page would make it
+  worse. `/start`, `/select` and `GameScreen` size from `--app-height`
+  instead of `dvh`/`inset-0`. Browsers and Android are untouched.
+- **Progress-chart tooltip highlights your own row** — the session player's
+  row gets a band in their own colour, the same tint the standings table
+  uses for "your" row. The row is `display: contents`, so the tint is
+  painted per cell with each cell bleeding out by half the column gap;
+  without that it read as five separate chips rather than one row.
+- **Bet editor buttons fit on one line at 390px**: "Discard" → "Cancel" and
+  "Delete bet" → a `Trash2` icon button (`aria-label`/`title` kept), in both
+  copies of the editor — `/bets` and the Odds tab's
+  (`event-odds-betting.tsx`). Verified by actually clicking Edit on both at
+  390px: Save changes / Cancel / trash now share one row instead of wrapping.
+- **Standings' empty header row removed** (`/`). The header's labels were
+  already blank except "Raw", and that one was itself `hidden sm:table-cell`
+  — so on a phone the table opened with a bare band of padding above rank 1.
+  The Raw column carries its own label as a per-cell prefix from `sm` up
+  instead, and the header text moved into an `sr-only` `<caption>`.
+- **Verification**: the live project has been reset (7 players, 8 planned
+  events, no results/bets), so the leaderboard and bet editors render empty
+  against it. Screenshotted them against a temporary local mock instead —
+  a `NEXT_PUBLIC_MOCK_SCORES` branch seeded into `gameStore.connect` over
+  the real roster, reverted before committing (`git checkout` on that file;
+  `grep MOCK_SCORES` is clean). Nothing was written to live data at any
+  point — the only clicks were "Edit", which opens a form. `check-overflow`
+  clean at 390px on all five routes, and `viewport-shot` shows `/start`
+  filling a 430×932 viewport with a 0px gap. **The one thing that cannot be
+  verified here is the thing the change is for**: the short-viewport bug
+  only reproduces in an installed iOS PWA, so `--app-height` is a reasoned
+  fix against a bug this environment can't show. Delete and re-add the home
+  screen icon, then check the top of `/start` and the bottom of `/select`.
 
 ## 2026-08-19 (4) — `/bets` rework: overall picks as a roster list, per-event bets view-only
 

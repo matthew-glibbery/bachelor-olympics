@@ -94,6 +94,16 @@
     same rules are safe everywhere. Tokens rather than inline env() in
     components, per the convention every other value here follows.
   */
+  /*
+    Full-screen height for the three shells that fill the screen exactly
+    (game-screen.tsx, /start, /select). `100dvh` is correct everywhere
+    except an installed iOS PWA under `black-translucent`, where WebKit can
+    report a short viewport — `ViewportFloor`
+    (src/components/viewport-floor.tsx) overwrites this with the real
+    screen height in that one case, and only in that case.
+  */
+  --app-height: 100dvh;
+
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

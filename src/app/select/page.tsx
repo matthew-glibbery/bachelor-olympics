@@ -142,14 +142,12 @@ export default function SelectPage() {
   const focused = players[index] ?? null;
 
   return (
-    // `fixed inset-0`: this screen is tuned to fit exactly one screen
-    // (roster at top, "Let's go" at the bottom, no scroll). An earlier
-    // version set an explicit `height` from a measured
-    // `window.visualViewport` instead, chasing a bottom-gap report on a
-    // real installed iOS PWA — see layout.tsx's status-bar note for what
-    // was actually causing that, and why no amount of measuring could have
-    // fixed it.
-    <main className="fixed inset-0 flex flex-col overflow-hidden">
+    // Fixed and pinned to the top: this screen is tuned to fit exactly one
+    // screen (roster at top, "Let's go" at the bottom, no scroll). Height
+    // comes from `--app-height` rather than the viewport, so an installed
+    // iOS PWA that under-reports its viewport still fills the real screen —
+    // see layout.tsx's status-bar note and src/components/viewport-floor.tsx.
+    <main className="fixed inset-x-0 top-0 flex h-[var(--app-height)] flex-col overflow-hidden">
       <Starfield className="opacity-60" />
 
       <div className="relative flex min-h-0 flex-1 flex-col gap-3 px-4 pt-[calc(1rem+var(--safe-top))] pb-[calc(1rem+var(--safe-bottom))] sm:gap-4 sm:px-8">

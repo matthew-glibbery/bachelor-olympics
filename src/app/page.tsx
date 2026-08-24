@@ -9,7 +9,7 @@ import { CatchUpBadge } from "@/components/event-card";
 import { CharacterRender } from "@/components/n64/character-render";
 import { GameScreen } from "@/components/n64/game-screen";
 import { Panel } from "@/components/n64/panel";
-import { RankBadge, ROSTER_CELL, ROSTER_HEAD_CELL, ROSTER_HEAD_ROW, rosterRowClass } from "@/components/n64/roster-table";
+import { RankBadge, ROSTER_CELL, rosterRowClass } from "@/components/n64/roster-table";
 import { PlayerName } from "@/components/player-name";
 import { ProgressChart } from "@/components/progress-chart";
 import { useGameInput } from "@/hooks/use-game-input";
@@ -186,28 +186,19 @@ export default function Home() {
             <Panel title="Standings" icon={ListOrdered}>
               <div className="bevel-sunken bg-sunken rounded-md">
                 <table className="w-full border-collapse">
-                  <thead>
-                    {/* "Competitor" and "Points" labelled what a name and a
-                        bold right-aligned number already say for themselves;
-                        "Raw" stays since a bare secondary figure next to the
-                        real score would otherwise read as a second point
-                        total rather than the pre-multiplier one. */}
-                    <tr className={ROSTER_HEAD_ROW}>
-                      {["", "", "Raw", ""].map((h, i) => (
-                        <th
-                          key={i}
-                          scope="col"
-                          className={cn(
-                            ROSTER_HEAD_CELL,
-                            i >= 2 ? "text-right" : "text-left",
-                            i === 2 && "hidden sm:table-cell",
-                          )}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
+                  {/* No visible header row. "Competitor" and "Points"
+                      labelled what a name and a bold right-aligned number
+                      already say for themselves, and once those were blank
+                      the only label left ("Raw") was itself hidden below
+                      `sm` — so on the phone this app is actually used on,
+                      the header was an entirely empty band of padding above
+                      the first player. The Raw column keeps its label as a
+                      per-cell prefix instead (visible from `sm` up, where
+                      that column exists at all), and the header text moves
+                      into a screen-reader-only caption. */}
+                  <caption className="sr-only">
+                    Standings: rank, competitor, raw points, adjusted points
+                  </caption>
                   <tbody>
                     {ranked.map((total, i) => {
                       const player = players.find((p) => p.id === total.playerId);
@@ -268,8 +259,9 @@ export default function Home() {
                               number on the event card, so the leaderboard was
                               both off-spec and disagreeing with another
                               screen about the same player's score. */}
-                          <td className={cn(ROSTER_CELL, "font-score text-muted-foreground hidden text-right text-sm tabular-nums sm:table-cell")}>
-                            {Math.round(total.raw)}
+                          <td className={cn(ROSTER_CELL, "text-muted-foreground hidden text-right text-sm sm:table-cell")}>
+                            <span className="hud-label mr-1.5">Raw</span>
+                            <span className="font-score tabular-nums">{Math.round(total.raw)}</span>
                           </td>
                           <td
                             className={cn(

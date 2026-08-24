@@ -13,6 +13,7 @@ import {
 } from "recharts";
 
 import { assignPlayerColors } from "@/lib/chartColors";
+import { cn } from "@/lib/utils";
 import { PlayerName } from "@/components/player-name";
 import type { SeriesPoint } from "@/lib/scoring/cumulativeSeries";
 import type { PlayerRow } from "@/lib/data/database.types";
@@ -162,6 +163,7 @@ export function ProgressChart({ players, series, currentPlayerId = null }: Progr
                   data={data}
                   playerById={playerById}
                   colorByPlayer={colorByPlayer}
+                  currentPlayerId={currentPlayerId}
                 />
               )}
             />
@@ -283,10 +285,12 @@ function ProgressTooltip({
   data,
   playerById,
   colorByPlayer,
+  currentPlayerId,
 }: TooltipContentProps & {
   data: ChartRow[];
   playerById: Map<string, PlayerRow>;
   colorByPlayer: Record<string, string>;
+  currentPlayerId: string | null;
 }) {
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0]?.payload as ChartRow | undefined;
@@ -325,6 +329,24 @@ function ProgressTooltip({
           const player = playerById.get(playerId);
           if (!player) return null;
 
+          // Rows are `display: contents`, so there is no row box to paint —
+          // the tint has to go on each cell individually (same reason the
+          // event results table uses spacer columns rather than a gap), and
+          // each cell has to bleed out by half the column gap (`gap-x-2.5`
+          // = 0.625rem) so the highlight reads as one continuous band
+          // rather than five separate chips. The colour is the player's own,
+          // the same tint the standings table uses for "your" row, so the
+          // same player reads the same way on both halves of this screen.
+          const isYou = playerId === currentPlayerId;
+          const tint = isYou
+            ? "-mx-[0.3125rem] px-[0.3125rem] py-0.5 first:rounded-l-sm last:rounded-r-sm"
+            : "";
+          const tintStyle = isYou
+            ? {
+                backgroundColor: `color-mix(in oklab, ${colorByPlayer[playerId]} 22%, transparent)`,
+              }
+            : undefined;
+
           const rank = currentRanks.get(playerId);
           const prevRank = previousRanks?.get(playerId);
           // Positive = moved toward 1st (fewer places to go = improvement).
@@ -335,16 +357,19 @@ function ProgressTooltip({
 
           return (
             <div key={playerId} className="contents">
-              <span className="text-muted-foreground text-left text-xs tabular-nums">
+              <span className={cn("text-muted-foreground text-left text-xs tabular-nums", tint)} style={tintStyle}>
                 {rank != null ? `#${rank}` : ""}
               </span>
               <span
-                className="text-left text-xs font-medium tabular-nums"
-                style={rankChange ? { color: rankChange > 0 ? STATUS_GOOD : STATUS_BAD } : undefined}
+                className={cn("text-left text-xs font-medium tabular-nums", tint)}
+                style={{
+                  ...tintStyle,
+                  ...(rankChange ? { color: rankChange > 0 ? STATUS_GOOD : STATUS_BAD } : {}),
+                }}
               >
                 {rankChange ? `${rankChange > 0 ? "▲" : "▼"}${Math.abs(rankChange)}` : ""}
               </span>
-              <span className="flex items-center gap-1.5 text-left">
+              <span className={cn("flex items-center gap-1.5 text-left", tint)} style={tintStyle}>
                 <span
                   aria-hidden
                   className="h-0.5 w-3 shrink-0 rounded-full"
@@ -358,10 +383,12 @@ function ProgressTooltip({
                   color={colorByPlayer[playerId]}
                 />
               </span>
-              <span className="text-left font-semibold tabular-nums">{Math.round(value)}</span>
+              <span className={cn("text-left font-semibold tabular-nums", tint)} style={tintStyle}>
+                {Math.round(value)}
+              </span>
               <span
-                className="text-left text-xs font-medium tabular-nums"
-                style={{ color: STATUS_GOOD }}
+                className={cn("text-left text-xs font-medium tabular-nums", tint)}
+                style={{ ...tintStyle, color: STATUS_GOOD }}
               >
                 {pointsGained ? `+${pointsGained}` : ""}
               </span>
