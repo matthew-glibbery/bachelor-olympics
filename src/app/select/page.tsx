@@ -19,7 +19,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Play } from "lucide-react";
-import { useAppViewportHeight } from "@/hooks/use-app-viewport-height";
 import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -51,8 +50,6 @@ export default function SelectPage() {
   const router = useRouter();
   const { players: rosterFromStore, connect, ready } = useGameStore();
   const { selectedPlayerId, selectPlayer, groomUnlocked, unlockGroom } = useSessionStore();
-
-  useAppViewportHeight();
 
   useEffect(() => {
     connect();
@@ -145,17 +142,14 @@ export default function SelectPage() {
   const focused = players[index] ?? null;
 
   return (
-    // Fixed, `height` explicit rather than `bottom: 0` — see /start's own
-    // doc comment and useAppViewportHeight for why. Short version: this
-    // screen is tuned to fit exactly one screen (roster at top, "Let's go"
-    // at the bottom, no scroll) on the real device it runs on, and a
-    // `bottom: 0` box's own implied height turned out not to be trustworthy
-    // on a real installed iOS PWA even though the same fix reads correctly
-    // and works in every other environment this was tested in.
-    <main
-      className="fixed inset-x-0 top-0 flex flex-col overflow-hidden"
-      style={{ height: "var(--app-vh, 100dvh)" }}
-    >
+    // `fixed inset-0`: this screen is tuned to fit exactly one screen
+    // (roster at top, "Let's go" at the bottom, no scroll). An earlier
+    // version set an explicit `height` from a measured
+    // `window.visualViewport` instead, chasing a bottom-gap report on a
+    // real installed iOS PWA — see layout.tsx's status-bar note for what
+    // was actually causing that, and why no amount of measuring could have
+    // fixed it.
+    <main className="fixed inset-0 flex flex-col overflow-hidden">
       <Starfield className="opacity-60" />
 
       <div className="relative flex min-h-0 flex-1 flex-col gap-3 px-4 pt-[calc(1rem+var(--safe-top))] pb-[calc(1rem+var(--safe-bottom))] sm:gap-4 sm:px-8">
