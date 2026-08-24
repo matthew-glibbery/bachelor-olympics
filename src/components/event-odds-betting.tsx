@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { PlayerName } from "@/components/player-name";
@@ -297,7 +298,7 @@ export function EventOddsBetting({
                   flex columns of different heights, bottom-aligned
                   (`items-end`) rather than sharing a real grid. `items-center`
                   on the value row centers the Odds/Payout text and the
-                  Wager/Discard buttons against the tallest thing in the
+                  Wager/Cancel buttons against the tallest thing in the
                   row (the Input), instead of everything sitting on its own
                   baseline. The trailing button group has no label of its
                   own, and is the one thing allowed to wrap onto its own
@@ -339,18 +340,25 @@ export function EventOddsBetting({
                 {isEditing ? (
                   <>
                     <Button variant="outline" onClick={discardEditing} disabled={busy}>
-                      Discard
+                      Cancel
                     </Button>
-                    {/* Cancelling the bet outright lives in the editor now,
-                        not as a trash icon on the row — see PlacedBetsTable's
-                        own note on why that icon came out. */}
+                    {/* Cancelling the bet outright lives in the editor, not
+                        as a trash icon on the row — see PlacedBetsTable's
+                        own note on why that icon came out. Icon-only here
+                        so all three buttons fit one line on a phone: with
+                        "Save changes" and "Cancel" beside it, a third
+                        worded button ("Delete bet") pushed the group onto
+                        a second row. */}
                     <Button
                       variant="outline"
+                      size="icon"
                       className="text-destructive hover:text-destructive"
                       onClick={handleCancelBet}
                       disabled={busy}
+                      aria-label="Delete bet"
+                      title="Delete bet"
                     >
-                      Delete bet
+                      <Trash2 />
                     </Button>
                   </>
                 ) : null}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Coins, Percent } from "lucide-react";
+import { Coins, Percent, Trash2 } from "lucide-react";
 
 import { GameScreen } from "@/components/n64/game-screen";
 import { Panel } from "@/components/n64/panel";
@@ -415,7 +415,7 @@ export default function BetsPage() {
                       onClick={() => discardPerEventEdit(editingRow.event.id)}
                       disabled={busyBetId === editingRow.bet.id}
                     >
-                      Discard
+                      Cancel
                     </Button>
                     {/* Cancelling the bet outright lives here now, not as a
                         trash icon on the row itself — that icon crowded the
@@ -423,14 +423,18 @@ export default function BetsPage() {
                         square just to fit two buttons side by side. One
                         real-height Edit button on the row, one real-height
                         Delete here where there's a whole panel's width to
-                        work with. */}
+                        work with. Icon-only, so Save changes / Cancel /
+                        Delete all fit on one line on a phone. */}
                     <Button
                       variant="outline"
+                      size="icon"
                       className="text-destructive hover:text-destructive"
                       onClick={() => handleCancelPerEvent(editingRow.event.id, editingRow.bet.id)}
                       disabled={busyBetId === editingRow.bet.id}
+                      aria-label="Delete bet"
+                      title="Delete bet"
                     >
-                      Delete bet
+                      <Trash2 />
                     </Button>
                   </div>
                 </div>

@@ -29,19 +29,15 @@ const PROMPT_DELAY_MS = 1500;
  *   2. The starfield (src/components/n64/starfield.tsx) — always renders,
  *      so the screen never depends on an uploaded asset to look finished.
  *
- * `main` is `fixed inset-0` rather than `min-h-dvh`: `min-height` only sets
- * a floor, so the boot video could stop short of the true screen edge. That
- * is the right shape for this screen and is all the CSS here needs to do.
- *
- * It is deliberately NOT trying to out-clever the viewport any more. An
- * earlier version measured `window.visualViewport` into a custom property
- * and set an explicit `height` from it, chasing a bottom-gap report on a
- * real installed iOS PWA. That gap was real, but its cause was
- * `apple-mobile-web-app-status-bar-style: black-translucent` handing the
- * app a short viewport in the first place (see the long note in
- * layout.tsx) — which every measurement API reports equally, so the JS was
- * just measuring the wrong number precisely. With the status-bar style
- * fixed, `inset-0` is correct and needs no help.
+ * `main` is fixed and pinned to the top rather than `min-h-dvh`:
+ * `min-height` only sets a floor, so the boot video could stop short of the
+ * true screen edge. Its height is `--app-height` — `100dvh` everywhere
+ * except an installed iOS PWA whose viewport under-reports the screen,
+ * where `ViewportFloor` (src/components/viewport-floor.tsx) substitutes the
+ * real screen height. That is the one measurement that isn't itself a
+ * viewport reading, which is what an earlier `window.visualViewport`
+ * attempt got wrong: it measured the same short number very precisely.
+ * Nothing else on this screen should try to size itself from the viewport.
  */
 export default function StartPage() {
   const router = useRouter();
@@ -116,7 +112,7 @@ export default function StartPage() {
   return (
     <main
       onClick={skipOrStart}
-      className="fixed inset-0 flex cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
+      className="fixed inset-x-0 top-0 flex h-[var(--app-height)] cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
     >
       {bootVideoUrl ? (
         <video

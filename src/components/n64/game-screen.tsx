@@ -43,7 +43,7 @@ export function GameScreen({
   className?: string;
 }) {
   return (
-    <main className="screen-pad-block relative min-h-dvh overflow-hidden px-4 sm:px-8">
+    <main className="screen-pad-block relative min-h-[var(--app-height)] overflow-hidden px-4 sm:px-8">
       <Starfield className="opacity-60" />
 
       <div
