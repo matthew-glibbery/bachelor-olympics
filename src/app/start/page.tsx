@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { GameLogo } from "@/components/n64/game-logo";
 import { Starfield } from "@/components/n64/starfield";
+import { ScreenProbe } from "@/components/screen-probe";
 import { useGameInput } from "@/hooks/use-game-input";
 import { playSfx, unlockAudio } from "@/lib/sfx";
 import { useGameStore } from "@/store/gameStore";
@@ -115,60 +116,85 @@ export default function StartPage() {
   }, [bootVideoUrl]);
 
   return (
-    <main
-      onClick={skipOrStart}
-      className="fixed inset-0 flex min-h-[var(--app-height)] cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
-    >
-      {bootVideoUrl ? (
-        <video
-          ref={bootVideoRef}
-          src={bootVideoUrl}
-          autoPlay
-          muted
-          playsInline
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <Starfield />
-      )}
+    <>
+      {/* Background, bled 6rem past the top and bottom of the viewport.
 
-      {/* Horizon glow, so the logo sits on something rather than floating. */}
+          This is the belt-and-braces answer to the installed-PWA bottom
+          band, and it is deliberately not a measurement: whatever the fixed
+          containing block turns out to be — the full screen, inset below the
+          status bar, or short by the home indicator — a layer that extends
+          well beyond both edges paints across the difference. It cannot be
+          a child of <main>, which clips to its own box (`overflow-hidden`),
+          so it's a sibling behind it.
+
+          The device readout (2026-08-24) says the fixed box already IS the
+          full screen, in which case this bleed changes nothing visible and
+          costs one composited layer. That's the point: it can only help. */}
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 100%, color-mix(in oklch, var(--primary) 30%, transparent) 0%, transparent 70%)",
-        }}
         aria-hidden
-      />
-
-      <div className="relative flex w-full max-w-3xl flex-col items-center gap-8">
-        <div className="anim-logo-settle w-full">
-          <GameLogo />
-        </div>
-
-        {/* A real button for keyboard and screen-reader users, styled as
-            the blinking prompt rather than as a control. */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            skipOrStart();
-          }}
-          className="focus-visible:is-cursor mt-6 rounded-sm px-4 py-2 focus-visible:outline-none"
-        >
-          <span
-            className={
-              starting
-                ? "marquee text-xl sm:text-2xl"
-                : "anim-blink marquee text-xl sm:text-2xl"
-            }
-            style={{ visibility: promptVisible ? "visible" : "hidden" }}
-          >
-            Press Start
-          </span>
-        </button>
+        className="pointer-events-none fixed inset-x-0 -top-24 -bottom-24 -z-10 overflow-hidden"
+      >
+        {bootVideoUrl ? (
+          <video
+            ref={bootVideoRef}
+            src={bootVideoUrl}
+            autoPlay
+            muted
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <Starfield />
+        )}
       </div>
-    </main>
+
+      <main
+        onClick={skipOrStart}
+        className="fixed inset-0 flex min-h-[var(--app-height)] cursor-pointer flex-col items-center justify-center overflow-hidden px-6"
+      >
+        {/* Horizon glow, so the logo sits on something rather than floating.
+            Stays inside <main>, unlike the fill layers above: it's anchored
+            to the bottom EDGE, so bleeding it would push the glow off the
+            screen. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 100%, color-mix(in oklch, var(--primary) 30%, transparent) 0%, transparent 70%)",
+          }}
+          aria-hidden
+        />
+
+        <div className="relative flex w-full max-w-3xl flex-col items-center gap-8">
+          <div className="anim-logo-settle w-full">
+            <GameLogo />
+          </div>
+
+          {/* A real button for keyboard and screen-reader users, styled as
+              the blinking prompt rather than as a control. */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              skipOrStart();
+            }}
+            className="focus-visible:is-cursor mt-6 rounded-sm px-4 py-2 focus-visible:outline-none"
+          >
+            <span
+              className={
+                starting
+                  ? "marquee text-xl sm:text-2xl"
+                  : "anim-blink marquee text-xl sm:text-2xl"
+              }
+              style={{ visibility: promptVisible ? "visible" : "hidden" }}
+            >
+              Press Start
+            </span>
+          </button>
+        </div>
+      </main>
+
+      <ScreenProbe />
+    </>
   );
 }

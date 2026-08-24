@@ -23,6 +23,7 @@ import { useMenuNav } from "@/hooks/use-menu-nav";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { assignPlayerColors } from "@/lib/chartColors";
+import { ScreenProbe } from "@/components/screen-probe";
 import { cn } from "@/lib/utils";
 import type { PlayerRow } from "@/lib/data/database.types";
 
@@ -148,8 +149,19 @@ export default function SelectPage() {
     // extends it when an installed iOS PWA under-reports that — see
     // layout.tsx's status-bar note and src/components/viewport-floor.tsx
     // for why both are here rather than either alone.
-    <main className="fixed inset-0 flex min-h-[var(--app-height)] flex-col overflow-hidden">
-      <Starfield className="opacity-60" />
+    <>
+      {/* Background, bled 6rem past the top and bottom of the viewport — see
+          the long note on /start, same reasoning: <main> clips to its own
+          box, so a fill layer that survives any viewport disagreement has to
+          sit outside it. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-x-0 -top-24 -bottom-24 -z-10 overflow-hidden"
+      >
+        <Starfield className="opacity-60" />
+      </div>
+
+      <main className="fixed inset-0 flex min-h-[var(--app-height)] flex-col overflow-hidden">
 
       <div className="relative flex min-h-0 flex-1 flex-col gap-3 px-4 pt-[calc(1rem+var(--safe-top))] pb-[calc(1rem+var(--safe-bottom))] sm:gap-4 sm:px-8">
         {!ready ? (
@@ -356,6 +368,9 @@ export default function SelectPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </main>
+      </main>
+
+      <ScreenProbe />
+    </>
   );
 }

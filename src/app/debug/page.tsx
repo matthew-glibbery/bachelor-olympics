@@ -82,7 +82,17 @@ export default function DebugPage() {
         label: "visualViewport",
         value: vv ? `${Math.round(vv.width)} × ${Math.round(vv.height)} @ y=${Math.round(vv.offsetTop)}` : "unavailable",
       },
-      { label: "fixed inset-0 height", value: `${Math.round(probeRect.height)}` },
+      {
+        // The number the first version of this page failed to record, and
+        // the one that actually matters: a `fixed inset-0` box can be the
+        // right HEIGHT and still be in the wrong PLACE. `top` should be 0.
+        label: "fixed inset-0 box",
+        value: `top ${Math.round(probeRect.top)} · bottom ${Math.round(probeRect.bottom)} · height ${Math.round(probeRect.height)}`,
+      },
+      {
+        label: "body / html box height",
+        value: `${Math.round(document.body.getBoundingClientRect().height)} / ${Math.round(de.getBoundingClientRect().height)}`,
+      },
       { label: "screen.height − innerHeight", value: `${shortfall}` },
       { label: "--app-height (computed)", value: style.getPropertyValue("--app-height").trim() || "(unset)" },
       { label: "safe-area top / bottom", value: `${style.getPropertyValue("--safe-top").trim()} / ${style.getPropertyValue("--safe-bottom").trim()}` },
@@ -150,6 +160,22 @@ export default function DebugPage() {
         <Link href="/setup" className="bevel-raised bg-card rounded-md px-4 py-2 text-sm">
           Back to Tools
         </Link>
+      </div>
+
+      {/* The visual half of the diagnosis. Numbers say where the box thinks
+          it is; these say where it actually landed on the glass, which is
+          the only way to tell "the box is short" apart from "the box is
+          right and something isn't painting inside it". */}
+      <p className="text-muted-foreground mt-6 mb-2">
+        Paint test — open one, screenshot it, come back:
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <a href="/start?probe=1" className="bevel-raised bg-card rounded-md px-4 py-2 text-sm">
+          Probe /start
+        </a>
+        <a href="/select?probe=1" className="bevel-raised bg-card rounded-md px-4 py-2 text-sm">
+          Probe /select
+        </a>
       </div>
 
       {/* A hairline pinned to the true bottom of a `fixed inset-0` box. If
