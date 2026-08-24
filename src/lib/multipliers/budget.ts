@@ -148,11 +148,24 @@ export interface BudgetValidation {
  * a multiplier — double-spending it and pushing their betting reserve
  * negative. Defaults to 0 so existing callers that don't have a bet list
  * handy (or genuinely have none) are unaffected.
+ *
+ * `netFromResolvedBets` is the other half of the same ledger, and its
+ * absence was a real bug: PRODUCT_SPEC.md → Per-event multiplier betting
+ * says a winning wager "returns to the player's reserve, REALLOCATABLE TO
+ * ANY STILL-UNLOCKED EVENT or another bet" — but this function only ever
+ * subtracted open escrow, so winnings paid out into a number the multiplier
+ * sliders couldn't see. A player who won a bet was told their budget was
+ * unchanged and couldn't spend a single tenth of it on an event, which is
+ * exactly what was reported. Signed: negative for a net loss.
+ * `resolvedBetsNet` (src/lib/betting/reserve.ts) is the one definition of
+ * it, already snapped to the 0.1 grid — pass that, not a raw sum, or this
+ * figure and "available to wager" will disagree by a rounding step.
  */
 export function validateAllocations(
   allocations: MultiplierAllocation[],
   eventCount: number = allocations.length,
   reservedForBets = 0,
+  netFromResolvedBets = 0,
 ): BudgetValidation {
   const errors: string[] = [];
 
@@ -166,7 +179,8 @@ export function validateAllocations(
     sumTenths += toTenths(alloc.value);
   }
 
-  const totalTenths = eventCount * DEFAULT_T - toTenths(reservedForBets);
+  const totalTenths =
+    eventCount * DEFAULT_T - toTenths(reservedForBets) + toTenths(netFromResolvedBets);
   const remainingTenths = totalTenths - sumTenths;
   if (remainingTenths < 0) {
     errors.push(

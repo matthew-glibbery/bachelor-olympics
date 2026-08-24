@@ -108,8 +108,31 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+}
 
+/*
+  Installed to a home screen, prefer the LARGE viewport height.
 
+  `dvh` is the *dynamic* viewport — it shrinks to whatever the browser's
+  chrome currently leaves. A standalone PWA has no chrome for it to account
+  for, so the two are normally identical; but if WebKit is under-reporting
+  its dynamic viewport (the bug this whole file's `--app-height` machinery
+  exists for), `lvh` is the larger of the two and therefore the safer floor.
+  Scoped to standalone specifically because in a browser TAB `lvh` is
+  deliberately taller than the visible area — using it there would push the
+  bottom of a full-screen layout under the address bar.
+
+  ViewportFloor (src/components/viewport-floor.tsx) can still raise this
+  further with a measured pixel height; it sets an inline style, which wins
+  over both.
+*/
+@media (display-mode: standalone) {
+  :root {
+    --app-height: 100lvh;
+  }
+}
+
+:root {
   /* Type. These resolve to real self-hosted webfonts loaded by
      `src/app/fonts.ts` via next/font, which injects the `*-loaded` variables
      onto <html>. The trailing stacks are genuine fallbacks for the swap
@@ -323,6 +346,35 @@
 
   @media (width >= 40rem) {
     padding-bottom: calc(1.5rem + var(--safe-bottom));
+  }
+}
+
+/* One row of the progress chart's tooltip (progress-chart.tsx).
+
+   The rows used to be `display: contents` so the parent grid's tracks could
+   line every row's cells up — but a `contents` element has no box, so
+   highlighting "your" row meant painting each of its five cells separately
+   and bleeding them sideways to cover the column gaps. That reads as five
+   chips with seams, not as one row, and it can't match the standings table's
+   clean full-row band.
+
+   `subgrid` gives the row a real box that still inherits the parent's column
+   tracks, so it can carry a single background. Every row gets the same
+   padding, so they all inset identically and stay aligned with each other.
+   The @supports fallback returns to the old contents behaviour rather than
+   collapsing the layout — a browser without subgrid loses the highlight, not
+   the tooltip. */
+@utility tooltip-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  column-gap: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+
+  @supports not (grid-template-columns: subgrid) {
+    display: contents;
   }
 }
 
