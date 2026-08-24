@@ -136,6 +136,100 @@ describe("resolvePerEventBets on an absolute event", () => {
   });
 });
 
+describe("resolvePerEventBets on a re-finalize", () => {
+  it("re-resolves a bet that was already won or lost from a prior finalize", async () => {
+    // The exact bug reported: results get edited on an already-resolved
+    // event and Finalize is clicked again. The bet was "won" from the first
+    // pass; the corrected results actually make it a loser. A query
+    // filtered to status = "open" (the old behaviour) would find nothing
+    // and leave the stale "won" outcome standing.
+    const tables: Rows = {
+      per_event_bets: [
+        {
+          id: "bet-1",
+          player_id: "bettor",
+          event_id: "golf",
+          pick_player_id: "was-winner",
+          target: "win",
+          wager: 1,
+          status: "won",
+          payout: 1.9,
+        },
+      ],
+      event_rankings: [],
+    };
+    const client = makeClient(tables);
+
+    // Corrected results: "was-winner" actually came in behind "now-winner".
+    await resolvePerEventBets(client, golf, [
+      { player_id: "now-winner", position: null, raw: 36 },
+      { player_id: "was-winner", position: null, raw: 40 },
+    ]);
+
+    const bet = tables.per_event_bets![0]!;
+    expect(bet.status).toBe("lost");
+    expect(bet.payout).toBe(0);
+  });
+
+  it("re-resolves a previously LOST bet into a win when corrected results favour it", async () => {
+    const tables: Rows = {
+      per_event_bets: [
+        {
+          id: "bet-2",
+          player_id: "bettor",
+          event_id: "golf",
+          pick_player_id: "actually-won",
+          target: "win",
+          wager: 1,
+          status: "lost",
+          payout: 0,
+        },
+      ],
+      event_rankings: [],
+    };
+    const client = makeClient(tables);
+
+    await resolvePerEventBets(client, golf, [
+      { player_id: "actually-won", position: null, raw: 36 },
+      { player_id: "other", position: null, raw: 40 },
+    ]);
+
+    const bet = tables.per_event_bets![0]!;
+    expect(bet.status).toBe("won");
+    expect(bet.payout).toBeGreaterThan(0);
+  });
+
+  it("does not touch a void bet even when it re-reads the event", async () => {
+    // A void bet belongs to a cancelled event's aftermath, not a scoring
+    // correction — re-resolving it against golf's results would be wrong
+    // regardless of what they say.
+    const tables: Rows = {
+      per_event_bets: [
+        {
+          id: "bet-void",
+          player_id: "bettor",
+          event_id: "golf",
+          pick_player_id: "someone",
+          target: "win",
+          wager: 1,
+          status: "void",
+          payout: 1,
+        },
+      ],
+      event_rankings: [],
+    };
+    const client = makeClient(tables);
+
+    await resolvePerEventBets(client, golf, [
+      { player_id: "someone", position: null, raw: 36 },
+    ]);
+
+    const bet = tables.per_event_bets![0]!;
+    expect(bet.status).toBe("void");
+    expect(bet.payout).toBe(1);
+  });
+});
+
 describe("settleStrandedPerEventBets", () => {
   it("settles a bet left open on an already-resolved event", async () => {
     const tables: Rows = {

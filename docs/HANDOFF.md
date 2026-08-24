@@ -27,7 +27,7 @@ reasoning behind one specific decision.
 The app is **built, deployed, and in genuine live use** — this is not a
 prototype. Treat the live Supabase project as production.
 
-- Lint, typecheck, **201 tests**, and build all green.
+- Lint, typecheck, **204 tests**, and build all green.
 - Seven routes: `/` (leaderboard), `/start`, `/select`, `/events`,
   `/multipliers`, `/bets`, `/setup`.
 - **All 13 migrations are applied to the live project** — verified
@@ -124,6 +124,65 @@ Three lessons that were each paid for with a wasted session:
   New roster-shaped tables should consume it rather than re-deriving the
   look.
 
+
+## 2026-08-24 (6) — Projected/actual tags restyled, mobile results table gets its multiplier column back, a real bet-refinalize bug fixed
+
+Follow-up feedback after (5)'s fullscreen fix. Three items, none related to
+the fullscreen work. 204 tests (+3), lint/typecheck/build green.
+
+- **Real bug, direct report: "the bets don't reassess if I edit and
+  refinalize the results."** Confirmed and fixed. `resolvePerEventBets`
+  (`src/lib/data/mutations.ts`) read per-event bets with
+  `.eq("status", "open")` — correct on a bet's FIRST finalize, but on a
+  re-finalize (groom clicks "Edit results" on an already-resolved event,
+  changes the order, hits Finalize again) every bet on that event is
+  already `"won"`/`"lost"` from the first pass, so the query found nothing
+  and the stale outcome/payout silently stood, disagreeing with the
+  corrected results. Query is now `.in("status", ["open", "won", "lost"])`
+  — everything except `"void"` (a cancelled-event bet, a separate terminal
+  path this must not disturb). The pure resolution function
+  (`resolveOpenPerEventBets`, `src/lib/betting/resolvePerEventBets.ts`)
+  needed no change at all: it never reads a bet's prior status, only
+  `id`/`pickPlayerId`/`target`/`wager`, and always recomputes won/lost +
+  payout fresh — so "first resolve" and "re-resolve after a correction"
+  were already the same operation once the query stopped hiding the second
+  case from it. New tests in `src/lib/data/settleStranded.test.ts` cover a
+  won→lost flip, a lost→won flip, and confirm a void bet is left alone.
+- **Multiplier page's projected/actual tag restyled** per explicit ask:
+  yellow tag while it's still a projection, gray tag once there's a real
+  result — both switched from a hand-rolled `bevel-sunken` span to the
+  existing `Badge` component (`variant="default"` = yellow/primary,
+  `variant="secondary"` = gray), the same tag family "+10%" catch-up badges
+  and event-status chips already use, rather than a one-off style.
+  `MultiplierBar` gained an `actualPosition` prop that supersedes
+  `projectedPosition` (not alongside it — once the real answer exists,
+  showing both invited reading them as agreeing/disagreeing). `/multipliers`
+  computes it via `finishingPositions()` (the same helper (2)'s bet-fix
+  introduced) over `eventResults`, live as soon as a draft result is saved,
+  not only after Finalize — matching how the event card's own results table
+  already treats "live while scoring."
+- **Event results table shows Raw / × / Total on mobile now**, per explicit
+  ask. The multiplier (×) column was `hidden sm:block` — dropped below
+  ~640px, so the mobile PWA (the device this is actually used on) only ever
+  saw two of the three numbers the table exists to show. Grid is now one
+  unconditional 7-column template at every width instead of two competing
+  ones; verified on screen at 393px that all three numbers fit without
+  wrapping or truncating the numeric columns (player names compress via
+  their existing `truncate`, which is the acceptable trade at this width).
+- **Verification**: live project currently has no scores (see the
+  START HERE state above), so this was checked against a temporary local
+  mock, reverted before committing — `grep MOCK_SCORES` clean. Confirmed on
+  screen: yellow PROJ tags on unresolved events, gray ACTUAL tags on
+  resolved ones (Spikeball/Mölkky in the mock), and the results table
+  showing e.g. "100 · 1.2× · 130" simultaneously at 393px. **Deliberately
+  did NOT click Edit/Save/Finalize while the mock was live** — the mock
+  only replaces the store's READ path; every mutation function still writes
+  straight to the real Supabase project regardless of the mock flag, so
+  clicking through a finalize under mock data would have corrupted live
+  results. The re-finalize fix is verified by the new unit tests against a
+  stubbed client instead, which is what proved the original bug (2)'s
+  stranded-bet fix suffered from the same class of problem in the first
+  place.
 
 ## 2026-08-23 (3) — The /start /select bottom gap, actually found: it was a meta tag, not CSS
 

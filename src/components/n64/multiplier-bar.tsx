@@ -2,6 +2,7 @@
 
 import { Lock, Minus, Plus } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { playSfx } from "@/lib/sfx";
 import { MULTIPLIER_DEFAULT, MULTIPLIER_MAX, MULTIPLIER_MIN, MULTIPLIER_STEP } from "@/lib/multipliers/budget";
@@ -56,8 +57,20 @@ export type MultiplierBarProps = {
    * projected to win is worth far more than a 1.5 on one you're projected to
    * finish last in — and it isn't a secret: the same ranking is already
    * public on each event's Odds tab, which lists the field in rank order.
+   * Superseded by `actualPosition` once that's set — see below.
    */
   projectedPosition?: number | null;
+  /**
+   * Where this player ACTUALLY finished, once a real result exists for
+   * them (available live as soon as the groom saves a draft result, not
+   * only after Finalize — same "live while scoring" rule the event card's
+   * own results table already follows). Takes over from `projectedPosition`
+   * rather than sitting alongside it: once the real answer is known, the
+   * prediction that came before it is no longer the useful number on this
+   * row, and showing both invites reading them as agreeing or disagreeing
+   * with each other when only one of them is real.
+   */
+  actualPosition?: number | null;
   onChange: (next: number) => void;
   className?: string;
 };
@@ -68,6 +81,7 @@ export function MultiplierBar({
   color,
   locked = false,
   projectedPosition = null,
+  actualPosition = null,
   onChange,
   className,
 }: MultiplierBarProps) {
@@ -148,16 +162,29 @@ export function MultiplierBar({
               redundant. */}
           {locked ? <Lock className="text-muted-foreground size-3 shrink-0" /> : null}
           <span className="truncate">{label}</span>
-          {projectedPosition != null ? (
-            // Abbreviated, because it shares a line with an event name that
-            // is already truncating on a phone. `title` carries the full
-            // wording for anyone unsure what it means.
-            <span
+          {actualPosition != null ? (
+            // Gray/secondary once it's a real result, not a guess — same
+            // "quiet metadata" variant Badge uses for "Done"/"Not started".
+            // Abbreviated for the same reason PROJ is: this shares a line
+            // with an event name that's already truncating on a phone.
+            <Badge
+              variant="secondary"
+              title={`Finished ${ordinal(actualPosition)}`}
+              className="shrink-0 text-[0.625rem]"
+            >
+              ACTUAL {ordinal(actualPosition).toUpperCase()}
+            </Badge>
+          ) : projectedPosition != null ? (
+            // Yellow/default — the "notable" variant, since this is the
+            // one number on the row worth planning a wager around before
+            // the real result exists.
+            <Badge
+              variant="default"
               title={`Projected to finish ${ordinal(projectedPosition)} — the groom's ranking for this event`}
-              className="bevel-sunken text-muted-foreground shrink-0 rounded-sm px-1.5 py-0.5 text-[0.625rem] leading-none"
+              className="shrink-0 text-[0.625rem]"
             >
               PROJ {ordinal(projectedPosition).toUpperCase()}
-            </span>
+            </Badge>
           ) : null}
         </span>
         {/* The value rides beside the name on the stacked mobile layout and

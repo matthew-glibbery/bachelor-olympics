@@ -470,14 +470,30 @@ export async function cancelPerEventBet(client: SupabaseClient, betId: string): 
 }
 
 /**
- * Settle every open per-event bet on one just-finalized event. Reads the
- * open bets and that event's ranking, runs the pure resolution logic
- * (src/lib/betting/resolvePerEventBets.ts — a deliberate exception to this
- * file's "no business logic" rule, same as switchOverallBetPick's
- * read-then-write above: the alternative is duplicating the fetch/write
- * plumbing at every call site), and writes the outcomes back. Called right
- * after `upsertEventResults` + `setEventStatus(..., "resolved")` in the
- * event-finalize flow.
+ * (Re-)settle every LIVE per-event bet on one just-finalized event — "live"
+ * meaning anything except "void" (a bet voided by its event being
+ * cancelled, which is a separate, terminal path that this must not
+ * disturb). Reads those bets and the event's ranking, runs the pure
+ * resolution logic (src/lib/betting/resolvePerEventBets.ts — a deliberate
+ * exception to this file's "no business logic" rule, same as
+ * switchOverallBetPick's read-then-write above: the alternative is
+ * duplicating the fetch/write plumbing at every call site), and writes the
+ * outcomes back. Called right after `upsertEventResults` +
+ * `setEventStatus(..., "resolved")` in the event-finalize flow.
+ *
+ * Deliberately NOT filtered to `status = "open"`. This function is called
+ * on every finalize, including a re-finalize after the groom edits results
+ * on an already-resolved event ("Edit results" → change the order → Save →
+ * Finalize again) — and the second time through, every bet on this event is
+ * already "won" or "lost" from the first pass. Filtering to "open" here
+ * meant a re-finalize found nothing to do and silently left every bet's
+ * status/payout stuck on the OLD results — a real bug, reported directly
+ * ("the bets don't reassess if I edit and refinalize"). The pure resolution
+ * function recomputes status and payout fresh from the current
+ * `finalResults` every time regardless of a bet's prior status, so re-
+ * reading and re-writing every live bet here is exactly as correct on a
+ * re-finalize as it is on the first one — this whole function is
+ * idempotent, not just first-run-safe.
  */
 export async function resolvePerEventBets(
   client: SupabaseClient,
@@ -485,13 +501,13 @@ export async function resolvePerEventBets(
   finalResults: EventResultInput[],
 ): Promise<void> {
   const eventId = event.id;
-  const { data: openBets, error: betsError } = await client
+  const { data: liveBets, error: betsError } = await client
     .from("per_event_bets")
     .select("*")
     .eq("event_id", eventId)
-    .eq("status", "open");
+    .in("status", ["open", "won", "lost"]);
   if (betsError) throw new Error(`resolvePerEventBets (read bets): ${betsError.message}`);
-  if (!openBets || openBets.length === 0) return;
+  if (!liveBets || liveBets.length === 0) return;
 
   const { data: rankingRows, error: rankingError } = await client
     .from("event_rankings")
@@ -518,7 +534,7 @@ export async function resolvePerEventBets(
   }));
 
   const outcomes = resolveOpenPerEventBets(
-    (openBets as PerEventBetRow[]).map((b) => ({
+    (liveBets as PerEventBetRow[]).map((b) => ({
       id: b.id,
       pickPlayerId: b.pick_player_id,
       target: b.target,
