@@ -184,6 +184,31 @@ the fullscreen work. 204 tests (+3), lint/typecheck/build green.
   stranded-bet fix suffered from the same class of problem in the first
   place.
 
+## 2026-08-24 (7) — Taller drag-to-reorder rows in the results editor
+
+Direct ask: the drag-to-reorder rows in `RankedResultsEditor`
+(`src/components/ranked-results-editor.tsx`, opened via "Enter
+results"/"Edit results" on a placement event) were too cramped to
+comfortably drag on a phone. 204 tests (unchanged — pure styling, no logic
+touched), lint/typecheck/build green.
+
+- Row padding `px-2 py-1.5` → `px-3 py-3`, list gap `gap-1.5` → `gap-2`,
+  `PlayerName` `size="sm"` → `"md"` (24px → 32px avatar) — the row is
+  visibly taller now, not just its hit area.
+- The grip handle specifically — the actual drag listener target, not the
+  row — got its own enlarged touch area: icon `size-4` → `size-5`, plus
+  `p-2 -m-2` on the button so the padding grows the hit box without pushing
+  the rank number and name over (the negative margin cancels the padding
+  back out of the row's own layout).
+- **Verified against real live data, not a mock**: this editor needs no
+  scores to render (it only needs the roster + whatever order/ties already
+  exist), so unlike most UI work this session it was checked by opening
+  "Edit results" on an already-resolved live event (Spikeball) rather than
+  spinning up a local mock. Confirmed on screen at 393px: rows read
+  noticeably taller, `check-overflow` still clean. **Did not click Save/
+  Finalize** — opening the editor is read-only, same caution as every other
+  live-data check this session.
+
 ## 2026-08-23 (3) — The /start /select bottom gap, actually found: it was a meta tag, not CSS
 
 Fourth attempt at the same report, and the first one at the right layer.
