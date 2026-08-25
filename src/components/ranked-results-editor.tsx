@@ -24,6 +24,13 @@ import type { PlayerRow } from "@/lib/data/database.types";
  * Drag-to-reorder finishing order for placement events. Top-to-bottom = 1st
  * to last. Uses PointerSensor (not just mouse) so it works with touch —
  * this gets used on phones at the actual event.
+ *
+ * Rows are taller than a typical list row on purpose (explicit ask,
+ * 2026-08-24: cramped rows made the actual drag hard to land on a phone).
+ * The grip handle is the one real touch target — it's what the drag
+ * listeners are attached to, not the row — so it gets its own padded hit
+ * area on top of the icon growing, rather than relying on the row's extra
+ * height to make the small icon easier to hit by accident.
  */
 
 export interface RankedResultsEditorProps {
@@ -57,7 +64,7 @@ export function RankedResultsEditor({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={order} strategy={verticalListSortingStrategy}>
-        <div className="bevel-sunken bg-sunken flex flex-col gap-1.5 rounded-md p-2">
+        <div className="bevel-sunken bg-sunken flex flex-col gap-2 rounded-md p-2">
           {order.map((playerId, i) => {
             const player = players.get(playerId);
             if (!player) return null;
@@ -103,24 +110,29 @@ function RankedRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "bevel-raised bg-card flex items-center gap-2 rounded-md px-2 py-1.5",
+        "bevel-raised bg-card flex items-center gap-3 rounded-md px-3 py-3",
         isDragging && "opacity-60",
       )}
     >
+      {/* `p-2 -m-2`: grow the actual touch target well past the icon's own
+          footprint without pushing the rank/name over — the negative margin
+          cancels the padding out of the row's layout, so only the hit area
+          grows. `size-5`, not the icon alone, is what makes the row read as
+          "made for a thumb" rather than just taller around a small target. */}
       <button
         type="button"
         {...attributes}
         {...listeners}
-        className="text-muted-foreground touch-none active:cursor-grabbing"
+        className="text-muted-foreground touch-none active:cursor-grabbing -m-2 rounded-md p-2 active:bg-black/10"
         aria-label={`Drag to reorder ${player.name}`}
       >
-        <GripVertical className="size-4" />
+        <GripVertical className="size-5" />
       </button>
-      <span className="w-5 text-right text-sm font-semibold tabular-nums">{rank}</span>
+      <span className="w-5 text-right text-base font-semibold tabular-nums">{rank}</span>
       <PlayerName
         name={player.name}
         state={player.state ?? "??"}
-        size="sm"
+        size="md"
         photoUrl={player.photo_url}
         className="flex-1"
       />
