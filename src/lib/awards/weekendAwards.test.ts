@@ -16,7 +16,7 @@ import type {
 const baseEvent: Omit<EventRow, "id" | "scoring_mode" | "status"> = {
   name: "Test",
   lower_is_better: false,
-  team_reshuffle: false,
+  format: "standard",
   custom_placement: false,
   safety_check: false,
   notes: null,

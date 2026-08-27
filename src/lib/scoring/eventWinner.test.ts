@@ -8,7 +8,7 @@ function makeEvent(overrides: Partial<EventRow> = {}): EventRow {
     name: "Test event",
     scoring_mode: "placement",
     lower_is_better: false,
-    team_reshuffle: false,
+    format: "standard",
     custom_placement: false,
     safety_check: false,
     notes: null,

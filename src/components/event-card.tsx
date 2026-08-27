@@ -12,10 +12,14 @@ import { PlayerName } from "@/components/player-name";
 import { assignPlayerColors } from "@/lib/chartColors";
 import { VictoryReplayButton } from "@/components/victory-replay-button";
 import { RankedResultsEditor } from "@/components/ranked-results-editor";
+import { BracketSeedEditor } from "@/components/bracket-seed-editor";
+import { BracketEditor } from "@/components/bracket-editor";
+import { RoundRobinSchedule } from "@/components/round-robin-schedule";
 import { EventOddsBetting } from "@/components/event-odds-betting";
 import { EventBetsList } from "@/components/event-bets-list";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
+  bracketRowToMatch,
   cancelEvent,
   resetEvent,
   resolvePerEventBets,
@@ -32,11 +36,14 @@ import { finalEventScore } from "@/lib/scoring/total";
 import type { RankingEntry } from "@/lib/odds/ranking";
 import type { BettingReserve } from "@/lib/betting/reserve";
 import type {
+  BracketMatchRow,
+  BracketSeedRow,
   EventResultRow,
   EventRow,
   MultiplierRow,
   PerEventBetRow,
   PlayerRow,
+  RoundRobinMatchRow,
 } from "@/lib/data/database.types";
 
 const MULTIPLIER_DEFAULT = 1.0;
@@ -86,6 +93,12 @@ interface EventCardProps {
   multipliers: MultiplierRow[];
   ranking: RankingEntry[];
   bets: PerEventBetRow[];
+  /** This event's own bracket seeds/matches / round-robin matches only
+   * (pre-filtered by the caller, same convention as `results`). Empty
+   * arrays for events not using that format. */
+  bracketSeeds: BracketSeedRow[];
+  bracketMatches: BracketMatchRow[];
+  roundRobinMatches: RoundRobinMatchRow[];
   groomUnlocked: boolean;
   /** playerId -> catch-up bonus fraction (e.g. 0.3 for +30%) for THIS event
    * only — either already applied (resolved/scoring) or a live preview of
@@ -109,12 +122,16 @@ export function EventCard({
   multipliers,
   ranking,
   bets,
+  bracketSeeds,
+  bracketMatches,
+  roundRobinMatches,
   groomUnlocked,
   catchUpBonuses,
   currentPlayerId,
   reserve,
 }: EventCardProps) {
   const isPlacement = event.scoring_mode === "placement";
+  const isStandard = event.format === "standard";
   const playerIds = players.map((p) => p.id);
   const playerById = new Map(players.map((p) => [p.id, p]));
   // Same sort-by-id + "dark" mode convention as every other screen
@@ -361,6 +378,9 @@ export function EventCard({
             <Badge variant="secondary">
               {isPlacement ? "Placement" : "Absolute"}
             </Badge>
+            {!isStandard ? (
+              <Badge variant="secondary">{event.format === "bracket" ? "Bracket" : "Round-robin"}</Badge>
+            ) : null}
           </div>
           {/* `event.notes` ("Scored on strokes, lowest wins", and so on) is
               deliberately not rendered. It's groom-authored setup copy that
@@ -491,6 +511,33 @@ export function EventCard({
 
         {hasResults ? (
           <TabsContent value="results" className="flex flex-col gap-3 pt-3">
+            {!isStandard ? (
+              <div className="border-bevel-dark/40 flex flex-col gap-3 border-b pb-3">
+                {event.format === "bracket" ? (
+                  <>
+                    <BracketSeedEditor
+                      eventId={event.id}
+                      players={players}
+                      bracketSeeds={bracketSeeds}
+                      eventRanking={ranking}
+                    />
+                    <BracketEditor
+                      eventId={event.id}
+                      players={playerById}
+                      seeds={bracketSeeds}
+                      matches={bracketMatches.map(bracketRowToMatch)}
+                    />
+                  </>
+                ) : (
+                  <RoundRobinSchedule eventId={event.id} players={playerById} matches={roundRobinMatches} />
+                )}
+                <p className="text-muted-foreground text-xs">
+                  Results above feed the Results table below automatically as
+                  matches are decided — use &quot;Enter/Edit results&quot; to
+                  manually adjust the final order before finalizing.
+                </p>
+              </div>
+            ) : null}
             {editing ? (
               <div className="border-bevel-dark/40 flex flex-col gap-3 border-t pt-3">
                 {isPlacement ? (

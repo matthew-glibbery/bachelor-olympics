@@ -7,10 +7,23 @@ import { resolveOpenPerEventBets } from "@/lib/betting/resolvePerEventBets";
 import { settleOverallBets } from "@/lib/betting/settleOverallBets";
 import { applyBonusAwards } from "@/lib/bonus/bonusEvent";
 import { finishingPositions } from "@/lib/scoring/finishingPositions";
+import {
+  applyMatchResult,
+  deriveBracketPlacements,
+  isMainBracketComplete,
+  type BracketMatch,
+  type BracketTrack,
+} from "@/lib/scoring/bracket";
 import { deriveScoreLines } from "@/lib/scoring/fromRows";
+import {
+  deriveRoundRobinPlacements,
+  type RoundRobinMatchResult,
+} from "@/lib/scoring/roundRobinScore";
 import { standings } from "@/lib/scoring/total";
 import type {
   BonusEventRow,
+  BracketMatchRow,
+  EventFormat,
   EventResultRow,
   EventRow,
   EventStatus,
@@ -18,6 +31,7 @@ import type {
   OverallBetRow,
   PerEventBetRow,
   PlayerRow,
+  RoundRobinMatchRow,
 } from "./database.types";
 
 export interface NewPlayer {
@@ -130,6 +144,11 @@ export async function resetEvent(client: SupabaseClient, eventId: string): Promi
     .eq("event_id", eventId);
   if (resultsError) throw new Error(`resetEvent (results): ${resultsError.message}`);
 
+  for (const table of ["bracket_seeds", "bracket_matches", "round_robin_matches"] as const) {
+    const { error } = await client.from(table).delete().eq("event_id", eventId);
+    if (error) throw new Error(`resetEvent (${table}): ${error.message}`);
+  }
+
   const { error: statusError } = await client
     .from("events")
     .update({ status: "planned", resolved_at: null })
@@ -154,6 +173,9 @@ export async function resetWeekend(client: SupabaseClient): Promise<void> {
     ["per_event_bets", "player_id"],
     ["bonus_events", "id"],
     ["event_rankings", "player_id"],
+    ["bracket_seeds", "player_id"],
+    ["bracket_matches", "id"],
+    ["round_robin_matches", "id"],
   ];
   for (const [table, column] of wipes) {
     const { error } = await client.from(table).delete().not(column, "is", null);
@@ -192,6 +214,7 @@ export interface NewEvent {
   name: string;
   scoring_mode: "placement" | "absolute";
   lower_is_better?: boolean;
+  format?: EventFormat;
   notes?: string | null;
   /** Caller supplies this from the live events list it already has (e.g.
    * `events.length`) — no extra round-trip to look up the current max. */
@@ -216,6 +239,7 @@ export async function createEvent(
       name: event.name,
       scoring_mode: event.scoring_mode,
       lower_is_better: event.lower_is_better ?? false,
+      format: event.format ?? "standard",
       notes: event.notes ?? null,
       sort_order: event.sort_order,
     })
@@ -229,6 +253,7 @@ export interface EventPatch {
   name?: string;
   scoring_mode?: "placement" | "absolute";
   lower_is_better?: boolean;
+  format?: EventFormat;
   notes?: string | null;
   photo_url?: string | null;
 }
@@ -346,6 +371,217 @@ export async function setEventRanking(
   const rows = ranking.map((r) => ({ ...r, event_id: eventId }));
   const { error: insertError } = await client.from("event_rankings").insert(rows);
   if (insertError) throw new Error(`setEventRanking (insert): ${insertError.message}`);
+}
+
+/**
+ * Replace one bracket event's seed order — independent of `event_rankings`
+ * (PRODUCT_SPEC.md → Event formats → Bracket): the groom can adjust bracket
+ * seeding without that edit touching betting odds. Same wipe-then-insert
+ * shape as `setEventRanking`.
+ */
+export async function setBracketSeeds(
+  client: SupabaseClient,
+  eventId: string,
+  seeds: { player_id: string; seed: number }[],
+): Promise<void> {
+  const { error: deleteError } = await client
+    .from("bracket_seeds")
+    .delete()
+    .eq("event_id", eventId);
+  if (deleteError) throw new Error(`setBracketSeeds (clear): ${deleteError.message}`);
+
+  if (seeds.length === 0) return;
+  const rows = seeds.map((s) => ({ ...s, event_id: eventId }));
+  const { error: insertError } = await client.from("bracket_seeds").insert(rows);
+  if (insertError) throw new Error(`setBracketSeeds (insert): ${insertError.message}`);
+}
+
+/** Replace a bracket event's whole match tree in one go — used once, when
+ * the tree is first generated from the seed order (src/lib/scoring/bracket.ts
+ * → generateMainBracket). Later edits go through `recordBracketMatchResult`. */
+export async function setBracketMatches(
+  client: SupabaseClient,
+  eventId: string,
+  matches: BracketMatch[],
+): Promise<void> {
+  const { error: deleteError } = await client
+    .from("bracket_matches")
+    .delete()
+    .eq("event_id", eventId);
+  if (deleteError) throw new Error(`setBracketMatches (clear): ${deleteError.message}`);
+
+  if (matches.length === 0) return;
+  const rows = matches.map((m) => bracketMatchToRow(eventId, m));
+  const { error: insertError } = await client.from("bracket_matches").insert(rows);
+  if (insertError) throw new Error(`setBracketMatches (insert): ${insertError.message}`);
+}
+
+export function bracketMatchToRow(eventId: string, m: BracketMatch) {
+  return {
+    id: m.id,
+    event_id: eventId,
+    round: m.round,
+    slot: m.slot,
+    bracket_track: m.track,
+    player_a_id: m.playerAId,
+    player_b_id: m.playerBId,
+    winner_id: m.winnerId,
+    is_bye: m.isBye,
+  };
+}
+
+export function bracketRowToMatch(r: BracketMatchRow): BracketMatch {
+  return {
+    id: r.id,
+    round: r.round,
+    slot: r.slot,
+    track: r.bracket_track,
+    playerAId: r.player_a_id,
+    playerBId: r.player_b_id,
+    winnerId: r.winner_id,
+    isBye: r.is_bye,
+  };
+}
+
+/**
+ * Create or remove a bracket event's optional 3rd-/5th-place consolation
+ * match (PRODUCT_SPEC.md → Event formats → Bracket) — existence of the row
+ * IS the opt-in, no separate boolean. `players` supplies the two
+ * participants when enabling (the two semifinal losers for `third_place`,
+ * the top two seeds of the round-before-losers for `fifth_place` — the
+ * caller works out who that is from the current match tree).
+ */
+export async function setConsolationMatch(
+  client: SupabaseClient,
+  eventId: string,
+  track: Extract<BracketTrack, "third_place" | "fifth_place">,
+  players: { playerAId: string; playerBId: string } | null,
+): Promise<void> {
+  const { error: deleteError } = await client
+    .from("bracket_matches")
+    .delete()
+    .eq("event_id", eventId)
+    .eq("bracket_track", track);
+  if (deleteError) throw new Error(`setConsolationMatch (clear): ${deleteError.message}`);
+  if (!players) return;
+
+  const { error: insertError } = await client.from("bracket_matches").insert({
+    id: crypto.randomUUID(),
+    event_id: eventId,
+    round: 1,
+    slot: 1,
+    bracket_track: track,
+    player_a_id: players.playerAId,
+    player_b_id: players.playerBId,
+    winner_id: null,
+    is_bye: false,
+  });
+  if (insertError) throw new Error(`setConsolationMatch (insert): ${insertError.message}`);
+}
+
+/**
+ * Record one bracket match's winner: runs the pure cascade
+ * (src/lib/scoring/bracket.ts → applyMatchResult) against the event's
+ * current match rows, bulk-upserts the result, and — once the main bracket
+ * (plus any resolved consolation matches) is fully decided — derives final
+ * placements and upserts `event_results` immediately, so the existing
+ * points-preview in EventCard stays live with no changes there.
+ */
+export async function recordBracketMatchResult(
+  client: SupabaseClient,
+  eventId: string,
+  matchId: string,
+  winnerId: string,
+): Promise<void> {
+  const { data, error } = await client
+    .from("bracket_matches")
+    .select("*")
+    .eq("event_id", eventId);
+  if (error) throw new Error(`recordBracketMatchResult (read): ${error.message}`);
+
+  const matches = ((data ?? []) as BracketMatchRow[]).map(bracketRowToMatch);
+  const updated = applyMatchResult(matches, matchId, winnerId);
+
+  const { error: upsertError } = await client
+    .from("bracket_matches")
+    .upsert(updated.map((m) => bracketMatchToRow(eventId, m)), { onConflict: "id" });
+  if (upsertError) throw new Error(`recordBracketMatchResult (write): ${upsertError.message}`);
+
+  if (isMainBracketComplete(updated)) {
+    const placements = deriveBracketPlacements(updated);
+    await upsertEventResults(
+      client,
+      eventId,
+      placements.map((p) => ({ player_id: p.playerId, position: p.position })),
+    );
+  }
+}
+
+/**
+ * Replace a round-robin event's whole generated schedule in one go
+ * (src/lib/scoring/roundRobinSchedule.ts → generateRoundRobinSchedule).
+ * Wipe-then-insert, same shape as `setEventRanking` — the UI is responsible
+ * for warning before regenerating once any match already has a result.
+ */
+export async function setRoundRobinSchedule(
+  client: SupabaseClient,
+  eventId: string,
+  rounds: { round: number; teamA: string[]; teamB: string[] }[],
+): Promise<void> {
+  const { error: deleteError } = await client
+    .from("round_robin_matches")
+    .delete()
+    .eq("event_id", eventId);
+  if (deleteError) throw new Error(`setRoundRobinSchedule (clear): ${deleteError.message}`);
+
+  if (rounds.length === 0) return;
+  const rows = rounds.map((r) => ({
+    event_id: eventId,
+    round: r.round,
+    team_a: r.teamA,
+    team_b: r.teamB,
+    winner: null,
+  }));
+  const { error: insertError } = await client.from("round_robin_matches").insert(rows);
+  if (insertError) throw new Error(`setRoundRobinSchedule (insert): ${insertError.message}`);
+}
+
+/**
+ * Record one round-robin match's winning team, then re-derive and re-upsert
+ * `event_results` from the current win counts across the whole schedule
+ * (src/lib/scoring/roundRobinScore.ts) — same "auto-sync on every tap"
+ * pattern as `recordBracketMatchResult`.
+ */
+export async function recordRoundRobinMatchResult(
+  client: SupabaseClient,
+  eventId: string,
+  matchId: string,
+  winner: "a" | "b",
+): Promise<void> {
+  const { error: updateError } = await client
+    .from("round_robin_matches")
+    .update({ winner })
+    .eq("id", matchId);
+  if (updateError) throw new Error(`recordRoundRobinMatchResult (write): ${updateError.message}`);
+
+  const { data, error: readError } = await client
+    .from("round_robin_matches")
+    .select("*")
+    .eq("event_id", eventId);
+  if (readError) throw new Error(`recordRoundRobinMatchResult (read): ${readError.message}`);
+
+  const matches: RoundRobinMatchResult[] = ((data ?? []) as RoundRobinMatchRow[]).map((r) => ({
+    teamA: r.team_a,
+    teamB: r.team_b,
+    winner: r.winner,
+  }));
+  const placements = deriveRoundRobinPlacements(matches);
+  if (placements.length === 0) return;
+  await upsertEventResults(
+    client,
+    eventId,
+    placements.map((p) => ({ player_id: p.playerId, position: p.position })),
+  );
 }
 
 export interface NewOverallBet {

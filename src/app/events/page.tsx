@@ -74,6 +74,9 @@ function EventsPageInner() {
     bonusEvents,
     overallBets,
     multipliers,
+    bracketSeeds,
+    bracketMatches,
+    roundRobinMatches,
     connect,
     loading,
     error,
@@ -299,6 +302,9 @@ function EventsPageInner() {
                   .filter((r) => r.event_id === focused.id)
                   .map((r) => ({ playerId: r.player_id, rank: r.rank }))}
                 bets={perEventBets.filter((b) => b.event_id === focused.id)}
+                bracketSeeds={bracketSeeds.filter((s) => s.event_id === focused.id)}
+                bracketMatches={bracketMatches.filter((m) => m.event_id === focused.id)}
+                roundRobinMatches={roundRobinMatches.filter((m) => m.event_id === focused.id)}
                 groomUnlocked={groomUnlocked}
                 catchUpBonuses={catchUpByEvent.get(focused.id) ?? null}
                 currentPlayerId={selectedPlayerId}

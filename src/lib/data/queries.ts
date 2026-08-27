@@ -8,6 +8,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   AppSettingsRow,
   BonusEventRow,
+  BracketMatchRow,
+  BracketSeedRow,
   EventResultRow,
   EventRankingRow,
   EventRow,
@@ -15,6 +17,7 @@ import type {
   OverallBetRow,
   PerEventBetRow,
   PlayerRow,
+  RoundRobinMatchRow,
 } from "./database.types";
 import { eventSeedRows } from "./events";
 
@@ -81,6 +84,23 @@ export async function fetchBonusEvents(client: SupabaseClient): Promise<BonusEve
   return [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
+/** A bracket event's adjustable seed order (PRODUCT_SPEC.md → Event formats
+ * → Bracket) — independent of `event_rankings`. */
+export function fetchBracketSeeds(client: SupabaseClient): Promise<BracketSeedRow[]> {
+  return selectAll<BracketSeedRow>(client, "bracket_seeds");
+}
+
+/** Every bracket event's match tree rows, across every track (main + the
+ * optional 3rd-/5th-place consolation matches). */
+export function fetchBracketMatches(client: SupabaseClient): Promise<BracketMatchRow[]> {
+  return selectAll<BracketMatchRow>(client, "bracket_matches");
+}
+
+/** Every round-robin event's generated schedule + recorded match results. */
+export function fetchRoundRobinMatches(client: SupabaseClient): Promise<RoundRobinMatchRow[]> {
+  return selectAll<RoundRobinMatchRow>(client, "round_robin_matches");
+}
+
 /** The single shared app_settings row (currently just the boot video). */
 export async function fetchAppSettings(
   client: SupabaseClient,
@@ -105,8 +125,8 @@ export async function fetchAppSettings(
  */
 export async function seedEvents(client: SupabaseClient): Promise<void> {
   const rows = eventSeedRows().map((row) => {
-    const { id, name, scoring_mode, lower_is_better, team_reshuffle, custom_placement, safety_check, notes, sort_order } = row;
-    return { id, name, scoring_mode, lower_is_better, team_reshuffle, custom_placement, safety_check, notes, sort_order };
+    const { id, name, scoring_mode, lower_is_better, format, custom_placement, safety_check, notes, sort_order } = row;
+    return { id, name, scoring_mode, lower_is_better, format, custom_placement, safety_check, notes, sort_order };
   });
   const { error } = await client.from("events").upsert(rows, { onConflict: "id" });
   if (error) throw new Error(`seedEvents: ${error.message}`);

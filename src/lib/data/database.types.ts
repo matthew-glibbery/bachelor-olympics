@@ -27,12 +27,19 @@ export interface PlayerRow {
   created_at: string;
 }
 
+export type EventFormat = "standard" | "bracket" | "round_robin";
+
 export interface EventRow {
   id: string;
   name: string;
   scoring_mode: "placement" | "absolute";
   lower_is_better: boolean;
-  team_reshuffle: boolean;
+  /** How this event's `position` gets populated — "standard" is the
+   * existing single drag-ordered result; "bracket"/"round_robin" derive it
+   * from a match tree/schedule (src/lib/scoring/bracket.ts,
+   * src/lib/scoring/roundRobinScore.ts). Always "placement" scoring mode
+   * when not "standard" (DB-enforced). */
+  format: EventFormat;
   custom_placement: boolean;
   safety_check: boolean;
   notes: string | null;
@@ -92,6 +99,47 @@ export interface PerEventBetRow {
   wager: number;
   status: "open" | "won" | "lost" | "void";
   payout: number | null;
+  created_at: string;
+}
+
+/** The groom's adjustable bracket seed order for one bracket event —
+ * independent of `EventRankingRow` so tweaking it never touches betting
+ * odds (see 0015_bracket_tables.sql). */
+export interface BracketSeedRow {
+  event_id: string;
+  player_id: string;
+  seed: number;
+}
+
+export type BracketTrack = "main" | "third_place" | "fifth_place";
+
+/** One match in a bracket event's tree. `player_a_id`/`player_b_id` are
+ * derived (recomputed on every upstream winner change, see
+ * src/lib/scoring/bracket.ts) rather than independently authored — a bye
+ * has `player_b_id: null` and auto-resolves `winner_id` at creation. */
+export interface BracketMatchRow {
+  id: string;
+  event_id: string;
+  round: number;
+  slot: number;
+  bracket_track: BracketTrack;
+  player_a_id: string | null;
+  player_b_id: string | null;
+  winner_id: string | null;
+  is_bye: boolean;
+  created_at: string;
+}
+
+/** One match in a round-robin event's generated schedule
+ * (src/lib/scoring/roundRobinSchedule.ts). Teams are plain id arrays, not a
+ * normalized join table — see 0016_round_robin_tables.sql. */
+export interface RoundRobinMatchRow {
+  id: string;
+  event_id: string;
+  round: number;
+  team_a: string[];
+  team_b: string[];
+  winner: "a" | "b" | null;
   created_at: string;
 }
 

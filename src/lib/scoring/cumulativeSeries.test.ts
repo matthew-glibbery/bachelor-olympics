@@ -10,7 +10,7 @@ import type {
 const baseEvent: Omit<EventRow, "id" | "name" | "status" | "resolved_at"> = {
   scoring_mode: "placement",
   lower_is_better: false,
-  team_reshuffle: false,
+  format: "standard",
   custom_placement: false,
   safety_check: false,
   notes: null,
