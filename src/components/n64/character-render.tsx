@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -63,6 +63,20 @@ export function CharacterRender({
   const videoRef = useRef<HTMLVideoElement>(null);
   const showVideo = Boolean(videoUrl) && playing;
 
+  // On a roster strip only the focused tile has `playing` true, but every
+  // tile mounts a `<video>` (see comment below on why the element itself
+  // stays mounted rather than swapping DOM nodes). Without this gate,
+  // giving every one of those elements a `src` up front makes the browser
+  // start fetching all of them immediately — on an 8-player roster that's
+  // 8 clips pulled from Supabase storage on a single page load instead of
+  // one. So the `src` itself is withheld until a tile is actually
+  // activated at least once; after that it's kept mounted so re-focusing
+  // it later doesn't refetch or re-flash.
+  const [activated, setActivated] = useState(showVideo);
+  useEffect(() => {
+    if (showVideo) setActivated(true);
+  }, [showVideo]);
+
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -95,7 +109,8 @@ export function CharacterRender({
       {videoUrl ? (
         <video
           ref={videoRef}
-          src={videoUrl}
+          src={activated ? videoUrl : undefined}
+          preload="none"
           loop
           muted
           playsInline

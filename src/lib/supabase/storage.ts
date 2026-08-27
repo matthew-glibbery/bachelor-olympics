@@ -14,7 +14,11 @@ async function uploadTo(
   const path = `${prefix}/${id}-${Date.now()}.${ext}`;
 
   const { error } = await client.storage.from(bucket).upload(path, file, {
-    cacheControl: "3600",
+    // Filenames are timestamped and never reused (see doc comments below),
+    // so the content behind a given URL never changes — safe to cache for
+    // a year instead of the 1-hour default, which cuts repeat Supabase
+    // egress on every re-view once the default TTL would have expired.
+    cacheControl: "31536000, immutable",
     upsert: false,
   });
   if (error) throw new Error(`uploadTo(${bucket}): ${error.message}`);
