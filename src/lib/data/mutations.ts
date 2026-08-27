@@ -547,6 +547,32 @@ export async function setRoundRobinSchedule(
 }
 
 /**
+ * Append one more round to a round-robin event's existing schedule — a
+ * plain insert, not the wipe-then-insert `setRoundRobinSchedule` does, so
+ * every already-recorded result on earlier rounds is left untouched. The
+ * caller (round-robin-schedule.tsx) derives the new round's matchups by
+ * re-running `generateRoundRobinSchedule` up through the new round count
+ * and taking only its last round — deterministic, so every earlier round
+ * it recomputes along the way matches what's already stored.
+ */
+export async function addRoundRobinRound(
+  client: SupabaseClient,
+  eventId: string,
+  matches: { round: number; teamA: string[]; teamB: string[] }[],
+): Promise<void> {
+  if (matches.length === 0) return;
+  const rows = matches.map((m) => ({
+    event_id: eventId,
+    round: m.round,
+    team_a: m.teamA,
+    team_b: m.teamB,
+    winner: null,
+  }));
+  const { error } = await client.from("round_robin_matches").insert(rows);
+  if (error) throw new Error(`addRoundRobinRound: ${error.message}`);
+}
+
+/**
  * Record one round-robin match's winning team, then re-derive and re-upsert
  * `event_results` from the current win counts across the whole schedule
  * (src/lib/scoring/roundRobinScore.ts) — same "auto-sync on every tap"
