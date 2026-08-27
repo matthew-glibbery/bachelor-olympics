@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlayerName } from "@/components/player-name";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { recordRoundRobinMatchResult, setRoundRobinSchedule } from "@/lib/data/mutations";
+import { addRoundRobinRound, recordRoundRobinMatchResult, setRoundRobinSchedule } from "@/lib/data/mutations";
 import { generateRoundRobinSchedule, type TeamSize } from "@/lib/scoring/roundRobinSchedule";
 import type { PlayerRow, RoundRobinMatchRow } from "@/lib/data/database.types";
 
@@ -30,14 +30,23 @@ export function RoundRobinSchedule({
   matches: RoundRobinMatchRow[];
   colorByPlayer: Record<string, string>;
 }) {
-  const [teamSize, setTeamSize] = useState<TeamSize>(2);
+  const maxRound = matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 0;
+  // Best-guess pre-fill once a schedule already exists, so "Add another
+  // round" defaults to the size actually in use rather than always
+  // resetting to 2 — team size itself isn't stored anywhere (only the
+  // resulting team_a/team_b arrays are), so this reads it back off the
+  // larger side of an existing match (the uneven-match fallback can leave
+  // the two sides different sizes, e.g. 4v3).
+  const inferredTeamSize = matches[0]
+    ? (Math.max(matches[0].team_a.length, matches[0].team_b.length) as TeamSize)
+    : 2;
+  const [teamSize, setTeamSize] = useState<TeamSize>(inferredTeamSize);
   const [roundCount, setRoundCount] = useState(6);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const client = getSupabaseBrowserClient();
 
   const hasResults = matches.some((m) => m.winner != null);
-  const maxRound = matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 0;
   const rounds = Array.from({ length: maxRound }, (_, i) => i + 1);
 
   async function generate() {
@@ -56,6 +65,34 @@ export function RoundRobinSchedule({
             teamB: round.teams.find((t) => t.team === matchup.teamB)!.playerIds,
           })),
         ),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Appends exactly one more round without touching any round already
+  // played — re-derives the schedule up through the new round count
+  // (deterministic, so every earlier round it recomputes matches what's
+  // already stored) and only persists the new, last round.
+  async function addRound() {
+    setBusy(true);
+    setError(null);
+    try {
+      const allPlayers = [...players.keys()];
+      const nextRoundCount = maxRound + 1;
+      const schedule = generateRoundRobinSchedule(allPlayers, teamSize, nextRoundCount);
+      const newRound = schedule[schedule.length - 1]!;
+      await addRoundRobinRound(
+        client,
+        eventId,
+        newRound.matches.map((matchup) => ({
+          round: newRound.round,
+          teamA: newRound.teams.find((t) => t.team === matchup.teamA)!.playerIds,
+          teamB: newRound.teams.find((t) => t.team === matchup.teamB)!.playerIds,
+        })),
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -111,6 +148,11 @@ export function RoundRobinSchedule({
         <Button size="sm" onClick={generate} disabled={busy || notEnoughPlayers}>
           {matches.length > 0 ? "Regenerate schedule" : "Generate schedule"}
         </Button>
+        {matches.length > 0 ? (
+          <Button size="sm" variant="outline" onClick={addRound} disabled={busy || notEnoughPlayers}>
+            Add another round
+          </Button>
+        ) : null}
       </div>
       {notEnoughPlayers ? (
         <p className="text-destructive text-xs">Add at least 2 players first.</p>
