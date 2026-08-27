@@ -45,9 +45,17 @@ function rotate(order: string[], round: number): string[] {
  * fills — e.g. 8 players at team size 2 plays two 2v2 matches per round;
  * leftover players sit out that round, rotating fairly across rounds).
  *
- * Throws if there aren't enough players to field even one match of this
- * team size (`playerIds.length < teamSize * 2`) — the caller/UI should
- * validate team-size choice against the roster before calling this.
+ * `teamSize` is a target, not a strict requirement: when the roster can't
+ * field even one full match of that size (`playerIds.length < teamSize *
+ * 2` — e.g. team size 4 with only 7 players), every player still plays,
+ * split into the two most evenly-sized teams possible (4 vs 3 for 7
+ * players) rather than benching most of the roster or refusing to run at
+ * all. This fallback only kicks in when a full-size match genuinely isn't
+ * possible; whenever it is, the normal sit-out rotation above still
+ * applies unchanged.
+ *
+ * Throws only if there aren't enough players for any match at all
+ * (`playerIds.length < 2`).
  */
 export function generateRoundRobinSchedule(
   playerIds: string[],
@@ -55,19 +63,20 @@ export function generateRoundRobinSchedule(
   roundCount: number,
 ): RoundRobinRound[] {
   const n = playerIds.length;
-  if (n < teamSize * 2) {
-    throw new Error(
-      `generateRoundRobinSchedule: need at least ${teamSize * 2} players for team size ${teamSize}, got ${n}`,
-    );
+  if (n < 2) {
+    throw new Error(`generateRoundRobinSchedule: need at least 2 players, got ${n}`);
   }
 
   const sitOutTally = new Map<string, number>(playerIds.map((id) => [id, 0]));
   const rounds: RoundRobinRound[] = [];
+  const perMatch = teamSize * 2;
+  const fullChunks = Math.floor(n / perMatch);
 
   for (let r = 0; r < roundCount; r++) {
     const rotated = rotate(playerIds, r);
-    const perMatch = teamSize * 2;
-    const sitOutCount = n % perMatch;
+    // Below the target team size entirely: nobody sits out, everyone plays
+    // in one match split as evenly as two teams can be.
+    const sitOutCount = fullChunks >= 1 ? n % perMatch : 0;
 
     const bySitOuts = [...rotated].sort((a, b) => {
       const diff = sitOutTally.get(a)! - sitOutTally.get(b)!;
@@ -80,8 +89,22 @@ export function generateRoundRobinSchedule(
     const playing = rotated.filter((id) => !sittingOutSet.has(id));
 
     const teams: RoundRobinTeam[] = [];
-    for (let i = 0; i < playing.length; i += teamSize) {
-      teams.push({ team: teams.length + 1, playerIds: playing.slice(i, i + teamSize) });
+    let idx = 0;
+    for (let c = 0; c < fullChunks; c++) {
+      teams.push({ team: teams.length + 1, playerIds: playing.slice(idx, idx + teamSize) });
+      idx += teamSize;
+      teams.push({ team: teams.length + 1, playerIds: playing.slice(idx, idx + teamSize) });
+      idx += teamSize;
+    }
+    // Whatever's left after however many full-size matches fit — either
+    // the whole roster (fullChunks === 0) or a too-small remainder that a
+    // sit-out couldn't absorb evenly. Split it as evenly as possible into
+    // one more, uneven match instead of leaving it unplayed.
+    const leftover = playing.slice(idx);
+    if (leftover.length >= 2) {
+      const half = Math.floor(leftover.length / 2);
+      teams.push({ team: teams.length + 1, playerIds: leftover.slice(0, half) });
+      teams.push({ team: teams.length + 1, playerIds: leftover.slice(half) });
     }
 
     const matches: RoundRobinMatchup[] = [];

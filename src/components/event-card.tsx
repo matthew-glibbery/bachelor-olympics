@@ -33,6 +33,7 @@ import { orderFromResults, positionsFromOrder } from "@/lib/scoring/rankedOrder"
 import { scorePlacement, type PlacementEntry } from "@/lib/scoring/placement";
 import { scoreAbsolute, type AbsoluteEntry } from "@/lib/scoring/absolute";
 import { finalEventScore } from "@/lib/scoring/total";
+import { winCounts } from "@/lib/scoring/roundRobinScore";
 import type { RankingEntry } from "@/lib/odds/ranking";
 import type { BettingReserve } from "@/lib/betting/reserve";
 import type {
@@ -173,6 +174,14 @@ export function EventCard({
           .map((r): AbsoluteEntry => ({ playerId: r.player_id, raw: r.raw as number })),
         { lowerIsBetter: event.lower_is_better },
       );
+  // Win tally per player, round-robin events only — shown as its own
+  // column in the results table alongside the derived points, since
+  // "wins" is the number a groom/players actually want to see at a
+  // glance for this format, not just the points it converts to.
+  const winsByPlayer =
+    event.format === "round_robin"
+      ? winCounts(roundRobinMatches.map((m) => ({ teamA: m.team_a, teamB: m.team_b, winner: m.winner })))
+      : null;
   const multiplierFor = (playerId: string): number =>
     multipliers.find((m) => m.player_id === playerId)?.value ?? MULTIPLIER_DEFAULT;
   // Betting closes once the event leaves "planned" — bets stay a secret
@@ -524,12 +533,18 @@ export function EventCard({
                     <BracketEditor
                       eventId={event.id}
                       players={playerById}
+                      colorByPlayer={colorByPlayer}
                       seeds={bracketSeeds}
                       matches={bracketMatches.map(bracketRowToMatch)}
                     />
                   </>
                 ) : (
-                  <RoundRobinSchedule eventId={event.id} players={playerById} matches={roundRobinMatches} />
+                  <RoundRobinSchedule
+                    eventId={event.id}
+                    players={playerById}
+                    colorByPlayer={colorByPlayer}
+                    matches={roundRobinMatches}
+                  />
                 )}
                 <p className="text-muted-foreground text-xs">
                   Results above feed the Results table below automatically as
@@ -599,9 +614,22 @@ export function EventCard({
                     slots through every striped row — it read as a rendering
                     fault rather than a stripe. The empty spans are spacer
                     columns for the same reason. */}
-                <div className="grid grid-cols-[2rem_1fr_auto_0.75rem_auto_0.75rem_auto] items-center gap-y-1.5 text-sm [&>*]:px-1">
+                <div
+                  className={cn(
+                    "grid items-center gap-y-1.5 text-sm [&>*]:px-1",
+                    winsByPlayer
+                      ? "grid-cols-[2rem_1fr_auto_0.75rem_auto_0.75rem_auto_0.75rem_auto]"
+                      : "grid-cols-[2rem_1fr_auto_0.75rem_auto_0.75rem_auto]",
+                  )}
+                >
                   <span className="hud-label text-muted-foreground">#</span>
                   <span className="hud-label text-muted-foreground">Player</span>
+                  {winsByPlayer ? (
+                    <>
+                      <span className="hud-label text-muted-foreground text-right">Wins</span>
+                      <span aria-hidden />
+                    </>
+                  ) : null}
                   <span className="hud-label text-muted-foreground text-right">Raw</span>
                   <span aria-hidden />
                   <span className="hud-label text-muted-foreground text-right">×</span>
@@ -631,6 +659,14 @@ export function EventCard({
                           <PlayerName name={p.name} size="sm" photoUrl={p.photo_url} color={colorByPlayer[p.id]} />
                           {catchUpBonuses?.has(p.id) ? <CatchUpBadge bonus={catchUpBonus} /> : null}
                         </span>
+                        {winsByPlayer ? (
+                          <>
+                            <span className="font-score text-right tabular-nums">
+                              {winsByPlayer.get(p.id) ?? 0}
+                            </span>
+                            <span aria-hidden />
+                          </>
+                        ) : null}
                         <span className="font-score text-right tabular-nums">
                           {points != null ? Math.round(points) : "—"}
                         </span>

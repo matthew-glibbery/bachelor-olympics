@@ -26,11 +26,13 @@ import type { BracketSeedRow, PlayerRow } from "@/lib/data/database.types";
 export function BracketEditor({
   eventId,
   players,
+  colorByPlayer,
   seeds,
   matches,
 }: {
   eventId: string;
   players: Map<string, PlayerRow>;
+  colorByPlayer: Record<string, string>;
   seeds: BracketSeedRow[];
   matches: BracketMatch[];
 }) {
@@ -159,6 +161,7 @@ export function BracketEditor({
                   key={m.id}
                   match={m}
                   players={players}
+                  colorByPlayer={colorByPlayer}
                   disabled={busy}
                   onPick={(winnerId) => pickWinner(m.id, winnerId)}
                 />
@@ -172,6 +175,7 @@ export function BracketEditor({
           label="Play a 3rd place match"
           match={thirdPlaceMatch ?? null}
           players={players}
+          colorByPlayer={colorByPlayer}
           disabled={busy}
           onToggle={toggleThirdPlace}
           onPick={(winnerId) => pickWinner(thirdPlaceMatch!.id, winnerId)}
@@ -183,6 +187,7 @@ export function BracketEditor({
           label="Play a 5th place match"
           match={fifthPlaceMatch ?? null}
           players={players}
+          colorByPlayer={colorByPlayer}
           disabled={busy}
           onToggle={toggleFifthPlace}
           onPick={(winnerId) => pickWinner(fifthPlaceMatch!.id, winnerId)}
@@ -195,11 +200,13 @@ export function BracketEditor({
 function MatchBox({
   match,
   players,
+  colorByPlayer,
   disabled,
   onPick,
 }: {
   match: BracketMatch;
   players: Map<string, PlayerRow>;
+  colorByPlayer: Record<string, string>;
   disabled: boolean;
   onPick: (winnerId: string) => void;
 }) {
@@ -217,7 +224,12 @@ function MatchBox({
               match.winnerId === id ? "bg-primary text-primary-foreground" : "bg-card hover:opacity-80",
             )}
           >
-            <PlayerName name={players.get(id)?.name ?? "?"} size="sm" />
+            <PlayerName
+              name={players.get(id)?.name ?? "?"}
+              size="sm"
+              photoUrl={players.get(id)?.photo_url}
+              color={colorByPlayer[id]}
+            />
             {match.winnerId === id ? <Check className="size-3 shrink-0" /> : null}
           </button>
         ) : (
@@ -234,6 +246,7 @@ function ConsolationToggle({
   label,
   match,
   players,
+  colorByPlayer,
   disabled,
   onToggle,
   onPick,
@@ -241,6 +254,7 @@ function ConsolationToggle({
   label: string;
   match: BracketMatch | null;
   players: Map<string, PlayerRow>;
+  colorByPlayer: Record<string, string>;
   disabled: boolean;
   onToggle: (enabled: boolean) => void;
   onPick: (winnerId: string) => void;
@@ -259,7 +273,7 @@ function ConsolationToggle({
       </label>
       {match ? (
         <div className="w-40">
-          <MatchBox match={match} players={players} disabled={disabled} onPick={onPick} />
+          <MatchBox match={match} players={players} colorByPlayer={colorByPlayer} disabled={disabled} onPick={onPick} />
         </div>
       ) : null}
     </div>
