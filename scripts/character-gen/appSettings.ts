@@ -9,7 +9,7 @@ export async function uploadBootClipAndSet(buffer: Buffer): Promise<string> {
   const path = `app/boot-${Date.now()}.mp4`;
   const { error: uploadError } = await client.storage.from("videos").upload(path, buffer, {
     contentType: "video/mp4",
-    cacheControl: "3600",
+    cacheControl: "31536000, immutable",
     upsert: false,
   });
   if (uploadError) throw new Error(`upload: ${uploadError.message}`);

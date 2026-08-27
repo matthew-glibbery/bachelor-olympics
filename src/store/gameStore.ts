@@ -10,6 +10,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   fetchAppSettings,
   fetchBonusEvents,
+  fetchBracketMatches,
+  fetchBracketSeeds,
   fetchEventRankings,
   fetchEventResults,
   fetchEvents,
@@ -17,10 +19,13 @@ import {
   fetchOverallBets,
   fetchPerEventBets,
   fetchPlayers,
+  fetchRoundRobinMatches,
 } from "@/lib/data/queries";
 import type {
   AppSettingsRow,
   BonusEventRow,
+  BracketMatchRow,
+  BracketSeedRow,
   EventRankingRow,
   EventResultRow,
   EventRow,
@@ -28,6 +33,7 @@ import type {
   OverallBetRow,
   PerEventBetRow,
   PlayerRow,
+  RoundRobinMatchRow,
 } from "@/lib/data/database.types";
 
 const REALTIME_TABLES = [
@@ -40,6 +46,9 @@ const REALTIME_TABLES = [
   "overall_bets",
   "per_event_bets",
   "bonus_events",
+  "bracket_seeds",
+  "bracket_matches",
+  "round_robin_matches",
 ] as const;
 
 interface GameState {
@@ -51,6 +60,9 @@ interface GameState {
   overallBets: OverallBetRow[];
   perEventBets: PerEventBetRow[];
   bonusEvents: BonusEventRow[];
+  bracketSeeds: BracketSeedRow[];
+  bracketMatches: BracketMatchRow[];
+  roundRobinMatches: RoundRobinMatchRow[];
   appSettings: AppSettingsRow | null;
   loading: boolean;
   error: string | null;
@@ -73,6 +85,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   overallBets: [],
   perEventBets: [],
   bonusEvents: [],
+  bracketSeeds: [],
+  bracketMatches: [],
+  roundRobinMatches: [],
   appSettings: null,
   loading: false,
   error: null,
@@ -93,6 +108,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         overallBets,
         perEventBets,
         bonusEvents,
+        bracketSeeds,
+        bracketMatches,
+        roundRobinMatches,
       ] = await Promise.all([
         fetchPlayers(client),
         fetchEvents(client),
@@ -102,6 +120,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         fetchOverallBets(client),
         fetchPerEventBets(client),
         fetchBonusEvents(client),
+        fetchBracketSeeds(client),
+        fetchBracketMatches(client),
+        fetchRoundRobinMatches(client),
       ]);
       // Fetched separately and allowed to fail without taking down the rest
       // of the app: app_settings is a newer table, so until its migration has
@@ -118,6 +139,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         overallBets,
         perEventBets,
         bonusEvents,
+        bracketSeeds,
+        bracketMatches,
+        roundRobinMatches,
         appSettings,
         loading: false,
         ready: true,
@@ -194,6 +218,9 @@ async function refetch(
     overallBets,
     perEventBets,
     bonusEvents,
+    bracketSeeds,
+    bracketMatches,
+    roundRobinMatches,
   ] = await Promise.all([
     fetchPlayers(client),
     fetchEvents(client),
@@ -203,6 +230,9 @@ async function refetch(
     fetchOverallBets(client),
     fetchPerEventBets(client),
     fetchBonusEvents(client),
+    fetchBracketSeeds(client),
+    fetchBracketMatches(client),
+    fetchRoundRobinMatches(client),
   ]);
   const appSettings = await fetchAppSettings(client).catch(() => null);
   set({
@@ -214,6 +244,9 @@ async function refetch(
     overallBets,
     perEventBets,
     bonusEvents,
+    bracketSeeds,
+    bracketMatches,
+    roundRobinMatches,
     appSettings,
   });
 }

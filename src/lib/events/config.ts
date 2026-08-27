@@ -9,6 +9,8 @@
 
 export type ScoringMode = "placement" | "absolute";
 
+export type EventFormat = "standard" | "bracket" | "round_robin";
+
 export interface EventDefinition {
   /** Stable identifier, used everywhere else to reference the event. */
   id: string;
@@ -17,11 +19,16 @@ export interface EventDefinition {
   /** How this event's raw points are computed. */
   scoringMode: ScoringMode;
   /**
-   * Team event whose rosters reshuffle between games (beach volleyball,
-   * soccer). No single game result exists — placement is derived from each
-   * player's win/loss record across all games. See PRODUCT_SPEC.md.
+   * How this event's placement is arrived at. "standard" (default) is a
+   * single groom-entered final order. "round_robin" is for team events whose
+   * rosters reshuffle between games (beach volleyball, soccer) — no single
+   * game result exists, so placement is derived from each player's win/loss
+   * record across a generated schedule of rotating teams (see
+   * src/lib/scoring/roundRobinSchedule.ts / roundRobinScore.ts). "bracket" is
+   * single-elimination with byes (src/lib/scoring/bracket.ts). See
+   * PRODUCT_SPEC.md.
    */
-  teamReshuffle?: boolean;
+  format?: EventFormat;
   /**
    * For absolute-scored events only: true when a lower raw result is better
    * (e.g. golf strokes). Ignored for placement events.
@@ -48,7 +55,7 @@ export const EVENTS: readonly EventDefinition[] = [
     id: "beach-volleyball",
     name: "Beach Volleyball",
     scoringMode: "placement",
-    teamReshuffle: true,
+    format: "round_robin",
     notes: "4v4, multiple games, teams reshuffled between games.",
   },
   { id: "spikeball", name: "Spikeball", scoringMode: "placement" },
@@ -82,7 +89,7 @@ export const EVENTS: readonly EventDefinition[] = [
     id: "soccer",
     name: "3v3 Soccer",
     scoringMode: "placement",
-    teamReshuffle: true,
+    format: "round_robin",
   },
   { id: "beer-pong", name: "Beer Pong", scoringMode: "placement" },
   {

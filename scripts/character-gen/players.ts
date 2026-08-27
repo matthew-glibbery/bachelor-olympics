@@ -58,7 +58,7 @@ async function uploadAndSet(
   const path = `players/${playerId}-${Date.now()}.${ext}`;
   const { error: uploadError } = await client.storage.from(bucket).upload(path, buffer, {
     contentType,
-    cacheControl: "3600",
+    cacheControl: "31536000, immutable",
     upsert: false,
   });
   if (uploadError) throw new Error(`upload: ${uploadError.message}`);

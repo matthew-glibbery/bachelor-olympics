@@ -12,7 +12,7 @@ export function eventConfigToRow(def: EventDefinition, sortOrder: number): Event
     name: def.name,
     scoring_mode: def.scoringMode,
     lower_is_better: def.lowerIsBetter ?? false,
-    team_reshuffle: def.teamReshuffle ?? false,
+    format: def.format ?? "standard",
     custom_placement: def.customPlacement ?? false,
     safety_check: def.safetyCheck ?? false,
     notes: def.notes ?? null,

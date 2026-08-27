@@ -23,6 +23,12 @@ const STATUS_LABEL: Record<EventRow["status"], string> = {
   cancelled: "Cancelled",
 };
 
+const FORMAT_LABEL: Record<EventRow["format"], string> = {
+  standard: "Standard",
+  bracket: "Bracket",
+  round_robin: "Round-robin",
+};
+
 /** One draggable, editable row in the groom's "Manage events" list — same
  * edit/delete interaction as `ManagePlayerRow`, plus a drag handle (only
  * while collapsed) for reordering. */
@@ -40,6 +46,7 @@ export function ManageEventRow({ event }: { event: EventRow }) {
     notes: event.notes ?? "",
     scoring_mode: event.scoring_mode,
     lower_is_better: event.lower_is_better,
+    format: event.format,
   });
 
   const scoringLocked = event.status !== "planned";
@@ -54,7 +61,11 @@ export function ManageEventRow({ event }: { event: EventRow }) {
         notes: draft.notes.trim() || null,
         ...(scoringLocked
           ? {}
-          : { scoring_mode: draft.scoring_mode, lower_is_better: draft.lower_is_better }),
+          : {
+              scoring_mode: draft.scoring_mode,
+              lower_is_better: draft.lower_is_better,
+              format: draft.format,
+            }),
       });
       setEditing(false);
     } catch (err) {
@@ -180,12 +191,45 @@ export function ManageEventRow({ event }: { event: EventRow }) {
       <div className="flex flex-col gap-1.5">
         <Label className="flex items-center gap-1.5">
           {scoringLocked ? <Lock className="text-muted-foreground size-3.5" /> : null}
+          Format
+        </Label>
+        {scoringLocked ? (
+          <p className="text-muted-foreground text-xs">
+            Locked — this event has already started. {FORMAT_LABEL[draft.format]}.
+          </p>
+        ) : (
+          <select
+            className={SELECT_CLASS}
+            value={draft.format}
+            onChange={(e) => {
+              const format = e.target.value as EventRow["format"];
+              setDraft((d) => ({
+                ...d,
+                format,
+                // Bracket/round-robin are always placement-scored (DB
+                // constraint) — force it so the scoring-type select below
+                // doesn't offer an invalid combination.
+                scoring_mode: format === "standard" ? d.scoring_mode : "placement",
+              }));
+            }}
+          >
+            <option value="standard">Standard (single final order)</option>
+            <option value="bracket">Bracket (single elimination)</option>
+            <option value="round_robin">Round-robin (rotating teams)</option>
+          </select>
+        )}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label className="flex items-center gap-1.5">
+          {scoringLocked ? <Lock className="text-muted-foreground size-3.5" /> : null}
           Scoring type
         </Label>
         {scoringLocked ? (
           <p className="text-muted-foreground text-xs">
             Locked — this event has already started. {draft.scoring_mode === "placement" ? "Placement" : "Absolute"}.
           </p>
+        ) : draft.format !== "standard" ? (
+          <p className="text-muted-foreground text-xs">Placement — required for this format.</p>
         ) : (
           <select
             className={SELECT_CLASS}
@@ -199,7 +243,7 @@ export function ManageEventRow({ event }: { event: EventRow }) {
           </select>
         )}
       </div>
-      {!scoringLocked && draft.scoring_mode === "absolute" ? (
+      {!scoringLocked && draft.format === "standard" && draft.scoring_mode === "absolute" ? (
         <Label className="flex items-center gap-2 text-sm font-normal">
           <input
             type="checkbox"

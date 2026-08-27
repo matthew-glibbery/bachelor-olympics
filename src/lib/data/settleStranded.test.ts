@@ -69,7 +69,7 @@ const golf: EventRow = {
   name: "Nine Holes of Golf",
   scoring_mode: "absolute",
   lower_is_better: true,
-  team_reshuffle: false,
+  format: "standard",
   custom_placement: false,
   safety_check: false,
   notes: null,

@@ -13,7 +13,10 @@ all the competitors well enough to set odds credibly).
 
 ## Events
 
-Eight pre-planned events, decided in advance:
+The roster is 7 players. Eight pre-planned events, decided in advance
+(the event count and the player count are independent — don't assume they
+match; `src/lib/events/config.ts` and the live roster are the source of
+truth for each, never hardcode either):
 
 1. Beach volleyball (4v4, multiple games, teams reshuffled between games)
 2. Spikeball
@@ -40,9 +43,10 @@ BONUS events (below), which are a separate, deliberately isolated concept.
 ### Event-specific structure
 
 - **Beach volleyball / 3v3 soccer** (team, reshuffled): no true individual
-  score exists. Track each player's individual win/loss record across all
-  games played, not a single game result. Their placement for the event is
-  derived from that win record.
+  score exists — these use the **round-robin** event format (see Event
+  formats below): a generated schedule of rotating teams, win/loss per
+  match, placement derived from each player's win count across the whole
+  schedule.
 - **Settlers of Catan**: one single 8-player game using two combined sets
   (the "peanut" board layout), not two separate 4-player games. Placement
   scoring applies normally once the game resolves.
@@ -121,6 +125,67 @@ Two scoring modes, chosen per event:
 - **Ties**: if two or more players tie a placement, sum the point values for
   all the places they're tying across (e.g. 2nd + 3rd) and split evenly
   between them, then round.
+
+## Event formats
+
+Every event still resolves to exactly one placement or absolute score per
+player in the end — these are two additional ways to *arrive* at that
+placement, alongside the default (a single groom-entered final order).
+Selected per event as `format`: `standard` (default), `bracket`, or
+`round_robin`. Bracket and round-robin events are always placement-scored —
+neither format produces a measured "absolute" result. Once the final
+placement is written, everything else (the points formula above, the
+catch-up bonus, per-event bet resolution, overall-bet elimination math) is
+completely unaffected by which format produced it.
+
+### Bracket
+
+Single-elimination, with byes for a field that isn't a power of two.
+
+- **Seeding**: starts as a copy of the groom's per-event ranking (the same
+  ranking that drives betting odds — see Odds source below), but lives in
+  its own independent ordering that the groom can freely adjust afterward.
+  Adjusting bracket seeding never changes betting odds, and vice versa.
+- **Byes**: the top seed(s) get the bye(s), using standard tournament
+  seeding (seed 1 can only meet seed 2 in the final, etc.) generalized to
+  any field size. A bye is a normal advance — no scoring bonus or penalty.
+- **Consolation matches**: two are optional, off by default:
+  - A real **3rd-place match** between the two semifinal losers. If not
+    played, they simply tie for 3rd (pooled points split per the placement
+    tie rule above).
+  - A real **5th-place match**, but only ever between the top two *seeds*
+    of the round-before-semis losers — a deliberate scoping simplification,
+    not a full mini-bracket for that whole band. Any other players in that
+    band still tie with each other one place below the match's loser. If
+    not played, the whole band ties together.
+  - Every band further back than that (quarterfinal-round losers and
+    earlier, when no 5th-place match covers them) always just ties as one
+    group — no consolation option offered past 5th.
+- **Entry**: the groom enters the actual match tree (each round, who played
+  whom, who won) — placements are derived automatically from it, not typed
+  in directly. Editing an earlier match's result correctly recomputes every
+  later round that depended on it. The derived placement can still be
+  manually fine-tuned (drag-reorder, same editor every other placement
+  event uses) before finalizing.
+
+### Round-robin
+
+Rotating 2- or 4-person teams playing a full generated schedule, win/loss
+only (no margin) — this is what beach volleyball and 3v3 soccer actually
+use, replacing an earlier, never-implemented idea of tracking win/loss by
+hand.
+
+- **Schedule**: the app auto-generates the round-by-round team pairings (an
+  adapted round-robin "circle method," with a rotating sit-out set spread
+  fairly across players when the roster doesn't divide evenly into full
+  teams) — the groom doesn't hand-assign teams each round.
+- **Recording**: the groom records each match's winning team as games are
+  actually played; the full schedule and every match result are tracked,
+  not just an end-of-event tally.
+- **Placement**: ranked by each player's win count across the whole
+  schedule; equal win counts tie, split per the placement tie rule above.
+  As with bracket, the derived placement can be manually adjusted before
+  finalizing.
 
 ## Multipliers
 
@@ -218,8 +283,8 @@ mechanic in the app with a different answer to "can I pick myself."
 This is separate from per-event betting and uses **points**, not multiplier,
 as its currency.
 
-- **Odds source**: before each event, the groom privately ranks all 8
-  players (himself included) for THAT event specifically — one ranking per
+- **Odds source**: before each event, the groom privately ranks every
+  player (himself included) for THAT event specifically — one ranking per
   event, not one overall ranking. Players do not set odds themselves, and
   they aren't expected to know enough about each other to do so credibly.
   Each event's own ranking generates that event's own odds (used by
@@ -252,7 +317,7 @@ as its currency.
     so 100 points is enough to plausibly flip 2nd/3rd but not enough to
     single-handedly overturn a dominant win. Don't change this number
     without re-running that simulation.
-  - **Top 3: 20 points.** In an 8-player field, every event guarantees
+  - **Top 3: 20 points.** In a field this size, every event guarantees
     exactly 3 "top3" slots against 1 "win" slot, so an average pick is
     roughly 3x likelier to land top3 than win outright — a payout cut well
     past that 3x (100→20, a 5x cut) keeps top3 clearly the
@@ -280,7 +345,7 @@ as its currency.
 ## Live standings
 
 - Visible to everyone throughout the weekend (no suspense-until-the-end
-  design). There are no spectators, only the 8 competitors, so this is a
+  design). There are no spectators, only the competitors themselves, so this is a
   players-only view.
 - Standings should show, per player: raw event points earned so far,
   multiplier-adjusted total, and (for anyone who placed the overall bet)
@@ -315,7 +380,7 @@ If a pre-planned event gets cancelled (weather, logistics, whatever):
 Decided against, don't reintroduce without asking:
 
 - Betting on other players' predicted rankings (too hard for anyone but the
-  groom to do credibly, since no one else knows all 8 people well).
+  groom to do credibly, since no one else knows every competitor well).
 - Combo/parlay bets, or more than 2 overall bet categories.
 - A "pick who finishes last" overall bet category — considered, cut.
 - Peer award vote ("funniest moment," etc.) — considered, cut.
