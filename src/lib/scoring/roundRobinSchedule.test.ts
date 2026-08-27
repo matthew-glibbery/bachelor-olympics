@@ -21,6 +21,19 @@ describe("generateRoundRobinSchedule", () => {
     }
   });
 
+  it("rotates who lands on the smaller side of an uneven match, not always the same player", () => {
+    const rounds = generateRoundRobinSchedule(players(7), 4, 7);
+    const smallTeamCount = new Map<string, number>(players(7).map((id) => [id, 0]));
+    for (const round of rounds) {
+      const smaller = round.teams.reduce((a, b) => (a.playerIds.length <= b.playerIds.length ? a : b));
+      for (const id of smaller.playerIds) smallTeamCount.set(id, smallTeamCount.get(id)! + 1);
+    }
+    const counts = [...smallTeamCount.values()];
+    expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+    // No player sits on the small side every single round.
+    expect(Math.max(...counts)).toBeLessThan(rounds.length);
+  });
+
   it("is deterministic", () => {
     const a = generateRoundRobinSchedule(players(7), 2, 6);
     const b = generateRoundRobinSchedule(players(7), 2, 6);
