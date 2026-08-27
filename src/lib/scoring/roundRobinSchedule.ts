@@ -1,11 +1,14 @@
 /**
  * Round-robin event format (PRODUCT_SPEC.md → Event formats → Round-robin) —
- * a generated schedule of rotating 2- or 4-person teams. Adapts the classic
- * round-robin "circle method" (fix one player, rotate the rest each round)
- * generalized to team-of-T groupings, with a rotating sit-out set — chosen
- * to keep cumulative sit-outs balanced across players — when the player
- * count doesn't divide evenly into full teams. Deterministic (no RNG), so
- * "regenerate" always produces the same schedule for the same inputs.
+ * a generated schedule of rotating 2- or 4-person teams. Each round fully
+ * cyclically rotates the player order (see `rotate` below) before chunking
+ * it into team-of-T groups, so who lands in which team — and, when teams
+ * are uneven, who lands on the smaller side — varies round to round rather
+ * than any one player being pinned to a fixed seat. A rotating sit-out set
+ * — chosen to keep cumulative sit-outs balanced across players — covers
+ * whatever's left over when the player count doesn't divide evenly into
+ * full teams. Deterministic (no RNG), so "regenerate" always produces the
+ * same schedule for the same inputs.
  */
 
 export type TeamSize = 2 | 4;
@@ -27,15 +30,25 @@ export interface RoundRobinRound {
   sittingOut: string[];
 }
 
-/** Circle method: fix `order[0]`, rotate everyone else by `round` steps.
- * Cycles with period `order.length - 1` before repeating. */
+/**
+ * Full cyclic rotation by `round` steps — every player cycles through
+ * every seat position over a period of `order.length` rounds, with no
+ * player permanently anchored to one spot.
+ *
+ * Deliberately NOT the classic "fix player 0, rotate the rest" circle
+ * method: that variant privileges seat 0, and this schedule's team
+ * assignment is a straight positional chunking of the rotated order (first
+ * `teamSize` seats → team 1, next → team 2, …) — with a fixed seat 0, its
+ * occupant landed in the same team slot (e.g. always the smaller side of
+ * an uneven 4-vs-3 split) every single round. A full rotation removes that
+ * bias; which two seats fall on which side of a chunk boundary still
+ * shifts round to round, but no player is pinned to one.
+ */
 function rotate(order: string[], round: number): string[] {
   const n = order.length;
-  if (n <= 2) return order;
-  const period = n - 1;
-  const r = ((round % period) + period) % period;
-  const rest = order.slice(1);
-  return [order[0]!, ...rest.slice(r), ...rest.slice(0, r)];
+  if (n <= 1) return order;
+  const r = ((round % n) + n) % n;
+  return [...order.slice(r), ...order.slice(0, r)];
 }
 
 /**
