@@ -23,10 +23,12 @@ export function RoundRobinSchedule({
   eventId,
   players,
   matches,
+  colorByPlayer,
 }: {
   eventId: string;
   players: Map<string, PlayerRow>;
   matches: RoundRobinMatchRow[];
+  colorByPlayer: Record<string, string>;
 }) {
   const [teamSize, setTeamSize] = useState<TeamSize>(2);
   const [roundCount, setRoundCount] = useState(6);
@@ -74,8 +76,11 @@ export function RoundRobinSchedule({
     }
   }
 
-  const minPlayers = teamSize * 2;
-  const notEnoughPlayers = players.size < minPlayers;
+  // A full match of this team size may not fit the roster (e.g. team size 4
+  // with 7 players) — generateRoundRobinSchedule() falls back to one uneven
+  // match (4v3) so everyone still plays. Only genuinely too few players
+  // (can't field any match at all) blocks generation.
+  const notEnoughPlayers = players.size < 2;
 
   return (
     <div className="flex flex-col gap-4">
@@ -108,8 +113,11 @@ export function RoundRobinSchedule({
         </Button>
       </div>
       {notEnoughPlayers ? (
-        <p className="text-destructive text-xs">
-          Need at least {minPlayers} players for {teamSize}-person teams.
+        <p className="text-destructive text-xs">Add at least 2 players first.</p>
+      ) : players.size < teamSize * 2 ? (
+        <p className="text-muted-foreground text-xs">
+          Not enough players for a full {teamSize}-a-side match — everyone will play in one
+          uneven match instead ({Math.ceil(players.size / 2)} vs {Math.floor(players.size / 2)}).
         </p>
       ) : hasResults ? (
         <p className="text-muted-foreground text-xs">
@@ -126,9 +134,23 @@ export function RoundRobinSchedule({
             .filter((m) => m.round === round)
             .map((m) => (
               <div key={m.id} className="bevel-sunken bg-sunken flex items-center gap-2 rounded-md p-2">
-                <TeamSide team={m.team_a} players={players} won={m.winner === "a"} onPick={() => pick(m.id, "a")} disabled={busy} />
+                <TeamSide
+                  team={m.team_a}
+                  players={players}
+                  colorByPlayer={colorByPlayer}
+                  won={m.winner === "a"}
+                  onPick={() => pick(m.id, "a")}
+                  disabled={busy}
+                />
                 <span className="text-muted-foreground text-xs">vs</span>
-                <TeamSide team={m.team_b} players={players} won={m.winner === "b"} onPick={() => pick(m.id, "b")} disabled={busy} />
+                <TeamSide
+                  team={m.team_b}
+                  players={players}
+                  colorByPlayer={colorByPlayer}
+                  won={m.winner === "b"}
+                  onPick={() => pick(m.id, "b")}
+                  disabled={busy}
+                />
               </div>
             ))}
         </div>
@@ -140,12 +162,14 @@ export function RoundRobinSchedule({
 function TeamSide({
   team,
   players,
+  colorByPlayer,
   won,
   onPick,
   disabled,
 }: {
   team: string[];
   players: Map<string, PlayerRow>;
+  colorByPlayer: Record<string, string>;
   won: boolean;
   onPick: () => void;
   disabled: boolean;
@@ -160,12 +184,20 @@ function TeamSide({
         won ? "bg-primary text-primary-foreground" : "bg-card hover:opacity-80",
       )}
     >
-      {team.map((id) => (
-        <span key={id} className="flex items-center justify-between gap-1.5">
-          <PlayerName name={players.get(id)?.name ?? "?"} size="sm" />
-          {won ? <Check className="size-3 shrink-0" /> : null}
-        </span>
-      ))}
+      {team.map((id) => {
+        const player = players.get(id);
+        return (
+          <span key={id} className="flex items-center justify-between gap-1.5">
+            <PlayerName
+              name={player?.name ?? "?"}
+              size="sm"
+              photoUrl={player?.photo_url}
+              color={colorByPlayer[id]}
+            />
+            {won ? <Check className="size-3 shrink-0" /> : null}
+          </span>
+        );
+      })}
     </button>
   );
 }

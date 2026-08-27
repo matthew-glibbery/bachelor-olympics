@@ -4,8 +4,21 @@ import { generateRoundRobinSchedule } from "./roundRobinSchedule";
 const players = (n: number) => Array.from({ length: n }, (_, i) => `p${i + 1}`);
 
 describe("generateRoundRobinSchedule", () => {
-  it("throws when there aren't enough players for even one match", () => {
-    expect(() => generateRoundRobinSchedule(players(7), 4, 5)).toThrow();
+  it("throws only when there aren't enough players for any match", () => {
+    expect(() => generateRoundRobinSchedule(players(1), 2, 5)).toThrow();
+  });
+
+  it("plays everyone in one uneven match when the roster is below the target team size", () => {
+    const rounds = generateRoundRobinSchedule(players(7), 4, 3);
+    for (const round of rounds) {
+      expect(round.sittingOut).toHaveLength(0);
+      expect(round.teams).toHaveLength(2);
+      expect(round.matches).toHaveLength(1);
+      const sizes = round.teams.map((t) => t.playerIds.length).sort();
+      expect(sizes).toEqual([3, 4]);
+      const allPlayers = round.teams.flatMap((t) => t.playerIds);
+      expect(new Set(allPlayers).size).toBe(7);
+    }
   });
 
   it("is deterministic", () => {
