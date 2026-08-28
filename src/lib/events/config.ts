@@ -9,7 +9,7 @@
 
 export type ScoringMode = "placement" | "absolute";
 
-export type EventFormat = "standard" | "bracket" | "round_robin";
+export type EventFormat = "standard" | "bracket" | "round_robin" | "best_of_rounds";
 
 export interface EventDefinition {
   /** Stable identifier, used everywhere else to reference the event. */
@@ -25,8 +25,10 @@ export interface EventDefinition {
    * game result exists, so placement is derived from each player's win/loss
    * record across a generated schedule of rotating teams (see
    * src/lib/scoring/roundRobinSchedule.ts / roundRobinScore.ts). "bracket" is
-   * single-elimination with byes (src/lib/scoring/bracket.ts). See
-   * PRODUCT_SPEC.md.
+   * single-elimination with byes (src/lib/scoring/bracket.ts). "best_of_rounds"
+   * is for events played as several full rounds (e.g. Mölkky), where a
+   * player's placement is their best result across however many rounds get
+   * ranked (src/lib/scoring/placementRounds.ts). See PRODUCT_SPEC.md.
    */
   format?: EventFormat;
   /**

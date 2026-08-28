@@ -15,6 +15,7 @@ import {
   type BracketTrack,
 } from "@/lib/scoring/bracket";
 import { deriveScoreLines } from "@/lib/scoring/fromRows";
+import { bestAcrossRounds } from "@/lib/scoring/placementRounds";
 import {
   deriveRoundRobinPlacements,
   type RoundRobinMatchResult,
@@ -30,6 +31,7 @@ import type {
   MultiplierRow,
   OverallBetRow,
   PerEventBetRow,
+  PlacementRoundRow,
   PlayerRow,
   RoundRobinMatchRow,
 } from "./database.types";
@@ -144,7 +146,12 @@ export async function resetEvent(client: SupabaseClient, eventId: string): Promi
     .eq("event_id", eventId);
   if (resultsError) throw new Error(`resetEvent (results): ${resultsError.message}`);
 
-  for (const table of ["bracket_seeds", "bracket_matches", "round_robin_matches"] as const) {
+  for (const table of [
+    "bracket_seeds",
+    "bracket_matches",
+    "round_robin_matches",
+    "placement_rounds",
+  ] as const) {
     const { error } = await client.from(table).delete().eq("event_id", eventId);
     if (error) throw new Error(`resetEvent (${table}): ${error.message}`);
   }
@@ -176,6 +183,7 @@ export async function resetWeekend(client: SupabaseClient): Promise<void> {
     ["bracket_seeds", "player_id"],
     ["bracket_matches", "id"],
     ["round_robin_matches", "id"],
+    ["placement_rounds", "player_id"],
   ];
   for (const [table, column] of wipes) {
     const { error } = await client.from(table).delete().not(column, "is", null);
@@ -602,6 +610,55 @@ export async function recordRoundRobinMatchResult(
     winner: r.winner,
   }));
   const placements = deriveRoundRobinPlacements(matches);
+  if (placements.length === 0) return;
+  await upsertEventResults(
+    client,
+    eventId,
+    placements.map((p) => ({ player_id: p.playerId, position: p.position })),
+  );
+}
+
+/**
+ * Record (or edit) one round of a best-of-rounds event's rankings, then
+ * re-derive and re-upsert `event_results` from each player's best position
+ * across every round recorded so far (src/lib/scoring/placementRounds.ts)
+ * — same "auto-sync on every write" pattern as `recordBracketMatchResult`/
+ * `recordRoundRobinMatchResult`. Scoped clear-then-insert on just this
+ * round (not the whole event), so adding round 2 never touches round 1,
+ * and re-saving round 1 later only replaces round 1's own rows.
+ */
+export async function recordPlacementRound(
+  client: SupabaseClient,
+  eventId: string,
+  round: number,
+  entries: { player_id: string; position: number }[],
+): Promise<void> {
+  const { error: deleteError } = await client
+    .from("placement_rounds")
+    .delete()
+    .eq("event_id", eventId)
+    .eq("round", round);
+  if (deleteError) throw new Error(`recordPlacementRound (clear): ${deleteError.message}`);
+
+  if (entries.length > 0) {
+    const rows = entries.map((e) => ({ event_id: eventId, round, player_id: e.player_id, position: e.position }));
+    const { error: insertError } = await client.from("placement_rounds").insert(rows);
+    if (insertError) throw new Error(`recordPlacementRound (insert): ${insertError.message}`);
+  }
+
+  const { data, error: readError } = await client
+    .from("placement_rounds")
+    .select("*")
+    .eq("event_id", eventId);
+  if (readError) throw new Error(`recordPlacementRound (read): ${readError.message}`);
+
+  const placements = bestAcrossRounds(
+    ((data ?? []) as PlacementRoundRow[]).map((r) => ({
+      round: r.round,
+      playerId: r.player_id,
+      position: r.position,
+    })),
+  );
   if (placements.length === 0) return;
   await upsertEventResults(
     client,
