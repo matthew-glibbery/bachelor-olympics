@@ -193,6 +193,23 @@ export function EventCard({
     event.format === "round_robin"
       ? winCounts(roundRobinMatches.map((m) => ({ teamA: m.team_a, teamB: m.team_b, winner: m.winner })))
       : null;
+  // One optional extra results-table column, format-dependent: round-robin
+  // shows win count; a standard placement event shows the rank sum
+  // (event_results.position — the total across every round played, or
+  // just that round's own value when there's only one) so the actual
+  // number behind the finishing order is visible, not just the derived
+  // 1st/2nd/3rd. Bracket has no equivalent extra column.
+  const extraColumn: { label: string; valueFor: (playerId: string) => string } | null = winsByPlayer
+    ? { label: "Wins", valueFor: (playerId) => String(winsByPlayer.get(playerId) ?? 0) }
+    : isStandard && isPlacement
+      ? {
+          label: "Sum",
+          valueFor: (playerId) => {
+            const position = results.find((r) => r.player_id === playerId)?.position;
+            return position != null ? String(position) : "—";
+          },
+        }
+      : null;
   const multiplierFor = (playerId: string): number =>
     multipliers.find((m) => m.player_id === playerId)?.value ?? MULTIPLIER_DEFAULT;
   // Betting closes once the event leaves "planned" — bets stay a secret
@@ -651,16 +668,16 @@ export function EventCard({
                 <div
                   className={cn(
                     "grid items-center gap-y-1.5 text-sm [&>*]:px-1",
-                    winsByPlayer
+                    extraColumn
                       ? "grid-cols-[2rem_1fr_auto_0.75rem_auto_0.75rem_auto_0.75rem_auto]"
                       : "grid-cols-[2rem_1fr_auto_0.75rem_auto_0.75rem_auto]",
                   )}
                 >
                   <span className="hud-label text-muted-foreground">#</span>
                   <span className="hud-label text-muted-foreground">Player</span>
-                  {winsByPlayer ? (
+                  {extraColumn ? (
                     <>
-                      <span className="hud-label text-muted-foreground text-right">Wins</span>
+                      <span className="hud-label text-muted-foreground text-right">{extraColumn.label}</span>
                       <span aria-hidden />
                     </>
                   ) : null}
@@ -693,10 +710,10 @@ export function EventCard({
                           <PlayerName name={p.name} size="sm" photoUrl={p.photo_url} color={colorByPlayer[p.id]} />
                           {catchUpBonuses?.has(p.id) ? <CatchUpBadge bonus={catchUpBonus} /> : null}
                         </span>
-                        {winsByPlayer ? (
+                        {extraColumn ? (
                           <>
                             <span className="font-score text-right tabular-nums">
-                              {winsByPlayer.get(p.id) ?? 0}
+                              {extraColumn.valueFor(p.id)}
                             </span>
                             <span aria-hidden />
                           </>
