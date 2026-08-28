@@ -16,6 +16,7 @@ import type {
   MultiplierRow,
   OverallBetRow,
   PerEventBetRow,
+  PlacementRoundRow,
   PlayerRow,
   RoundRobinMatchRow,
 } from "./database.types";
@@ -99,6 +100,12 @@ export function fetchBracketMatches(client: SupabaseClient): Promise<BracketMatc
 /** Every round-robin event's generated schedule + recorded match results. */
 export function fetchRoundRobinMatches(client: SupabaseClient): Promise<RoundRobinMatchRow[]> {
   return selectAll<RoundRobinMatchRow>(client, "round_robin_matches");
+}
+
+/** Every best-of-rounds event's per-round rankings, across every round
+ * recorded so far. */
+export function fetchPlacementRounds(client: SupabaseClient): Promise<PlacementRoundRow[]> {
+  return selectAll<PlacementRoundRow>(client, "placement_rounds");
 }
 
 /** The single shared app_settings row (currently just the boot video). */

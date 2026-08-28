@@ -27,7 +27,7 @@ export interface PlayerRow {
   created_at: string;
 }
 
-export type EventFormat = "standard" | "bracket" | "round_robin";
+export type EventFormat = "standard" | "bracket" | "round_robin" | "best_of_rounds";
 
 export interface EventRow {
   id: string;
@@ -37,8 +37,10 @@ export interface EventRow {
   /** How this event's `position` gets populated — "standard" is the
    * existing single drag-ordered result; "bracket"/"round_robin" derive it
    * from a match tree/schedule (src/lib/scoring/bracket.ts,
-   * src/lib/scoring/roundRobinScore.ts). Always "placement" scoring mode
-   * when not "standard" (DB-enforced). */
+   * src/lib/scoring/roundRobinScore.ts); "best_of_rounds" derives it from
+   * each player's best position across however many rounds the groom has
+   * ranked (src/lib/scoring/placementRounds.ts). Always "placement" scoring
+   * mode when not "standard" (DB-enforced). */
   format: EventFormat;
   custom_placement: boolean;
   safety_check: boolean;
@@ -141,6 +143,19 @@ export interface RoundRobinMatchRow {
   team_b: string[];
   winner: "a" | "b" | null;
   created_at: string;
+}
+
+/** One player's finishing position in one round of a `best_of_rounds`
+ * event (src/lib/scoring/placementRounds.ts). Each round is a complete,
+ * independent ranking of the field — same tie semantics as a standard
+ * placement event's `position`, just scoped to `round` — and a player's
+ * final `event_results.position` is derived as the best (lowest) of these
+ * across every round they've been ranked in. */
+export interface PlacementRoundRow {
+  event_id: string;
+  round: number;
+  player_id: string;
+  position: number;
 }
 
 export interface BonusEventRow {

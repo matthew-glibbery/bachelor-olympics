@@ -175,17 +175,40 @@ only (no margin) — this is what beach volleyball and 3v3 soccer actually
 use, replacing an earlier, never-implemented idea of tracking win/loss by
 hand.
 
-- **Schedule**: the app auto-generates the round-by-round team pairings (an
-  adapted round-robin "circle method," with a rotating sit-out set spread
+- **Schedule**: the app auto-generates the round-by-round team pairings (a
+  full cyclic rotation each round, with a rotating sit-out set spread
   fairly across players when the roster doesn't divide evenly into full
-  teams) — the groom doesn't hand-assign teams each round.
+  teams) — the groom doesn't hand-assign teams each round. Team size is a
+  target, not a strict requirement: if the roster can't field even one
+  full-size match (e.g. 4-person teams with 7 players), everyone still
+  plays in one uneven match instead (4 vs 3) rather than benching most of
+  the roster.
 - **Recording**: the groom records each match's winning team as games are
   actually played; the full schedule and every match result are tracked,
-  not just an end-of-event tally.
+  not just an end-of-event tally. More rounds can be added one at a time
+  without disturbing any round already played.
 - **Placement**: ranked by each player's win count across the whole
   schedule; equal win counts tie, split per the placement tie rule above.
   As with bracket, the derived placement can be manually adjusted before
   finalizing.
+
+### Best of rounds
+
+For events played as several full rounds rather than one race (e.g.
+Mölkky) — the groom ranks the whole field once per round (the same
+drag-order + tie-toggle entry as a standard placement event, just scoped
+to one round at a time), can add more rounds one at a time without
+disturbing rounds already recorded, and each player's final placement is
+their BEST (lowest) position across every round they've been ranked in —
+not an average, and not their most recent round.
+
+- A player only ranked in some rounds is judged on those rounds alone.
+- Ties in the final placement fall out naturally: if two players' best
+  results are the same position (whether from the same round or
+  different rounds), they tie for that place, split per the placement tie
+  rule above — same as any other tie.
+- As with bracket and round-robin, the derived placement can still be
+  manually adjusted (drag-reorder) before finalizing.
 
 ## Multipliers
 

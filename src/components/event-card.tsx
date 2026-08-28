@@ -15,6 +15,7 @@ import { RankedResultsEditor } from "@/components/ranked-results-editor";
 import { BracketSeedEditor } from "@/components/bracket-seed-editor";
 import { BracketEditor } from "@/components/bracket-editor";
 import { RoundRobinSchedule } from "@/components/round-robin-schedule";
+import { PlacementRoundsEditor } from "@/components/placement-rounds-editor";
 import { EventOddsBetting } from "@/components/event-odds-betting";
 import { EventBetsList } from "@/components/event-bets-list";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -43,6 +44,7 @@ import type {
   EventRow,
   MultiplierRow,
   PerEventBetRow,
+  PlacementRoundRow,
   PlayerRow,
   RoundRobinMatchRow,
 } from "@/lib/data/database.types";
@@ -54,6 +56,13 @@ const STATUS_LABEL: Record<EventRow["status"], string> = {
   scoring: "In progress",
   resolved: "Resolved",
   cancelled: "Cancelled",
+};
+
+const FORMAT_LABEL: Record<EventRow["format"], string> = {
+  standard: "Standard",
+  bracket: "Bracket",
+  round_robin: "Round-robin",
+  best_of_rounds: "Best of rounds",
 };
 
 /* Tag colour per status. Two things this fixes: "in progress" and "not
@@ -100,6 +109,7 @@ interface EventCardProps {
   bracketSeeds: BracketSeedRow[];
   bracketMatches: BracketMatchRow[];
   roundRobinMatches: RoundRobinMatchRow[];
+  placementRounds: PlacementRoundRow[];
   groomUnlocked: boolean;
   /** playerId -> catch-up bonus fraction (e.g. 0.3 for +30%) for THIS event
    * only — either already applied (resolved/scoring) or a live preview of
@@ -126,6 +136,7 @@ export function EventCard({
   bracketSeeds,
   bracketMatches,
   roundRobinMatches,
+  placementRounds,
   groomUnlocked,
   catchUpBonuses,
   currentPlayerId,
@@ -387,9 +398,7 @@ export function EventCard({
             <Badge variant="secondary">
               {isPlacement ? "Placement" : "Absolute"}
             </Badge>
-            {!isStandard ? (
-              <Badge variant="secondary">{event.format === "bracket" ? "Bracket" : "Round-robin"}</Badge>
-            ) : null}
+            {!isStandard ? <Badge variant="secondary">{FORMAT_LABEL[event.format]}</Badge> : null}
           </div>
           {/* `event.notes` ("Scored on strokes, lowest wins", and so on) is
               deliberately not rendered. It's groom-authored setup copy that
@@ -538,18 +547,20 @@ export function EventCard({
                       matches={bracketMatches.map(bracketRowToMatch)}
                     />
                   </>
-                ) : (
+                ) : event.format === "round_robin" ? (
                   <RoundRobinSchedule
                     eventId={event.id}
                     players={playerById}
                     colorByPlayer={colorByPlayer}
                     matches={roundRobinMatches}
                   />
+                ) : (
+                  <PlacementRoundsEditor eventId={event.id} players={players} playerRounds={placementRounds} />
                 )}
                 <p className="text-muted-foreground text-xs">
-                  Results above feed the Results table below automatically as
-                  matches are decided — use &quot;Enter/Edit results&quot; to
-                  manually adjust the final order before finalizing.
+                  {event.format === "best_of_rounds"
+                    ? "Each player's best round feeds the Results table below automatically — use “Enter/Edit results” to manually adjust the final order before finalizing."
+                    : "Results above feed the Results table below automatically as matches are decided — use “Enter/Edit results” to manually adjust the final order before finalizing."}
                 </p>
               </div>
             ) : null}

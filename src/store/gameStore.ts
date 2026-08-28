@@ -18,6 +18,7 @@ import {
   fetchMultipliers,
   fetchOverallBets,
   fetchPerEventBets,
+  fetchPlacementRounds,
   fetchPlayers,
   fetchRoundRobinMatches,
 } from "@/lib/data/queries";
@@ -32,6 +33,7 @@ import type {
   MultiplierRow,
   OverallBetRow,
   PerEventBetRow,
+  PlacementRoundRow,
   PlayerRow,
   RoundRobinMatchRow,
 } from "@/lib/data/database.types";
@@ -49,6 +51,7 @@ const REALTIME_TABLES = [
   "bracket_seeds",
   "bracket_matches",
   "round_robin_matches",
+  "placement_rounds",
 ] as const;
 
 interface GameState {
@@ -63,6 +66,7 @@ interface GameState {
   bracketSeeds: BracketSeedRow[];
   bracketMatches: BracketMatchRow[];
   roundRobinMatches: RoundRobinMatchRow[];
+  placementRounds: PlacementRoundRow[];
   appSettings: AppSettingsRow | null;
   loading: boolean;
   error: string | null;
@@ -88,6 +92,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   bracketSeeds: [],
   bracketMatches: [],
   roundRobinMatches: [],
+  placementRounds: [],
   appSettings: null,
   loading: false,
   error: null,
@@ -111,6 +116,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         bracketSeeds,
         bracketMatches,
         roundRobinMatches,
+        placementRounds,
       ] = await Promise.all([
         fetchPlayers(client),
         fetchEvents(client),
@@ -123,6 +129,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         fetchBracketSeeds(client),
         fetchBracketMatches(client),
         fetchRoundRobinMatches(client),
+        fetchPlacementRounds(client),
       ]);
       // Fetched separately and allowed to fail without taking down the rest
       // of the app: app_settings is a newer table, so until its migration has
@@ -142,6 +149,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         bracketSeeds,
         bracketMatches,
         roundRobinMatches,
+        placementRounds,
         appSettings,
         loading: false,
         ready: true,
@@ -221,6 +229,7 @@ async function refetch(
     bracketSeeds,
     bracketMatches,
     roundRobinMatches,
+    placementRounds,
   ] = await Promise.all([
     fetchPlayers(client),
     fetchEvents(client),
@@ -233,6 +242,7 @@ async function refetch(
     fetchBracketSeeds(client),
     fetchBracketMatches(client),
     fetchRoundRobinMatches(client),
+    fetchPlacementRounds(client),
   ]);
   const appSettings = await fetchAppSettings(client).catch(() => null);
   set({
@@ -247,6 +257,7 @@ async function refetch(
     bracketSeeds,
     bracketMatches,
     roundRobinMatches,
+    placementRounds,
     appSettings,
   });
 }

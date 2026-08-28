@@ -77,6 +77,7 @@ function EventsPageInner() {
     bracketSeeds,
     bracketMatches,
     roundRobinMatches,
+    placementRounds,
     connect,
     loading,
     error,
@@ -305,6 +306,7 @@ function EventsPageInner() {
                 bracketSeeds={bracketSeeds.filter((s) => s.event_id === focused.id)}
                 bracketMatches={bracketMatches.filter((m) => m.event_id === focused.id)}
                 roundRobinMatches={roundRobinMatches.filter((m) => m.event_id === focused.id)}
+                placementRounds={placementRounds.filter((r) => r.event_id === focused.id)}
                 groomUnlocked={groomUnlocked}
                 catchUpBonuses={catchUpByEvent.get(focused.id) ?? null}
                 currentPlayerId={selectedPlayerId}
