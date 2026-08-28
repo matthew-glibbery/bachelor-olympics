@@ -11,27 +11,35 @@ import { orderFromResults, positionsFromOrder } from "@/lib/scoring/rankedOrder"
 import type { PlacementRoundRow, PlayerRow } from "@/lib/data/database.types";
 
 /**
- * Best-of-rounds event format's per-round ranking editor (PRODUCT_SPEC.md →
- * Event formats → Best of rounds). Each round is a full drag-order + tie
- * ranking, same editor as a standard placement event's results — "Add
- * another round" opens a fresh one without touching earlier rounds, and
- * editing an already-recorded round only replaces that round's own rows
- * (recordPlacementRound). The final event_results.position (each player's
- * best across every round) is derived and auto-synced server-side on every
- * save — this component only ever writes one round at a time.
+ * Optional extra rounds for a placement event (PRODUCT_SPEC.md → Scoring →
+ * Multiple rounds) — not a separate format, just something any "standard"
+ * placement event can use if there's time for more than one ranking.
+ * Round 1 itself is owned by the event's normal "Enter/Edit results" flow
+ * (event-card.tsx); this component only manages rounds from `minRound` on
+ * (2 by default), each a full drag-order + tie ranking, same editor as the
+ * main results flow. "Add another round" opens a fresh one without
+ * touching earlier rounds, and editing an already-recorded round only
+ * replaces that round's own rows (recordPlacementRound). The final
+ * event_results.position (the SUM of every round a player's been ranked
+ * in) is derived and auto-synced server-side on every save — this
+ * component only ever writes one round at a time.
  */
 export function PlacementRoundsEditor({
   eventId,
   players,
   playerRounds,
+  minRound = 2,
 }: {
   eventId: string;
   players: PlayerRow[];
   playerRounds: PlacementRoundRow[];
+  minRound?: number;
 }) {
   const playerIds = players.map((p) => p.id);
   const playerById = new Map(players.map((p) => [p.id, p]));
-  const roundNumbers = [...new Set(playerRounds.map((r) => r.round))].sort((a, b) => a - b);
+  const roundNumbers = [...new Set(playerRounds.filter((r) => r.round >= minRound).map((r) => r.round))].sort(
+    (a, b) => a - b,
+  );
 
   const [editingRound, setEditingRound] = useState<number | null>(null);
   const [order, setOrder] = useState<string[]>([]);
@@ -140,7 +148,7 @@ export function PlacementRoundsEditor({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => openRound((roundNumbers[roundNumbers.length - 1] ?? 0) + 1)}
+          onClick={() => openRound(Math.max(minRound - 1, roundNumbers[roundNumbers.length - 1] ?? 0) + 1)}
           className="w-fit"
         >
           <Plus className="size-4" />

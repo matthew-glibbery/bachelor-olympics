@@ -9,7 +9,7 @@
 
 export type ScoringMode = "placement" | "absolute";
 
-export type EventFormat = "standard" | "bracket" | "round_robin" | "best_of_rounds";
+export type EventFormat = "standard" | "bracket" | "round_robin";
 
 export interface EventDefinition {
   /** Stable identifier, used everywhere else to reference the event. */
@@ -20,15 +20,15 @@ export interface EventDefinition {
   scoringMode: ScoringMode;
   /**
    * How this event's placement is arrived at. "standard" (default) is a
-   * single groom-entered final order. "round_robin" is for team events whose
-   * rosters reshuffle between games (beach volleyball, soccer) — no single
-   * game result exists, so placement is derived from each player's win/loss
-   * record across a generated schedule of rotating teams (see
-   * src/lib/scoring/roundRobinSchedule.ts / roundRobinScore.ts). "bracket" is
-   * single-elimination with byes (src/lib/scoring/bracket.ts). "best_of_rounds"
-   * is for events played as several full rounds (e.g. Mölkky), where a
-   * player's placement is their best result across however many rounds get
-   * ranked (src/lib/scoring/placementRounds.ts). See PRODUCT_SPEC.md.
+   * groom-entered final order — optionally summed across several rounds if
+   * there's time for more than one (see
+   * src/lib/scoring/placementRounds.ts), not a separate format choice.
+   * "round_robin" is for team events whose rosters reshuffle between games
+   * (beach volleyball, soccer) — no single game result exists, so placement
+   * is derived from each player's win/loss record across a generated
+   * schedule of rotating teams (see src/lib/scoring/roundRobinSchedule.ts /
+   * roundRobinScore.ts). "bracket" is single-elimination with byes
+   * (src/lib/scoring/bracket.ts). See PRODUCT_SPEC.md.
    */
   format?: EventFormat;
   /**

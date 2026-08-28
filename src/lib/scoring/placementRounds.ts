@@ -1,10 +1,16 @@
 /**
- * Best-of-rounds event format (PRODUCT_SPEC.md → Event formats → Best of
- * rounds) — the groom ranks the field once per round (same drag-order +
- * tie-toggle semantics as a standard placement event, just scoped to one
- * round at a time), can add more rounds without disturbing earlier ones,
- * and each player's final placement is their BEST (lowest) position across
- * every round they've been ranked in.
+ * Optional multiple-rounds scoring for placement events (PRODUCT_SPEC.md →
+ * Scoring → Multiple rounds). Any standard placement event can, time
+ * permitting, be re-ranked in a second (or third, …) full round instead of
+ * just one — the groom ranks the field once per round (the same drag-order
+ * + tie-toggle entry as a single-round result, just scoped to one round at
+ * a time), and each player's final placement is the SUM of their position
+ * across every round they've been ranked in — lower total wins, same as
+ * stroke-play golf or a darts league, not an average and not their best
+ * single round. A player only ranked in some rounds is judged on those
+ * rounds alone. This is not a separate event format — it's always
+ * available for any placement-scored event, and behaves identically to a
+ * single-round result when only one round is ever entered.
  */
 
 import type { PlacementEntry } from "./placement";
@@ -18,17 +24,16 @@ export interface PlacementRoundEntry {
 }
 
 /**
- * Reduce every recorded round down to one PlacementEntry per player: their
- * best (numerically lowest) position across all rounds they appear in.
- * Ties in the result are exactly what they should be — two players whose
- * best round result was an equal position tie for that same place — and
- * flow straight into `scorePlacement`'s existing pooling, unchanged.
+ * Reduce every recorded round down to one PlacementEntry per player: the
+ * sum of their position across every round they appear in. Ties in the
+ * result are exactly what they should be — two players whose totals match
+ * tie for that place — and flow straight into `scorePlacement`'s existing
+ * pooling, unchanged.
  */
-export function bestAcrossRounds(entries: PlacementRoundEntry[]): PlacementEntry[] {
-  const best = new Map<string, number>();
+export function sumAcrossRounds(entries: PlacementRoundEntry[]): PlacementEntry[] {
+  const totals = new Map<string, number>();
   for (const { playerId, position } of entries) {
-    const current = best.get(playerId);
-    if (current === undefined || position < current) best.set(playerId, position);
+    totals.set(playerId, (totals.get(playerId) ?? 0) + position);
   }
-  return [...best.entries()].map(([playerId, position]) => ({ playerId, position }));
+  return [...totals.entries()].map(([playerId, position]) => ({ playerId, position }));
 }

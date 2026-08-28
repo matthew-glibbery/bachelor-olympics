@@ -22,6 +22,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   bracketRowToMatch,
   cancelEvent,
+  recordPlacementRound,
   resetEvent,
   resolvePerEventBets,
   settleOverallBetsIfWeekendOver,
@@ -62,7 +63,6 @@ const FORMAT_LABEL: Record<EventRow["format"], string> = {
   standard: "Standard",
   bracket: "Bracket",
   round_robin: "Round-robin",
-  best_of_rounds: "Best of rounds",
 };
 
 /* Tag colour per status. Two things this fixes: "in progress" and "not
@@ -251,7 +251,13 @@ export function EventCard({
 
   function openEditing() {
     if (isPlacement) {
-      const { order: initialOrder, tied: initialTied } = orderFromResults(playerIds, results);
+      // Round 1's own entries, not `results` (event_results) — once a
+      // second round exists, event_results holds the SUM across every
+      // round, and this editor is specifically round 1, not the total.
+      const round1 = placementRounds
+        .filter((r) => r.round === 1)
+        .map((r) => ({ player_id: r.player_id, position: r.position as number | null }));
+      const { order: initialOrder, tied: initialTied } = orderFromResults(playerIds, round1);
       setOrder(initialOrder);
       setTied(initialTied);
     } else {
@@ -286,27 +292,46 @@ export function EventCard({
     setBusy(true);
     setError(null);
     try {
-      const entries = isPlacement
-        ? Object.entries(positionsFromOrder(order, tied)).map(([player_id, position]) => ({
-            player_id,
-            position,
-          }))
-        : players
-            .map((p) => {
-              const raw = rawDraft[p.id]?.trim();
-              if (!raw) return null;
-              const num = Number(raw);
-              return Number.isFinite(num) ? { player_id: p.id, raw: num } : null;
-            })
-            .filter((e): e is NonNullable<typeof e> => e !== null);
+      let finalResults: { player_id: string; position?: number; raw?: number }[];
 
-      if (finalize && entries.length !== players.length) {
-        setError("Every competitor needs a result before finalizing.");
-        setBusy(false);
-        return;
+      if (isPlacement) {
+        const entries = Object.entries(positionsFromOrder(order, tied)).map(([player_id, position]) => ({
+          player_id,
+          position,
+        }));
+        if (finalize && entries.length !== players.length) {
+          setError("Every competitor needs a result before finalizing.");
+          setBusy(false);
+          return;
+        }
+        // Placement events always go through round 1 of placement_rounds
+        // (src/lib/scoring/placementRounds.ts), not straight into
+        // event_results — that's what lets a groom add a second (or
+        // third…) round later without a separate migration step, and it's
+        // a no-op change in behavior for the common single-round case
+        // (the sum of one round is just that round). `finalResults`
+        // becomes the SUMMED-across-rounds totals so bet resolution below
+        // reflects the real final standings, not just round 1 alone.
+        const summed = await recordPlacementRound(client, event.id, 1, entries);
+        finalResults = summed.map((p) => ({ player_id: p.playerId, position: p.position }));
+      } else {
+        const entries = players
+          .map((p) => {
+            const raw = rawDraft[p.id]?.trim();
+            if (!raw) return null;
+            const num = Number(raw);
+            return Number.isFinite(num) ? { player_id: p.id, raw: num } : null;
+          })
+          .filter((e): e is NonNullable<typeof e> => e !== null);
+        if (finalize && entries.length !== players.length) {
+          setError("Every competitor needs a result before finalizing.");
+          setBusy(false);
+          return;
+        }
+        await upsertEventResults(client, event.id, entries);
+        finalResults = entries;
       }
 
-      await upsertEventResults(client, event.id, entries);
       if (finalize) {
         await setEventStatus(client, event.id, "resolved");
         // Both scoring modes, not just placement. This used to be guarded by
@@ -315,7 +340,7 @@ export function EventCard({
         // escrowed even after the result was in. resolvePerEventBets now
         // takes the event itself and derives finishing positions from raw
         // scores where there are no stored positions.
-        await resolvePerEventBets(client, event, entries);
+        await resolvePerEventBets(client, event, finalResults);
         await settleOverallBetsIfWeekendOver(client);
         setEditing(false);
       }
@@ -547,20 +572,18 @@ export function EventCard({
                       matches={bracketMatches.map(bracketRowToMatch)}
                     />
                   </>
-                ) : event.format === "round_robin" ? (
+                ) : (
                   <RoundRobinSchedule
                     eventId={event.id}
                     players={playerById}
                     colorByPlayer={colorByPlayer}
                     matches={roundRobinMatches}
                   />
-                ) : (
-                  <PlacementRoundsEditor eventId={event.id} players={players} playerRounds={placementRounds} />
                 )}
                 <p className="text-muted-foreground text-xs">
-                  {event.format === "best_of_rounds"
-                    ? "Each player's best round feeds the Results table below automatically — use “Enter/Edit results” to manually adjust the final order before finalizing."
-                    : "Results above feed the Results table below automatically as matches are decided — use “Enter/Edit results” to manually adjust the final order before finalizing."}
+                  Results above feed the Results table below automatically as matches are
+                  decided — use &quot;Enter/Edit results&quot; to manually adjust the final
+                  order before finalizing.
                 </p>
               </div>
             ) : null}
@@ -695,6 +718,17 @@ export function EventCard({
                 </div>
               </div>
             )}
+
+            {isStandard && isPlacement ? (
+              <div className="border-bevel-dark/40 flex flex-col gap-3 border-t pt-3">
+                <p className="text-muted-foreground text-xs">
+                  If there&apos;s time for more than one round, each player&apos;s final
+                  placement is the SUM of their position across every round — lower total
+                  wins, same as stroke-play golf. One round (above) is all most events need.
+                </p>
+                <PlacementRoundsEditor eventId={event.id} players={players} playerRounds={placementRounds} />
+              </div>
+            ) : null}
           </TabsContent>
         ) : null}
 

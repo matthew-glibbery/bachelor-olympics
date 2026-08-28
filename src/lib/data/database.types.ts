@@ -27,20 +27,20 @@ export interface PlayerRow {
   created_at: string;
 }
 
-export type EventFormat = "standard" | "bracket" | "round_robin" | "best_of_rounds";
+export type EventFormat = "standard" | "bracket" | "round_robin";
 
 export interface EventRow {
   id: string;
   name: string;
   scoring_mode: "placement" | "absolute";
   lower_is_better: boolean;
-  /** How this event's `position` gets populated — "standard" is the
-   * existing single drag-ordered result; "bracket"/"round_robin" derive it
-   * from a match tree/schedule (src/lib/scoring/bracket.ts,
-   * src/lib/scoring/roundRobinScore.ts); "best_of_rounds" derives it from
-   * each player's best position across however many rounds the groom has
-   * ranked (src/lib/scoring/placementRounds.ts). Always "placement" scoring
-   * mode when not "standard" (DB-enforced). */
+  /** How this event's `position` gets populated — "standard" is a
+   * drag-ordered result (optionally summed across several rounds, see
+   * src/lib/scoring/placementRounds.ts — not a separate format, just an
+   * option any placement-scored "standard" event has); "bracket"/
+   * "round_robin" derive it from a match tree/schedule instead
+   * (src/lib/scoring/bracket.ts, src/lib/scoring/roundRobinScore.ts).
+   * Always "placement" scoring mode when not "standard" (DB-enforced). */
   format: EventFormat;
   custom_placement: boolean;
   safety_check: boolean;
@@ -145,12 +145,13 @@ export interface RoundRobinMatchRow {
   created_at: string;
 }
 
-/** One player's finishing position in one round of a `best_of_rounds`
- * event (src/lib/scoring/placementRounds.ts). Each round is a complete,
+/** One player's finishing position in one round of a placement event
+ * (src/lib/scoring/placementRounds.ts) — always available for a "standard"
+ * placement event, not a separate format. Each round is a complete,
  * independent ranking of the field — same tie semantics as a standard
  * placement event's `position`, just scoped to `round` — and a player's
- * final `event_results.position` is derived as the best (lowest) of these
- * across every round they've been ranked in. */
+ * final `event_results.position` is derived as the SUM of these across
+ * every round they've been ranked in (lower total wins). */
 export interface PlacementRoundRow {
   event_id: string;
   round: number;
