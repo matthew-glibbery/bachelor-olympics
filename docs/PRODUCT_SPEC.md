@@ -98,6 +98,19 @@ Two scoring modes, chosen per event:
   forcing a tie share onto a multiple of 5 would distort the split rather than
   just present it. Fractional points are never awarded.
 
+  **Multiple rounds (optional)**: not a separate format — any placement
+  event can, time permitting, be re-ranked in a second (or third, …) full
+  round instead of just one (e.g. Mölkky). The groom ranks the whole field
+  again (same drag-order + tie-toggle entry, one round at a time — "Add
+  another round" on the event's Results tab), and a player's final
+  placement is the SUM of their position across every round they've been
+  ranked in — lower total wins, same as stroke-play golf, not an average
+  and not their best single round. A player only ranked in some rounds is
+  judged on those rounds alone; a tie in the total (whether from the same
+  round or different rounds) splits per the tie rule below like any other
+  tie. Playing only one round (the default, and what most events use)
+  behaves identically to today's single-ranking result.
+
 - **Absolute-score-based** (used where there's a real measurable result, e.g.
   golf strokes, a timed event): scale the field onto **the same range a
   placement event spans**. The best raw result is worth 100; the worst raw
@@ -191,24 +204,6 @@ hand.
   schedule; equal win counts tie, split per the placement tie rule above.
   As with bracket, the derived placement can be manually adjusted before
   finalizing.
-
-### Best of rounds
-
-For events played as several full rounds rather than one race (e.g.
-Mölkky) — the groom ranks the whole field once per round (the same
-drag-order + tie-toggle entry as a standard placement event, just scoped
-to one round at a time), can add more rounds one at a time without
-disturbing rounds already recorded, and each player's final placement is
-their BEST (lowest) position across every round they've been ranked in —
-not an average, and not their most recent round.
-
-- A player only ranked in some rounds is judged on those rounds alone.
-- Ties in the final placement fall out naturally: if two players' best
-  results are the same position (whether from the same round or
-  different rounds), they tie for that place, split per the placement tie
-  rule above — same as any other tie.
-- As with bracket and round-robin, the derived placement can still be
-  manually adjusted (drag-reorder) before finalizing.
 
 ## Multipliers
 

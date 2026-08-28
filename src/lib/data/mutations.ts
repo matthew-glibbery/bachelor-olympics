@@ -15,7 +15,8 @@ import {
   type BracketTrack,
 } from "@/lib/scoring/bracket";
 import { deriveScoreLines } from "@/lib/scoring/fromRows";
-import { bestAcrossRounds } from "@/lib/scoring/placementRounds";
+import { sumAcrossRounds } from "@/lib/scoring/placementRounds";
+import type { PlacementEntry } from "@/lib/scoring/placement";
 import {
   deriveRoundRobinPlacements,
   type RoundRobinMatchResult,
@@ -619,20 +620,25 @@ export async function recordRoundRobinMatchResult(
 }
 
 /**
- * Record (or edit) one round of a best-of-rounds event's rankings, then
- * re-derive and re-upsert `event_results` from each player's best position
- * across every round recorded so far (src/lib/scoring/placementRounds.ts)
- * — same "auto-sync on every write" pattern as `recordBracketMatchResult`/
- * `recordRoundRobinMatchResult`. Scoped clear-then-insert on just this
- * round (not the whole event), so adding round 2 never touches round 1,
- * and re-saving round 1 later only replaces round 1's own rows.
+ * Record (or edit) one round of a placement event's rankings — not a
+ * separate format, just an option any "standard" placement event has for
+ * when there's time to play more than one round — then re-derive and
+ * re-upsert `event_results` from the SUM of each player's position across
+ * every round recorded so far (src/lib/scoring/placementRounds.ts; lower
+ * total wins, same as stroke-play golf) — same "auto-sync on every write"
+ * pattern as `recordBracketMatchResult`/`recordRoundRobinMatchResult`.
+ * Scoped clear-then-insert on just this round (not the whole event), so
+ * adding round 2 never touches round 1, and re-saving round 1 later only
+ * replaces round 1's own rows. Returns the derived per-player totals so
+ * the caller can pass them straight into bet resolution on finalize
+ * without a separate re-read.
  */
 export async function recordPlacementRound(
   client: SupabaseClient,
   eventId: string,
   round: number,
   entries: { player_id: string; position: number }[],
-): Promise<void> {
+): Promise<PlacementEntry[]> {
   const { error: deleteError } = await client
     .from("placement_rounds")
     .delete()
@@ -652,19 +658,20 @@ export async function recordPlacementRound(
     .eq("event_id", eventId);
   if (readError) throw new Error(`recordPlacementRound (read): ${readError.message}`);
 
-  const placements = bestAcrossRounds(
+  const placements = sumAcrossRounds(
     ((data ?? []) as PlacementRoundRow[]).map((r) => ({
       round: r.round,
       playerId: r.player_id,
       position: r.position,
     })),
   );
-  if (placements.length === 0) return;
+  if (placements.length === 0) return placements;
   await upsertEventResults(
     client,
     eventId,
     placements.map((p) => ({ player_id: p.playerId, position: p.position })),
   );
+  return placements;
 }
 
 export interface NewOverallBet {

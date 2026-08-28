@@ -27,7 +27,6 @@ const FORMAT_LABEL: Record<EventRow["format"], string> = {
   standard: "Standard",
   bracket: "Bracket",
   round_robin: "Round-robin",
-  best_of_rounds: "Best of rounds",
 };
 
 /** One draggable, editable row in the groom's "Manage events" list — same
@@ -214,10 +213,9 @@ export function ManageEventRow({ event }: { event: EventRow }) {
               }));
             }}
           >
-            <option value="standard">Standard (single final order)</option>
+            <option value="standard">Standard (final order, optionally over multiple rounds)</option>
             <option value="bracket">Bracket (single elimination)</option>
             <option value="round_robin">Round-robin (rotating teams)</option>
-            <option value="best_of_rounds">Best of rounds (best result across rounds)</option>
           </select>
         )}
       </div>
