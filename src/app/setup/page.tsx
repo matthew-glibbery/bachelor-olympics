@@ -60,7 +60,8 @@ export default function SetupPage() {
 
   const selectedPlayer = players.find((p) => p.id === selectedPlayerId);
 
-  const weekendOver = events.length > 0 && events.every((e) => e.status === "resolved");
+  const unresolvedEvents = events.filter((e) => e.status !== "resolved");
+  const weekendOver = events.length > 0 && unresolvedEvents.length === 0;
   const openOverallBets = overallBets.filter((b) => b.status === "open").length;
 
   async function handleResetWeekend() {
@@ -217,6 +218,11 @@ export default function SetupPage() {
         >
           <>
             {settleError ? <p className="text-destructive text-sm">{settleError}</p> : null}
+            {!weekendOver ? (
+              <p className="text-muted-foreground text-sm">
+                Still waiting on: {unresolvedEvents.map((e) => e.name).join(", ")}.
+              </p>
+            ) : null}
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 size="sm"
