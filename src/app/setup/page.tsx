@@ -5,8 +5,10 @@ import Link from "next/link";
 import {
   Clapperboard,
   Dices,
+  Loader2,
   RotateCcw,
   Ruler,
+  Trophy,
   TriangleAlert,
   UserRound,
   Users,
@@ -19,21 +21,37 @@ import { AddPlayerRow } from "@/components/add-player-row";
 import { ManageEventsCard } from "@/components/manage-events-card";
 import { EventOddsEditor } from "@/components/event-odds-editor";
 import { BootVideoUploader } from "@/components/boot-video-uploader";
+import { WeekendAwardsSection } from "@/components/weekend-awards";
 import { GameScreen } from "@/components/n64/game-screen";
 import { Panel } from "@/components/n64/panel";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { resetWeekend } from "@/lib/data/mutations";
+import { resetWeekend, settleOverallBetsIfWeekendOver } from "@/lib/data/mutations";
 
 export default function SetupPage() {
-  const { players, events, eventRankings, appSettings, connect, ready } = useGameStore();
+  const {
+    players,
+    events,
+    eventRankings,
+    eventResults,
+    multipliers,
+    perEventBets,
+    overallBets,
+    bonusEvents,
+    appSettings,
+    connect,
+    ready,
+  } = useGameStore();
   const { selectedPlayerId, groomUnlocked, hydrate, selectPlayer, clearSelectedPlayer } =
     useSessionStore();
 
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [settlingBets, setSettlingBets] = useState(false);
+  const [settleError, setSettleError] = useState<string | null>(null);
+  const [settleDone, setSettleDone] = useState(false);
 
   useEffect(() => {
     hydrate();
@@ -41,6 +59,9 @@ export default function SetupPage() {
   }, [hydrate, connect]);
 
   const selectedPlayer = players.find((p) => p.id === selectedPlayerId);
+
+  const weekendOver = events.length > 0 && events.every((e) => e.status === "resolved");
+  const openOverallBets = overallBets.filter((b) => b.status === "open").length;
 
   async function handleResetWeekend() {
     setResetting(true);
@@ -52,6 +73,20 @@ export default function SetupPage() {
       setResetError(err instanceof Error ? err.message : String(err));
     } finally {
       setResetting(false);
+    }
+  }
+
+  async function handleSettleOverallBets() {
+    setSettlingBets(true);
+    setSettleError(null);
+    setSettleDone(false);
+    try {
+      await settleOverallBetsIfWeekendOver(getSupabaseBrowserClient());
+      setSettleDone(true);
+    } catch (err) {
+      setSettleError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSettlingBets(false);
     }
   }
 
@@ -167,6 +202,48 @@ export default function SetupPage() {
             <Ruler className="size-4" />
             Open diagnostics
           </Link>
+        </Panel>
+      ) : null}
+
+      {groomUnlocked ? (
+        <Panel
+          title="End the game"
+          icon={Trophy}
+          description={
+            weekendOver
+              ? "Every event has resolved. Overall bets settle automatically the moment the last one does, but you can re-run it here too — it's a no-op once nothing's left open."
+              : "Unlocks once every event has resolved. Overall bets settle automatically at that point — this is just a manual backstop in case that ever needs re-running."
+          }
+        >
+          <>
+            {settleError ? <p className="text-destructive text-sm">{settleError}</p> : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                onClick={handleSettleOverallBets}
+                disabled={!weekendOver || settlingBets}
+              >
+                {settlingBets ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                Settle overall bets
+              </Button>
+              <span className="text-muted-foreground text-sm">
+                {openOverallBets} still open
+                {settleDone ? " — settled." : ""}
+              </span>
+            </div>
+
+            {weekendOver ? (
+              <WeekendAwardsSection
+                players={players}
+                events={events}
+                eventResults={eventResults}
+                multipliers={multipliers}
+                perEventBets={perEventBets}
+                overallBets={overallBets}
+                bonusEvents={bonusEvents}
+              />
+            ) : null}
+          </>
         </Panel>
       ) : null}
 
