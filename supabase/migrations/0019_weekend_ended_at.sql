@@ -1,0 +1,11 @@
+-- Groom tools -> "End the game": lets the groom force the weekend to a
+-- close before every event has actually resolved (rained out, running late,
+-- whatever), leaving whichever events are still unfinished exactly as they
+-- are rather than resolving or cancelling them.
+--
+-- `weekend_ended_at` is null until that happens, then holds when. Same
+-- single-row pattern as theme_id/boot_video_url (0005_theme.sql,
+-- 0011_character_media.sql). Distinct from every event actually resolving
+-- naturally — see src/app/setup/page.tsx's `weekendEnded` — this column is
+-- specifically the "the groom cut it short" case.
+alter table app_settings add column if not exists weekend_ended_at timestamptz;
