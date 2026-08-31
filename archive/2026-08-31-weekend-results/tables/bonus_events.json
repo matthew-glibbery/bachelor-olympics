@@ -1,0 +1,58 @@
+[
+  {
+    "id": "32392605-b385-4184-a2af-5d667b600e4e",
+    "name": "Perennial underdog",
+    "winner_player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "points": 35,
+    "created_at": "2026-08-30T07:01:44.898362+00:00"
+  },
+  {
+    "id": "5f808fcf-eefd-4c92-b7bc-f2a4865a1c8f",
+    "name": "Perennial underdog",
+    "winner_player_id": "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+    "points": 35,
+    "created_at": "2026-08-30T07:01:45.136469+00:00"
+  },
+  {
+    "id": "1131079b-c62d-42c6-aa13-425cbc9cf9e6",
+    "name": "Bad beat",
+    "winner_player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "points": 25,
+    "created_at": "2026-08-30T07:02:20.554203+00:00"
+  },
+  {
+    "id": "b7749731-0b0b-460b-a2c2-d075d4feee8f",
+    "name": "Bad beat",
+    "winner_player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "points": 25,
+    "created_at": "2026-08-30T07:02:20.783795+00:00"
+  },
+  {
+    "id": "b9c98327-c563-4249-b91e-3c0886a10bb8",
+    "name": "Most improved",
+    "winner_player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "points": 25,
+    "created_at": "2026-08-30T07:02:29.266891+00:00"
+  },
+  {
+    "id": "19bae503-3abf-4e5d-b0eb-4a8917bcafed",
+    "name": "Action junkie",
+    "winner_player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "points": 20,
+    "created_at": "2026-08-30T07:02:47.197395+00:00"
+  },
+  {
+    "id": "43896825-6097-4cab-bc2e-2caf19bfd8d3",
+    "name": "Action junkie",
+    "winner_player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "points": 20,
+    "created_at": "2026-08-30T07:02:47.904306+00:00"
+  },
+  {
+    "id": "1012bbe8-4b58-4300-8d71-0b2f3383c343",
+    "name": "Action junkie",
+    "winner_player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "points": 20,
+    "created_at": "2026-08-30T07:02:48.119101+00:00"
+  }
+]

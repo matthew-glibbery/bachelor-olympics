@@ -35,6 +35,21 @@ read it before changing that number.
   `pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build`
   before considering a task done — CI runs the same checks on every PR.
 
+## Archived weekend results
+
+`archive/<date>-weekend-results/` holds a full export of a past weekend's
+Supabase project (every table's rows + every photo/video), committed to
+git so it survives regardless of what happens to the hosted project — see
+`scripts/backup-supabase.mjs`'s doc comment for why (free-tier Supabase
+pauses/deletes inactive projects).
+
+If you're picking this repo up after a gap and the connected Supabase
+project looks freshly created or empty (e.g. `/setup` shows zero players
+and events), **check `archive/` before assuming this is a first-time
+setup, and ask the user whether they want a prior snapshot reloaded** via
+`scripts/restore-supabase.mjs` (see that archive folder's own README) —
+don't silently treat an empty project as the intended starting state.
+
 ## Context handoff
 
 For long sessions that need to break and resume: write a short handoff note
