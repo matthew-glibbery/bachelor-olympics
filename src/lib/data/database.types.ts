@@ -171,4 +171,8 @@ export interface AppSettingsRow {
   id: 1;
   /** Single global start-screen video (docs/VISUAL_SPEC.md), not per-player. */
   boot_video_url: string | null;
+  /** Set when the groom force-ends the weekend early (groom tools -> End
+   * the game) with events still unfinished. Null the rest of the time —
+   * an event resolving naturally never touches this column. */
+  weekend_ended_at: string | null;
 }

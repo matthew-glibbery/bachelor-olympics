@@ -15,6 +15,14 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PlayerName } from "@/components/player-name";
 import { ManagePlayerRow } from "@/components/manage-player-row";
 import { AddPlayerRow } from "@/components/add-player-row";
@@ -27,7 +35,7 @@ import { Panel } from "@/components/n64/panel";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { resetWeekend, settleOverallBetsIfWeekendOver } from "@/lib/data/mutations";
+import { endGameNow, resetWeekend, settleOverallBetsNow } from "@/lib/data/mutations";
 
 export default function SetupPage() {
   const {
@@ -52,6 +60,9 @@ export default function SetupPage() {
   const [settlingBets, setSettlingBets] = useState(false);
   const [settleError, setSettleError] = useState<string | null>(null);
   const [settleDone, setSettleDone] = useState(false);
+  const [confirmingEndGame, setConfirmingEndGame] = useState(false);
+  const [endingGame, setEndingGame] = useState(false);
+  const [endGameError, setEndGameError] = useState<string | null>(null);
 
   useEffect(() => {
     hydrate();
@@ -62,6 +73,8 @@ export default function SetupPage() {
 
   const unresolvedEvents = events.filter((e) => e.status !== "resolved");
   const weekendOver = events.length > 0 && unresolvedEvents.length === 0;
+  const endedEarly = !!appSettings?.weekend_ended_at && !weekendOver;
+  const weekendEnded = weekendOver || !!appSettings?.weekend_ended_at;
   const openOverallBets = overallBets.filter((b) => b.status === "open").length;
 
   async function handleResetWeekend() {
@@ -82,12 +95,25 @@ export default function SetupPage() {
     setSettleError(null);
     setSettleDone(false);
     try {
-      await settleOverallBetsIfWeekendOver(getSupabaseBrowserClient());
+      await settleOverallBetsNow(getSupabaseBrowserClient());
       setSettleDone(true);
     } catch (err) {
       setSettleError(err instanceof Error ? err.message : String(err));
     } finally {
       setSettlingBets(false);
+    }
+  }
+
+  async function handleEndGame() {
+    setEndingGame(true);
+    setEndGameError(null);
+    try {
+      await endGameNow(getSupabaseBrowserClient());
+      setConfirmingEndGame(false);
+    } catch (err) {
+      setEndGameError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setEndingGame(false);
     }
   }
 
@@ -211,47 +237,87 @@ export default function SetupPage() {
           title="End the game"
           icon={Trophy}
           description={
-            weekendOver
-              ? "Every event has resolved. Overall bets settle automatically the moment the last one does, but you can re-run it here too — it's a no-op once nothing's left open."
-              : "Unlocks once every event has resolved. Overall bets settle automatically at that point — this is just a manual backstop in case that ever needs re-running."
+            weekendEnded
+              ? "Overall bets settle automatically once the weekend's over — this is just a manual backstop in case that ever needs re-running."
+              : "Settles overall bets against the standings as they stand right now and unlocks the final weekend awards, without touching whatever's still unfinished."
           }
         >
           <>
-            {settleError ? <p className="text-destructive text-sm">{settleError}</p> : null}
-            {!weekendOver ? (
-              <p className="text-muted-foreground text-sm">
-                Still waiting on: {unresolvedEvents.map((e) => e.name).join(", ")}.
-              </p>
-            ) : null}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                onClick={handleSettleOverallBets}
-                disabled={!weekendOver || settlingBets}
-              >
-                {settlingBets ? <Loader2 className="size-3.5 animate-spin" /> : null}
-                Settle overall bets
-              </Button>
-              <span className="text-muted-foreground text-sm">
-                {openOverallBets} still open
-                {settleDone ? " — settled." : ""}
-              </span>
-            </div>
+            {!weekendEnded ? (
+              <>
+                <p className="text-muted-foreground text-sm">
+                  Still waiting on: {unresolvedEvents.map((e) => e.name).join(", ")}.
+                </p>
+                <Button
+                  variant="destructive"
+                  className="w-fit"
+                  onClick={() => setConfirmingEndGame(true)}
+                >
+                  <Trophy className="size-4" />
+                  End the game
+                </Button>
+              </>
+            ) : (
+              <>
+                {endedEarly ? (
+                  <p className="text-muted-foreground text-sm">
+                    Ended early — left unfinished: {unresolvedEvents.map((e) => e.name).join(", ")}.
+                  </p>
+                ) : null}
+                {settleError ? <p className="text-destructive text-sm">{settleError}</p> : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" onClick={handleSettleOverallBets} disabled={settlingBets}>
+                    {settlingBets ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                    Settle overall bets
+                  </Button>
+                  <span className="text-muted-foreground text-sm">
+                    {openOverallBets} still open
+                    {settleDone ? " — settled." : ""}
+                  </span>
+                </div>
 
-            {weekendOver ? (
-              <WeekendAwardsSection
-                players={players}
-                events={events}
-                eventResults={eventResults}
-                multipliers={multipliers}
-                perEventBets={perEventBets}
-                overallBets={overallBets}
-                bonusEvents={bonusEvents}
-              />
-            ) : null}
+                <WeekendAwardsSection
+                  players={players}
+                  events={events}
+                  eventResults={eventResults}
+                  multipliers={multipliers}
+                  perEventBets={perEventBets}
+                  overallBets={overallBets}
+                  bonusEvents={bonusEvents}
+                />
+              </>
+            )}
           </>
         </Panel>
       ) : null}
+
+      <Dialog open={confirmingEndGame} onOpenChange={(open) => !endingGame && setConfirmingEndGame(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>End the game now?</DialogTitle>
+            <DialogDescription>
+              {unresolvedEvents.map((e) => e.name).join(", ")} will be left exactly as they
+              are — no results get recorded for them, and nothing about them changes later. Overall
+              bets settle against the standings as they stand right now, and you&apos;ll be able to
+              hand out the final weekend awards. This can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {endGameError ? <p className="text-destructive text-sm">{endGameError}</p> : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmingEndGame(false)}
+              disabled={endingGame}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleEndGame} disabled={endingGame}>
+              {endingGame ? <Loader2 className="size-3.5 animate-spin" /> : null}
+              Yes, end the game
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {groomUnlocked ? (
         <Panel

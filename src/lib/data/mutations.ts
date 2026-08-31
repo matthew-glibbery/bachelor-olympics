@@ -202,6 +202,12 @@ export async function resetWeekend(client: SupabaseClient): Promise<void> {
     .update({ used: false, note: null, used_at: null })
     .eq("id", 1);
   if (powerMoveError) throw new Error(`resetWeekend (power_move): ${powerMoveError.message}`);
+
+  const { error: appSettingsError } = await client
+    .from("app_settings")
+    .update({ weekend_ended_at: null })
+    .eq("id", 1);
+  if (appSettingsError) throw new Error(`resetWeekend (app_settings): ${appSettingsError.message}`);
 }
 
 export async function updateEventPhoto(
@@ -936,26 +942,23 @@ export async function settleStrandedPerEventBets(client: SupabaseClient): Promis
 }
 
 /**
- * Settle every open overall bet, but ONLY once the weekend has actually
- * ended — every event has resolved (cancelled events are hard-deleted per
- * PRODUCT_SPEC.md → Cancelled events, so they never linger in a
- * not-yet-resolved state). A no-op otherwise, so it's safe to call after
- * every single event finalize (src/components/event-card.tsx does exactly
- * that) without needing a separate "end the weekend" step — it naturally
- * fires for real on whichever finalize happens to be the last one, and any
- * call after that finds zero still-open bets and does nothing.
+ * Settle every currently-open overall bet against standings as they stand
+ * right now. Shared core for both the automatic path
+ * (`settleOverallBetsIfWeekendOver`, gated on every event having resolved)
+ * and the manual "end the game early" path (`endGameNow`, ungated — the
+ * whole point there is settling before every event is done). Safe to call
+ * with unresolved events still in the table: `deriveScoreLines` only ever
+ * turns resolved events into score lines (src/lib/scoring/fromRows.ts), so
+ * an unfinished event simply contributes nothing rather than erroring.
+ *
+ * Also a no-op repair path in the fully-resolved case: any call after the
+ * real settlement finds zero still-open bets and does nothing.
  *
  * Final standings include bonus-event points (`applyBonusAwards`) — same
  * total a player would see on the medal table — since a bet is about who
  * actually finishes where, not just raw event scoring.
  */
-export async function settleOverallBetsIfWeekendOver(client: SupabaseClient): Promise<void> {
-  const { data: events, error: eventsError } = await client.from("events").select("*");
-  if (eventsError) throw new Error(`settleOverallBets (read events): ${eventsError.message}`);
-  if (!events || events.length === 0) return;
-  const weekendOver = (events as EventRow[]).every((e) => e.status === "resolved");
-  if (!weekendOver) return;
-
+async function settleOpenOverallBets(client: SupabaseClient, events: EventRow[]): Promise<void> {
   const { data: openBets, error: betsError } = await client
     .from("overall_bets")
     .select("*")
@@ -980,7 +983,7 @@ export async function settleOverallBetsIfWeekendOver(client: SupabaseClient): Pr
   if (playersError) throw new Error(`settleOverallBets (read players): ${playersError.message}`);
 
   const scoreLines = deriveScoreLines(
-    events as EventRow[],
+    events,
     (results ?? []) as EventResultRow[],
     (multipliers ?? []) as MultiplierRow[],
     ((players ?? []) as { id: string }[]).map((p) => p.id),
@@ -1010,6 +1013,58 @@ export async function settleOverallBetsIfWeekendOver(client: SupabaseClient): Pr
       .eq("id", outcome.id);
     if (error) throw new Error(`settleOverallBets (write ${outcome.id}): ${error.message}`);
   }
+}
+
+/**
+ * Settle every open overall bet, but ONLY once the weekend has actually
+ * ended — every event has resolved (cancelled events are hard-deleted per
+ * PRODUCT_SPEC.md → Cancelled events, so they never linger in a
+ * not-yet-resolved state). A no-op otherwise, so it's safe to call after
+ * every single event finalize (src/components/event-card.tsx does exactly
+ * that) without needing a separate "end the weekend" step — it naturally
+ * fires for real on whichever finalize happens to be the last one.
+ */
+export async function settleOverallBetsIfWeekendOver(client: SupabaseClient): Promise<void> {
+  const { data: events, error: eventsError } = await client.from("events").select("*");
+  if (eventsError) throw new Error(`settleOverallBets (read events): ${eventsError.message}`);
+  if (!events || events.length === 0) return;
+  const weekendOver = (events as EventRow[]).every((e) => e.status === "resolved");
+  if (!weekendOver) return;
+  await settleOpenOverallBets(client, events as EventRow[]);
+}
+
+/**
+ * The manual "Settle overall bets" backstop button in groom tools — settles
+ * against standings right now, with no gate on every event having resolved.
+ * Deliberately ungated: after `endGameNow` below, the weekend may never
+ * naturally reach "every event resolved" (that's the whole point of ending
+ * it early), so the backstop has to work in that state too, not just once
+ * `settleOverallBetsIfWeekendOver`'s own gate would pass.
+ */
+export async function settleOverallBetsNow(client: SupabaseClient): Promise<void> {
+  const { data: events, error: eventsError } = await client.from("events").select("*");
+  if (eventsError) throw new Error(`settleOverallBets (read events): ${eventsError.message}`);
+  await settleOpenOverallBets(client, (events ?? []) as EventRow[]);
+}
+
+/**
+ * Groom tools -> "End the game": force the weekend to a close before every
+ * event has resolved, without touching whichever events are still
+ * unfinished — they're left exactly as they are (still "planned" or
+ * "scoring"), never resolved or cancelled on their behalf. Settles overall
+ * bets against standings as they stand right now (`settleOverallBetsNow`
+ * above) and stamps `app_settings.weekend_ended_at` so the UI can tell
+ * "genuinely done" apart from "groom cut it short" and unlock the
+ * weekend-awards section either way (src/app/setup/page.tsx).
+ */
+export async function endGameNow(client: SupabaseClient): Promise<void> {
+  const { error: settingsError } = await client
+    .from("app_settings")
+    .update({ weekend_ended_at: new Date().toISOString() })
+    .eq("id", 1);
+  if (settingsError) throw new Error(`endGameNow (write app_settings): ${settingsError.message}`);
+
+  await settleOverallBetsNow(client);
 }
 
 export interface NewBonusEvent {
