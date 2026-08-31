@@ -10,14 +10,20 @@ import type { EventResultRow, EventRow, PlayerRow } from "@/lib/data/database.ty
 
 /**
  * "Victory video" button on a resolved event's card (docs/VISUAL_SPEC.md →
- * Victory videos) — plays the winning player's one-per-player victory clip.
- * Renders nothing if the event isn't resolved, has no winner yet, or the
- * winner has no victory clip uploaded.
+ * Victory videos) — plays each winner's one-per-player victory clip in
+ * turn. Usually just one player, but a tie (`eventWinnerIds` returns every
+ * tied player, deliberately leaving "how to handle more than one" to this
+ * caller) plays all of them back to back, one at a time — this is a single
+ * full-screen clip experience, not a split screen. A tied player with no
+ * clip uploaded is skipped rather than leaving a gap in the sequence.
+ * Renders nothing if the event isn't resolved, has no winner yet, or none
+ * of the winners have a victory clip uploaded.
  *
  * Mobile-first playback: full-screen, faded to black, no frame/title/close
- * button — just the clip. Closes itself the moment the video ends; tapping
- * or Escape still works too (Radix's default dialog dismissal), it's just
- * not shown as a visible control.
+ * button — just the clip(s). Each clip closes itself and advances to the
+ * next the moment it ends, closing the dialog entirely after the last one;
+ * tapping or Escape still works too (Radix's default dialog dismissal),
+ * it's just not shown as a visible control.
  */
 export function VictoryReplayButton({
   event,
@@ -29,17 +35,32 @@ export function VictoryReplayButton({
   players: PlayerRow[];
 }) {
   const [open, setOpen] = useState(false);
+  const [index, setIndex] = useState(0);
   const winnerIds = eventWinnerIds(event, results);
-  const winner = players.find(
+  const winners = players.filter(
     (p) => winnerIds.includes(p.id) && p.character_victory_video_url,
   );
-  if (!winner) return null;
+  const current = winners[Math.min(index, winners.length - 1)];
+  if (!current) return null;
+
+  function openReplay() {
+    setIndex(0);
+    setOpen(true);
+  }
+
+  function handleEnded() {
+    if (index + 1 < winners.length) {
+      setIndex(index + 1);
+    } else {
+      setOpen(false);
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="outline" onClick={openReplay}>
         <Trophy className="size-4" />
-        Victory video
+        {winners.length > 1 ? "Victory videos" : "Victory video"}
       </Button>
       <DialogContent
         showCloseButton={false}
@@ -51,15 +72,15 @@ export function VictoryReplayButton({
         className="bevel-none! inset-0 top-0 left-0 h-dvh w-dvw max-w-none translate-x-0 translate-y-0 rounded-none bg-black p-0"
       >
         <DialogTitle className="sr-only">
-          {winner.name} wins {event.name}
+          {current.name} wins {event.name}
         </DialogTitle>
         <video
-          key={winner.id}
-          src={winner.character_victory_video_url!}
+          key={current.id}
+          src={current.character_victory_video_url!}
           autoPlay
           muted
           playsInline
-          onEnded={() => setOpen(false)}
+          onEnded={handleEnded}
           className="h-full w-full object-contain"
         />
       </DialogContent>
