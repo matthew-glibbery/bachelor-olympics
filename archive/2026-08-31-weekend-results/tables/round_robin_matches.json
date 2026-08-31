@@ -1,0 +1,248 @@
+[
+  {
+    "id": "afe23a70-da06-445a-a6f3-04a9e9c1b37d",
+    "event_id": "soccer",
+    "round": 1,
+    "team_a": [
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+      "4acb4934-37ef-436d-b787-09d2fe06da0a",
+      "cab58251-28db-4512-8574-bc2cd684b24c"
+    ],
+    "team_b": [
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+      "69747b02-6903-4bfd-b15b-a3f898f34403",
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d"
+    ],
+    "winner": "b",
+    "created_at": "2026-08-29T18:29:18.808801+00:00"
+  },
+  {
+    "id": "d00a521c-20d5-483c-995b-9d6be902a7f0",
+    "event_id": "soccer",
+    "round": 2,
+    "team_a": [
+      "4acb4934-37ef-436d-b787-09d2fe06da0a",
+      "cab58251-28db-4512-8574-bc2cd684b24c",
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071"
+    ],
+    "team_b": [
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+      "69747b02-6903-4bfd-b15b-a3f898f34403",
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3"
+    ],
+    "winner": "b",
+    "created_at": "2026-08-29T18:29:18.808801+00:00"
+  },
+  {
+    "id": "6035d28b-5e8c-44be-88b0-1d6eeb0b4986",
+    "event_id": "soccer",
+    "round": 3,
+    "team_a": [
+      "cab58251-28db-4512-8574-bc2cd684b24c",
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa"
+    ],
+    "team_b": [
+      "69747b02-6903-4bfd-b15b-a3f898f34403",
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+      "4acb4934-37ef-436d-b787-09d2fe06da0a"
+    ],
+    "winner": "b",
+    "created_at": "2026-08-29T18:29:18.808801+00:00"
+  },
+  {
+    "id": "35ddbe38-a2e1-40ea-bce6-2d98d88d952d",
+    "event_id": "soccer",
+    "round": 4,
+    "team_a": [
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+      "69747b02-6903-4bfd-b15b-a3f898f34403"
+    ],
+    "team_b": [
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+      "4acb4934-37ef-436d-b787-09d2fe06da0a",
+      "cab58251-28db-4512-8574-bc2cd684b24c"
+    ],
+    "winner": "b",
+    "created_at": "2026-08-29T18:29:18.808801+00:00"
+  },
+  {
+    "id": "790f101b-0ff9-4eb7-87c0-f34333c892bf",
+    "event_id": "soccer",
+    "round": 5,
+    "team_a": [
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+      "69747b02-6903-4bfd-b15b-a3f898f34403",
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d"
+    ],
+    "team_b": [
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+      "4acb4934-37ef-436d-b787-09d2fe06da0a",
+      "cab58251-28db-4512-8574-bc2cd684b24c",
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071"
+    ],
+    "winner": "b",
+    "created_at": "2026-08-29T18:29:18.808801+00:00"
+  },
+  {
+    "id": "cc890ead-f96b-4102-b535-f65a49387b40",
+    "event_id": "soccer",
+    "round": 6,
+    "team_a": [
+      "69747b02-6903-4bfd-b15b-a3f898f34403",
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3"
+    ],
+    "team_b": [
+      "4acb4934-37ef-436d-b787-09d2fe06da0a",
+      "cab58251-28db-4512-8574-bc2cd684b24c",
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa"
+    ],
+    "winner": "a",
+    "created_at": "2026-08-29T19:11:50.221927+00:00"
+  },
+  {
+    "id": "4af5fb99-48fe-4c5f-88d0-69832165751e",
+    "event_id": "soccer",
+    "round": 7,
+    "team_a": [
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+      "4acb4934-37ef-436d-b787-09d2fe06da0a"
+    ],
+    "team_b": [
+      "cab58251-28db-4512-8574-bc2cd684b24c",
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+      "69747b02-6903-4bfd-b15b-a3f898f34403"
+    ],
+    "winner": "b",
+    "created_at": "2026-08-29T19:23:14.599897+00:00"
+  },
+  {
+    "id": "c2c34f1a-94fc-45a6-bd2a-1d75e0fac908",
+    "event_id": "spikeball",
+    "round": 4,
+    "team_a": [
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3"
+    ],
+    "team_b": [
+      "4acb4934-37ef-436d-b787-09d2fe06da0a",
+      "cab58251-28db-4512-8574-bc2cd684b24c"
+    ],
+    "winner": null,
+    "created_at": "2026-08-29T22:10:43.2546+00:00"
+  },
+  {
+    "id": "8a67e9d6-7d2d-44f6-b5cf-7491a7e5a909",
+    "event_id": "spikeball",
+    "round": 5,
+    "team_a": [
+      "69747b02-6903-4bfd-b15b-a3f898f34403",
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d"
+    ],
+    "team_b": [
+      "cab58251-28db-4512-8574-bc2cd684b24c",
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071"
+    ],
+    "winner": null,
+    "created_at": "2026-08-29T22:10:43.2546+00:00"
+  },
+  {
+    "id": "acdc4dd8-0905-46ad-a22d-06aba6acbefc",
+    "event_id": "spikeball",
+    "round": 6,
+    "team_a": [
+      "4acb4934-37ef-436d-b787-09d2fe06da0a",
+      "cab58251-28db-4512-8574-bc2cd684b24c"
+    ],
+    "team_b": [
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa"
+    ],
+    "winner": null,
+    "created_at": "2026-08-29T22:10:43.2546+00:00"
+  },
+  {
+    "id": "82747085-f954-48cc-8f80-c6f07d2b5f49",
+    "event_id": "spikeball",
+    "round": 1,
+    "team_a": [
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa"
+    ],
+    "team_b": [
+      "69747b02-6903-4bfd-b15b-a3f898f34403",
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d"
+    ],
+    "winner": "b",
+    "created_at": "2026-08-29T22:10:43.2546+00:00"
+  },
+  {
+    "id": "dd358aa6-7d0b-4b31-b1d2-f565531bfdac",
+    "event_id": "spikeball",
+    "round": 2,
+    "team_a": [
+      "4acb4934-37ef-436d-b787-09d2fe06da0a",
+      "cab58251-28db-4512-8574-bc2cd684b24c"
+    ],
+    "team_b": [
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3"
+    ],
+    "winner": "b",
+    "created_at": "2026-08-29T22:10:43.2546+00:00"
+  },
+  {
+    "id": "b9f1565f-9ff6-4e12-bfa4-b14a276f6467",
+    "event_id": "spikeball",
+    "round": 3,
+    "team_a": [
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+      "69747b02-6903-4bfd-b15b-a3f898f34403"
+    ],
+    "team_b": [
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+      "4acb4934-37ef-436d-b787-09d2fe06da0a"
+    ],
+    "winner": "b",
+    "created_at": "2026-08-29T22:10:43.2546+00:00"
+  },
+  {
+    "id": "4463393f-021f-480e-8d0b-8e4537c1dcc4",
+    "event_id": "spikeball",
+    "round": 7,
+    "team_a": [
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+      "8a11873a-56ff-4de7-a8a1-fecc7e6789f3"
+    ],
+    "team_b": [
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+      "69747b02-6903-4bfd-b15b-a3f898f34403"
+    ],
+    "winner": null,
+    "created_at": "2026-08-29T22:41:46.551372+00:00"
+  },
+  {
+    "id": "4a2be09b-7a7d-40b5-a25d-654fb02fdf66",
+    "event_id": "spikeball",
+    "round": 8,
+    "team_a": [
+      "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+      "10c97768-2b0f-4b9a-8356-20e2af9b0bfa"
+    ],
+    "team_b": [
+      "69747b02-6903-4bfd-b15b-a3f898f34403",
+      "e087b03d-55f2-423c-b81e-cbe9b57c173d"
+    ],
+    "winner": null,
+    "created_at": "2026-08-29T22:41:53.615987+00:00"
+  }
+]

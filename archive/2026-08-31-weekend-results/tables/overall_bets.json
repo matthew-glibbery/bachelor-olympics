@@ -1,0 +1,132 @@
+[
+  {
+    "id": "9cff983e-b294-4643-9d2e-c2c0aa03076e",
+    "player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "bet_type": "win",
+    "pick_player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "switches": 0,
+    "created_at": "2026-08-29T14:59:52.149234+00:00",
+    "status": "lost",
+    "payout": 0
+  },
+  {
+    "id": "911bd948-e3bd-45dc-9b0b-68eeb2d32ebb",
+    "player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "bet_type": "win",
+    "pick_player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "switches": 0,
+    "created_at": "2026-08-29T15:00:01.118986+00:00",
+    "status": "lost",
+    "payout": 0
+  },
+  {
+    "id": "23a70856-e4bf-4a01-951f-0bafb95c921d",
+    "player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "bet_type": "top3",
+    "pick_player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "switches": 0,
+    "created_at": "2026-08-29T15:01:30.65957+00:00",
+    "status": "won",
+    "payout": 20
+  },
+  {
+    "id": "33592776-a76a-4bbd-8a23-b7ae7230043e",
+    "player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "bet_type": "top3",
+    "pick_player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "switches": 0,
+    "created_at": "2026-08-29T15:01:31.778553+00:00",
+    "status": "won",
+    "payout": 20
+  },
+  {
+    "id": "e360db4e-6bc1-40e5-a9c1-cc06631dd0f1",
+    "player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "bet_type": "win",
+    "pick_player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "switches": 0,
+    "created_at": "2026-08-29T17:03:22.7563+00:00",
+    "status": "lost",
+    "payout": 0
+  },
+  {
+    "id": "6951f814-d773-41a1-b208-e587cd8fb4b2",
+    "player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "bet_type": "top3",
+    "pick_player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "switches": 0,
+    "created_at": "2026-08-29T17:06:50.081145+00:00",
+    "status": "lost",
+    "payout": 0
+  },
+  {
+    "id": "6f808ae2-7dd2-4ee8-aa28-9a2ee4cc122d",
+    "player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "bet_type": "top3",
+    "pick_player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "switches": 0,
+    "created_at": "2026-08-29T17:29:56.161907+00:00",
+    "status": "won",
+    "payout": 20
+  },
+  {
+    "id": "1e39d8fc-4151-4b66-a7cb-12ec7da6d849",
+    "player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "bet_type": "win",
+    "pick_player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "switches": 0,
+    "created_at": "2026-08-29T17:46:43.152773+00:00",
+    "status": "won",
+    "payout": 100
+  },
+  {
+    "id": "d70550e3-9bce-4eb7-8456-9e60185b1396",
+    "player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "bet_type": "top3",
+    "pick_player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "switches": 0,
+    "created_at": "2026-08-29T17:47:26.438583+00:00",
+    "status": "won",
+    "payout": 20
+  },
+  {
+    "id": "5834fe77-31a5-4f95-82bc-afe2927317dd",
+    "player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "bet_type": "win",
+    "pick_player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "switches": 0,
+    "created_at": "2026-08-29T18:20:43.755796+00:00",
+    "status": "lost",
+    "payout": 0
+  },
+  {
+    "id": "a4e7b493-21b6-4e54-8fe5-ed611b3edadd",
+    "player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "bet_type": "top3",
+    "pick_player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "switches": 0,
+    "created_at": "2026-08-29T18:21:28.982341+00:00",
+    "status": "won",
+    "payout": 20
+  },
+  {
+    "id": "dd0a45f8-c3fd-48db-9c64-704f6fe7451c",
+    "player_id": "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+    "bet_type": "win",
+    "pick_player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "switches": 0,
+    "created_at": "2026-08-29T18:22:25.566966+00:00",
+    "status": "won",
+    "payout": 100
+  },
+  {
+    "id": "54fe9c19-d0ff-483e-8ef8-5bba6edbef57",
+    "player_id": "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+    "bet_type": "top3",
+    "pick_player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "switches": 0,
+    "created_at": "2026-08-29T18:22:30.746382+00:00",
+    "status": "lost",
+    "payout": 0
+  }
+]

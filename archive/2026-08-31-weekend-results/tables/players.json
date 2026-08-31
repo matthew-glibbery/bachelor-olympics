@@ -1,0 +1,93 @@
+[
+  {
+    "id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "name": "Josh",
+    "nickname": null,
+    "state": "NY",
+    "is_groom": false,
+    "created_at": "2026-08-11T18:16:10.290399+00:00",
+    "photo_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/photos/players/8a11873a-56ff-4de7-a8a1-fecc7e6789f3-1787359664494.jpg",
+    "character_select_video_url": null,
+    "character_fullbody_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/8a11873a-56ff-4de7-a8a1-fecc7e6789f3-1787359673248.mp4",
+    "character_victory_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/8a11873a-56ff-4de7-a8a1-fecc7e6789f3-1787596154256.mp4",
+    "character_confirm_video_url": null
+  },
+  {
+    "id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "name": "Andrew",
+    "nickname": null,
+    "state": "KY",
+    "is_groom": false,
+    "created_at": "2026-08-11T18:15:35.484022+00:00",
+    "photo_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/photos/players/4acb4934-37ef-436d-b787-09d2fe06da0a-1787359698993.jpg",
+    "character_select_video_url": null,
+    "character_fullbody_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/4acb4934-37ef-436d-b787-09d2fe06da0a-1787359707301.mp4",
+    "character_victory_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/4acb4934-37ef-436d-b787-09d2fe06da0a-1787596016291.mp4",
+    "character_confirm_video_url": null
+  },
+  {
+    "id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "name": "Matthew",
+    "nickname": null,
+    "state": "TN",
+    "is_groom": true,
+    "created_at": "2026-08-11T18:14:13.442755+00:00",
+    "photo_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/photos/players/cab58251-28db-4512-8574-bc2cd684b24c-1787359229959.jpg",
+    "character_select_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/cab58251-28db-4512-8574-bc2cd684b24c-1786814757555.mp4",
+    "character_fullbody_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/cab58251-28db-4512-8574-bc2cd684b24c-1787417401958.mp4",
+    "character_victory_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/cab58251-28db-4512-8574-bc2cd684b24c-1787596186725.mp4",
+    "character_confirm_video_url": null
+  },
+  {
+    "id": "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+    "name": "Anthony",
+    "nickname": null,
+    "state": "CA",
+    "is_groom": false,
+    "created_at": "2026-08-11T18:16:23.254594+00:00",
+    "photo_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/photos/players/f9d0efc7-c0b7-4a1f-afa8-3ba494048071-1787359719352.jpg",
+    "character_select_video_url": null,
+    "character_fullbody_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/f9d0efc7-c0b7-4a1f-afa8-3ba494048071-1787373007771.mp4",
+    "character_victory_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/f9d0efc7-c0b7-4a1f-afa8-3ba494048071-1787596055176.mp4",
+    "character_confirm_video_url": null
+  },
+  {
+    "id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "name": "Isaac",
+    "nickname": null,
+    "state": "OR",
+    "is_groom": false,
+    "created_at": "2026-08-11T18:16:39.412331+00:00",
+    "photo_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/photos/players/10c97768-2b0f-4b9a-8356-20e2af9b0bfa-1787358952915.jpg",
+    "character_select_video_url": null,
+    "character_fullbody_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/10c97768-2b0f-4b9a-8356-20e2af9b0bfa-1787358961745.mp4",
+    "character_victory_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/10c97768-2b0f-4b9a-8356-20e2af9b0bfa-1787596087617.mp4",
+    "character_confirm_video_url": null
+  },
+  {
+    "id": "69747b02-6903-4bfd-b15b-a3f898f34403",
+    "name": "Adam",
+    "nickname": null,
+    "state": "AZ",
+    "is_groom": false,
+    "created_at": "2026-08-11T18:16:51.579991+00:00",
+    "photo_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/photos/players/69747b02-6903-4bfd-b15b-a3f898f34403-1787358922297.jpg",
+    "character_select_video_url": null,
+    "character_fullbody_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/69747b02-6903-4bfd-b15b-a3f898f34403-1787358932237.mp4",
+    "character_victory_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/69747b02-6903-4bfd-b15b-a3f898f34403-1787595985264.mp4",
+    "character_confirm_video_url": null
+  },
+  {
+    "id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "name": "Joe",
+    "nickname": null,
+    "state": "TX",
+    "is_groom": false,
+    "created_at": "2026-08-11T18:15:58.908828+00:00",
+    "photo_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/photos/players/e087b03d-55f2-423c-b81e-cbe9b57c173d-1787359732024.jpg",
+    "character_select_video_url": null,
+    "character_fullbody_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/e087b03d-55f2-423c-b81e-cbe9b57c173d-1787373031255.mp4",
+    "character_victory_video_url": "https://zbnizkybnxyabbptvraa.supabase.co/storage/v1/object/public/videos/players/e087b03d-55f2-423c-b81e-cbe9b57c173d-1787596118009.mp4",
+    "character_confirm_video_url": null
+  }
+]

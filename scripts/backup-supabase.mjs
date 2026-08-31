@@ -2,24 +2,28 @@
 /**
  * One-off, read-only snapshot of the whole Supabase project — every table's
  * rows as JSON, plus every file in the `photos` and `videos` storage
- * buckets — written to a timestamped folder under `backups/`.
+ * buckets — written to a timestamped folder under `backups/` (gitignored;
+ * see `archive/` for the one snapshot that's deliberately committed).
  *
  * Why this exists: the free Supabase tier pauses a project after a stretch
  * of no API activity, and inactive free projects can eventually be deleted
  * outright. Pausing is reversible (a click in the dashboard resumes it),
  * but relying on that forever isn't a real preservation plan — this script
- * is the actual insurance: a local copy of every result, bet, and clip that
+ * is the actual insurance: a copy of every result, bet, and clip that
  * doesn't depend on the Supabase project (or Vercel deployment) still
- * existing.
+ * existing. `scripts/restore-supabase.mjs` is the other half — loads a
+ * snapshot from either `backups/` or `archive/` back into a project.
  *
  * Uses the same public anon key the app itself ships with (this app's RLS
  * is deliberately wide-open to anon — see supabase/migrations/0002_rls.sql
  * and friends — there's no separate "admin" credential to reach for), read
- * from .env.local same as `next dev` does. Run once now, then move the
+ * from .env.local same as `next dev` does (point ENV_FILE at a different
+ * file to back up a different project). Run once now, then move the
  * resulting `backups/<timestamp>/` folder somewhere durable (your own
  * cloud storage, an external drive) — don't leave it as the only copy on
- * this machine, and don't commit the videos to git (they're large; the
- * table JSON is small and fine to commit if you want).
+ * this machine. That folder is for you; a snapshot meant to live in git as
+ * this project's permanent record belongs under `archive/` instead (see
+ * that folder's own README for the naming convention).
  *
  * Usage: node scripts/backup-supabase.mjs
  */
@@ -47,7 +51,7 @@ const TABLES = [
 const BUCKETS = ["photos", "videos"];
 
 async function loadEnv() {
-  const raw = await readFile(".env.local", "utf8");
+  const raw = await readFile(process.env.ENV_FILE ?? ".env.local", "utf8");
   return Object.fromEntries(
     raw
       .split("\n")

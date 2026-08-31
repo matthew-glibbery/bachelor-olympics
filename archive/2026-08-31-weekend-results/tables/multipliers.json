@@ -1,0 +1,278 @@
+[
+  {
+    "player_id": "69747b02-6903-4bfd-b15b-a3f898f34403",
+    "event_id": "molkky",
+    "value": 0.8,
+    "locked": false
+  },
+  {
+    "player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "event_id": "catan",
+    "value": 0.5,
+    "locked": false
+  },
+  {
+    "player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "event_id": "golf",
+    "value": 1,
+    "locked": false
+  },
+  {
+    "player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "event_id": "molkky",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "69747b02-6903-4bfd-b15b-a3f898f34403",
+    "event_id": "catan",
+    "value": 1.1,
+    "locked": false
+  },
+  {
+    "player_id": "69747b02-6903-4bfd-b15b-a3f898f34403",
+    "event_id": "smash-bros",
+    "value": 1,
+    "locked": false
+  },
+  {
+    "player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "event_id": "spikeball",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "event_id": "molkky",
+    "value": 1.2,
+    "locked": false
+  },
+  {
+    "player_id": "69747b02-6903-4bfd-b15b-a3f898f34403",
+    "event_id": "soccer",
+    "value": 0.9,
+    "locked": false
+  },
+  {
+    "player_id": "69747b02-6903-4bfd-b15b-a3f898f34403",
+    "event_id": "stump",
+    "value": 0.9,
+    "locked": false
+  },
+  {
+    "player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "event_id": "molkky",
+    "value": 0.8,
+    "locked": false
+  },
+  {
+    "player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "event_id": "beer-pong",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "event_id": "stump",
+    "value": 0.5,
+    "locked": false
+  },
+  {
+    "player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "event_id": "golf",
+    "value": 1,
+    "locked": false
+  },
+  {
+    "player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "event_id": "soccer",
+    "value": 1,
+    "locked": false
+  },
+  {
+    "player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "event_id": "molkky",
+    "value": 1,
+    "locked": false
+  },
+  {
+    "player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "event_id": "soccer",
+    "value": 1.2,
+    "locked": false
+  },
+  {
+    "player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "event_id": "spikeball",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "event_id": "beer-pong",
+    "value": 1.2,
+    "locked": false
+  },
+  {
+    "player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "event_id": "spikeball",
+    "value": 0.7,
+    "locked": false
+  },
+  {
+    "player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "event_id": "beer-pong",
+    "value": 0.8,
+    "locked": false
+  },
+  {
+    "player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "event_id": "soccer",
+    "value": 1.2,
+    "locked": false
+  },
+  {
+    "player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "event_id": "spikeball",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "event_id": "molkky",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "event_id": "beer-pong",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "event_id": "smash-bros",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "event_id": "catan",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "10c97768-2b0f-4b9a-8356-20e2af9b0bfa",
+    "event_id": "stump",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "69747b02-6903-4bfd-b15b-a3f898f34403",
+    "event_id": "beer-pong",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "event_id": "catan",
+    "value": 0.5,
+    "locked": false
+  },
+  {
+    "player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "event_id": "beer-pong",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "cab58251-28db-4512-8574-bc2cd684b24c",
+    "event_id": "smash-bros",
+    "value": 0.5,
+    "locked": false
+  },
+  {
+    "player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "event_id": "smash-bros",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+    "event_id": "golf",
+    "value": 1,
+    "locked": false
+  },
+  {
+    "player_id": "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+    "event_id": "beer-pong",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "4acb4934-37ef-436d-b787-09d2fe06da0a",
+    "event_id": "spikeball",
+    "value": 1.2,
+    "locked": false
+  },
+  {
+    "player_id": "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+    "event_id": "smash-bros",
+    "value": 0.5,
+    "locked": false
+  },
+  {
+    "player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "event_id": "stump",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "69747b02-6903-4bfd-b15b-a3f898f34403",
+    "event_id": "spikeball",
+    "value": 1.1,
+    "locked": false
+  },
+  {
+    "player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "event_id": "smash-bros",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "8a11873a-56ff-4de7-a8a1-fecc7e6789f3",
+    "event_id": "catan",
+    "value": 1.5,
+    "locked": false
+  },
+  {
+    "player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "event_id": "smash-bros",
+    "value": 0.5,
+    "locked": false
+  },
+  {
+    "player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "event_id": "catan",
+    "value": 0.5,
+    "locked": false
+  },
+  {
+    "player_id": "e087b03d-55f2-423c-b81e-cbe9b57c173d",
+    "event_id": "stump",
+    "value": 0.5,
+    "locked": false
+  },
+  {
+    "player_id": "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+    "event_id": "catan",
+    "value": 0.5,
+    "locked": false
+  },
+  {
+    "player_id": "f9d0efc7-c0b7-4a1f-afa8-3ba494048071",
+    "event_id": "stump",
+    "value": 1,
+    "locked": false
+  }
+]
