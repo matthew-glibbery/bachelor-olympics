@@ -31,6 +31,10 @@ yarn-error.log*
 /reference-photos/
 /character-assets/
 
+# scripts/backup-supabase.mjs output — a full data + video dump, meant to
+# move to your own durable storage, not to live in git.
+/backups/
+
 # vercel
 .vercel
 
